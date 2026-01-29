@@ -160,13 +160,30 @@ export function UHDbConnectionPage() {
                 description="Соединение с БД 1С:УХ установлено."
               />
             ) : (
-              <Alert
-                type="error"
-                showIcon
-                icon={<CloseCircleOutlined />}
-                message="Ошибка подключения"
-                description={health.error}
-              />
+              <>
+                <Alert
+                  type="error"
+                  showIcon
+                  icon={<CloseCircleOutlined />}
+                  message="Ошибка подключения"
+                  description={health.error}
+                />
+                {health.error && (health.error.includes('not found or not accessible') || health.error.includes('network-related')) && (
+                  <Alert
+                    type="info"
+                    showIcon
+                    style={{ marginTop: 12 }}
+                    message="Что проверить"
+                    description={
+                      <ul style={{ marginBottom: 0, paddingLeft: 20 }}>
+                        <li>Доступность с машины, где запущен backend: <code>ping {config?.server}</code>, <code>Test-NetConnection -ComputerName {config?.server} -Port {config?.port ?? 1433}</code></li>
+                        <li>SQL Server запущен, TCP/IP включён, разрешены удалённые подключения.</li>
+                        <li>При Integrated Auth — backend должен работать под доменной учётной записью. Иначе в backend/.env задать UH_MSSQL_AUTH=sql и логин/пароль SQL.</li>
+                      </ul>
+                    }
+                  />
+                )}
+              </>
             )}
           </div>
         )}
