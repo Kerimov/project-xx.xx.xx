@@ -1,11 +1,10 @@
-import { Layout, Typography, Button, Space, Dropdown, Avatar } from 'antd';
+import { Layout, Button, Space, Dropdown, Avatar } from 'antd';
 import { UserOutlined, LogoutOutlined, BellOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const { Header } = Layout;
-const { Text } = Typography;
 
 export function AppHeader() {
   const { user, logout } = useAuth();
@@ -42,18 +41,27 @@ export function AppHeader() {
 
   return (
     <Header className="app-header">
-      <Typography.Title level={4} className="app-header-title">
-        Портал ЕЦОФ
-      </Typography.Title>
-      <Space size="large">
-        <BellOutlined className="app-header-icon" />
+      <div className="app-header-left">
+        <div className="app-brand">
+          <div className="app-brand-text">
+            <div className="app-brand-title">Портал ЕЦОФ</div>
+            <div className="app-brand-subtitle">Первичные документы • 1С:УХ</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="app-header-right">
+        <button className="app-icon-button" type="button" aria-label="Уведомления">
+          <BellOutlined />
+        </button>
         <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
-          <Space style={{ cursor: 'pointer' }}>
+          <div className="app-user-chip" role="button" tabIndex={0}>
             <Avatar size="small" icon={<UserOutlined />} />
             <span className="app-header-username">{user?.username || 'Пользователь'}</span>
-          </Space>
+            <span className="app-user-role">{user?.role || ''}</span>
+          </div>
         </Dropdown>
-      </Space>
+      </div>
     </Header>
   );
 }

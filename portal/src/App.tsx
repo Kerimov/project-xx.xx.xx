@@ -32,7 +32,9 @@ function AppLayout() {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider width={260} theme="light" breakpoint="lg" collapsedWidth={80}>
-        <div className="app-logo">ЕЦОФ</div>
+        <div className="app-logo">
+          <span className="app-logo-text">ЕЦОФ</span>
+        </div>
         <AppSidebar />
       </Sider>
       <Layout style={{ background: colorBgLayout }}>
