@@ -59,11 +59,14 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
     // Получаем полные данные из версии документа
     const versionData = await documentsRepo.getDocumentVersion(id, row.current_version);
     
-    // Получаем связанные данные
-    const [files, checks, history] = await Promise.all([
+    const warehouseId = versionData?.data?.warehouseId || null;
+
+    // Получаем связанные данные (в т.ч. название склада для отображения)
+    const [files, checks, history, warehouseName] = await Promise.all([
       documentsRepo.getDocumentFiles(id),
       documentsRepo.getDocumentChecks(id),
-      documentsRepo.getDocumentHistory(id)
+      documentsRepo.getDocumentHistory(id),
+      documentsRepo.getWarehouseNameById(warehouseId)
     ]);
 
     // Объединяем данные из таблицы documents и из версии документа
@@ -81,7 +84,8 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
       counterpartyInn: row.counterparty_inn || versionData?.data?.counterpartyInn || null,
       contractId: versionData?.data?.contractId || null,
       paymentAccountId: versionData?.data?.paymentAccountId || null,
-      warehouseId: versionData?.data?.warehouseId || null,
+      warehouseId,
+      warehouseName: warehouseName || '',
       hasDiscrepancies: versionData?.data?.hasDiscrepancies || false,
       originalReceived: versionData?.data?.originalReceived || false,
       isUPD: versionData?.data?.isUPD || false,
@@ -252,6 +256,7 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
       number: updates.number,
       date: updates.date,
       type: updates.type,
+      organizationId: updates.organizationId || document.organization_id, // Важно: включаем organizationId для валидации
       counterpartyName: updates.counterpartyName,
       counterpartyInn: updates.counterpartyInn,
       contractId: updates.contractId,

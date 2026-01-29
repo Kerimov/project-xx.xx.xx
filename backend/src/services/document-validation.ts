@@ -15,6 +15,19 @@ export interface ValidationRule {
 export async function validateDocument(documentId: string, document: any, version?: number): Promise<void> {
   const checks: Array<{ source: string; level: 'error' | 'warning'; field?: string; message: string }> = [];
 
+  // Если organizationId отсутствует в переданном объекте, пытаемся получить его из основной таблицы
+  let organizationId = document.organizationId;
+  if (!organizationId) {
+    try {
+      const docRow = await documentsRepo.getDocumentById(documentId);
+      if (docRow && docRow.organization_id) {
+        organizationId = docRow.organization_id;
+      }
+    } catch (error: any) {
+      logger.warn('Failed to fetch organizationId from documents table', { documentId, error: error.message });
+    }
+  }
+
   // Базовые проверки
   if (!document.number || document.number.trim() === '') {
     checks.push({
@@ -34,7 +47,7 @@ export async function validateDocument(documentId: string, document: any, versio
     });
   }
 
-  if (!document.organizationId) {
+  if (!organizationId) {
     checks.push({
       source: 'Портал',
       level: 'error',

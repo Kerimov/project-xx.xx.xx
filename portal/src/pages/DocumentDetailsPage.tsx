@@ -241,6 +241,15 @@ export function DocumentDetailsPage() {
     });
   };
 
+  const formatValue = (value: any): string => {
+    if (value === null || value === undefined || value === '') return '—';
+    if (typeof value === 'boolean') return value ? 'Да' : 'Нет';
+    if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
+      return dayjs(value).format('DD.MM.YYYY');
+    }
+    return String(value);
+  };
+
   const items: TabsProps['items'] = [
     {
       key: 'data',
@@ -253,24 +262,171 @@ export function DocumentDetailsPage() {
                 <Descriptions.Item label="Номер">{doc.number}</Descriptions.Item>
                 <Descriptions.Item label="Дата">{doc.date}</Descriptions.Item>
                 <Descriptions.Item label="Тип документа">{doc.type}</Descriptions.Item>
-                <Descriptions.Item label="Организация">{doc.company}</Descriptions.Item>
-                <Descriptions.Item label="Контрагент">{doc.counterparty}</Descriptions.Item>
-                <Descriptions.Item label="Сумма">{formatAmount(doc.amount, doc.currency)}</Descriptions.Item>
+                <Descriptions.Item label="Организация">{doc.organizationName || doc.company || '—'}</Descriptions.Item>
+                {doc.organizationId && (
+                  <Descriptions.Item label="ID организации">
+                    <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                      {doc.organizationId}
+                    </Text>
+                  </Descriptions.Item>
+                )}
+                <Descriptions.Item label="Контрагент">{doc.counterpartyName || doc.counterparty || '—'}</Descriptions.Item>
+                {doc.counterpartyId && (
+                  <Descriptions.Item label="ID контрагента">
+                    <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                      {doc.counterpartyId}
+                    </Text>
+                  </Descriptions.Item>
+                )}
+                {doc.counterpartyInn && (
+                  <Descriptions.Item label="ИНН контрагента">{doc.counterpartyInn}</Descriptions.Item>
+                )}
+                {doc.contractId && (
+                  <Descriptions.Item label="Договор">
+                    <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                      {doc.contractId}
+                    </Text>
+                  </Descriptions.Item>
+                )}
+                {(doc.warehouseName || doc.warehouseId) && (
+                  <Descriptions.Item label="Склад">
+                    {doc.warehouseName || (
+                      <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                        {doc.warehouseId}
+                      </Text>
+                    )}
+                  </Descriptions.Item>
+                )}
+                {doc.paymentAccountId && (
+                  <Descriptions.Item label="Счет оплаты">
+                    <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                      {doc.paymentAccountId}
+                    </Text>
+                  </Descriptions.Item>
+                )}
+                <Descriptions.Item label="Сумма">{formatAmount(doc.amount || doc.totalAmount, doc.currency)}</Descriptions.Item>
+                {doc.totalVAT !== undefined && doc.totalVAT !== null && (
+                  <Descriptions.Item label="НДС">{formatAmount(doc.totalVAT, doc.currency)}</Descriptions.Item>
+                )}
+                <Descriptions.Item label="Валюта">{doc.currency || 'RUB'}</Descriptions.Item>
               </Descriptions>
             </Card>
           </Col>
           <Col xs={24} md={10}>
-            <Card size="small" title="Техническая информация">
+            <Card size="small" title="Дополнительные реквизиты">
               <Descriptions column={1} size="small">
-                <Descriptions.Item label="ID документа портала">{doc.id}</Descriptions.Item>
+                {doc.dueDate && (
+                  <Descriptions.Item label="Срок оплаты">{formatValue(doc.dueDate)}</Descriptions.Item>
+                )}
+                {doc.documentNumber && (
+                  <Descriptions.Item label="Номер документа-основания">{doc.documentNumber}</Descriptions.Item>
+                )}
+                {doc.paymentTerms && (
+                  <Descriptions.Item label="Условия оплаты">{doc.paymentTerms}</Descriptions.Item>
+                )}
+                {doc.receiptBasis && (
+                  <Descriptions.Item label="Основание оприходования">{doc.receiptBasis}</Descriptions.Item>
+                )}
+                {doc.returnBasis && (
+                  <Descriptions.Item label="Основание возврата">{doc.returnBasis}</Descriptions.Item>
+                )}
+                <Descriptions.Item label="Есть расхождения">
+                  {formatValue(doc.hasDiscrepancies)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Оригинал получен">
+                  {formatValue(doc.originalReceived)}
+                </Descriptions.Item>
+                <Descriptions.Item label="УПД">
+                  {formatValue(doc.isUPD)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Требуется счет">
+                  {formatValue(doc.invoiceRequired)}
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
+            <Card size="small" title="Техническая информация" style={{ marginTop: 16 }}>
+              <Descriptions column={1} size="small">
+                <Descriptions.Item label="ID документа портала">
+                  <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                    {doc.id}
+                  </Text>
+                </Descriptions.Item>
                 <Descriptions.Item label="Версия">{doc.version}</Descriptions.Item>
                 <Descriptions.Item label="Пакет">{doc.packageId || '—'}</Descriptions.Item>
-                <Descriptions.Item label="ID (route)">
-                  <Text type="secondary">{id}</Text>
+                <Descriptions.Item label="Статус портала">
+                  <Tag color={portal.color}>{portal.text}</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Статус УХ">
+                  <Tag color={uh.color}>{uh.text}</Tag>
                 </Descriptions.Item>
               </Descriptions>
             </Card>
           </Col>
+          {doc.items && doc.items.length > 0 && (
+            <Col xs={24}>
+              <Card size="small" title={`Позиции документа (${doc.items.length})`}>
+                <List
+                  size="small"
+                  dataSource={doc.items}
+                  renderItem={(item: any, index: number) => (
+                    <List.Item>
+                      <List.Item.Meta
+                        title={
+                          <Space>
+                            <Text strong>Позиция {index + 1}</Text>
+                            {item.rowNumber && (
+                              <Text type="secondary">(строка {item.rowNumber})</Text>
+                            )}
+                          </Space>
+                        }
+                        description={
+                          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                            {(item.nomenclatureName || item.name) && (
+                              <Text>Номенклатура: {item.nomenclatureName || item.name}</Text>
+                            )}
+                            <Space wrap>
+                              {item.quantity !== undefined && item.quantity !== null && (
+                                <Text>Количество: {item.quantity}</Text>
+                              )}
+                              {item.unit && <Text>Ед. изм.: {item.unit}</Text>}
+                              {item.price !== undefined && item.price !== null && (
+                                <Text>Цена: {formatAmount(item.price, doc.currency)}</Text>
+                              )}
+                              {item.amount !== undefined && item.amount !== null && (
+                                <Text>Сумма: {formatAmount(item.amount, doc.currency)}</Text>
+                              )}
+                            </Space>
+                            <Space wrap>
+                              {item.vatPercent !== undefined && item.vatPercent !== null && (
+                                <Text>НДС %: {item.vatPercent}</Text>
+                              )}
+                              {item.vatAmount !== undefined && item.vatAmount !== null && (
+                                <Text>НДС: {formatAmount(item.vatAmount, doc.currency)}</Text>
+                              )}
+                              {item.totalAmount !== undefined && item.totalAmount !== null && (
+                                <Text strong>Всего: {formatAmount(item.totalAmount, doc.currency)}</Text>
+                              )}
+                            </Space>
+                            {item.accountId && (
+                              <Text type="secondary" style={{ fontSize: '12px', fontFamily: 'monospace' }}>
+                                Счет: {item.accountId}
+                              </Text>
+                            )}
+                            {item.countryOfOrigin && (
+                              <Text type="secondary">Страна происхождения: {item.countryOfOrigin}</Text>
+                            )}
+                            {item.type && (
+                              <Tag>{item.type === 'goods' ? 'Товар' : item.type === 'services' ? 'Услуга' : 'Комиссия'}</Tag>
+                            )}
+                          </Space>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
+              </Card>
+            </Col>
+          )}
         </Row>
       )
     },

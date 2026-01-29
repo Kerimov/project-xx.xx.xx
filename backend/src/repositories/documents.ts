@@ -83,6 +83,16 @@ export async function getDocumentById(id: string) {
   return result.rows[0] || null;
 }
 
+/** Название склада по ID (для отображения в карточке) */
+export async function getWarehouseNameById(warehouseId: string | null): Promise<string | null> {
+  if (!warehouseId) return null;
+  const result = await pool.query(
+    'SELECT name FROM warehouses WHERE id = $1',
+    [warehouseId]
+  );
+  return result.rows[0]?.name ?? null;
+}
+
 export async function createDocument(data: {
   packageId?: string;
   number: string;
@@ -147,6 +157,7 @@ export async function createDocument(data: {
     number: data.number,
     date: data.date,
     type: data.type,
+    organizationId: data.organizationId, // Важно: включаем organizationId для валидации
     counterpartyName: data.counterpartyName,
     counterpartyInn: data.counterpartyInn,
     contractId: data.contractId,
