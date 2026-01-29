@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
+import { OrganizationSelect, WarehouseSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
 
@@ -182,24 +183,29 @@ export function GoodsTransferPage() {
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" showTime />
             </Form.Item>
 
-            <Form.Item label="Организация" name="organizationId" rules={[{ required: true }]}>
-              <Select placeholder="Выберите организацию">
-                <Option value="00000000-0000-0000-0000-000000000001">ЕЦОФ</Option>
-                <Option value="00000000-0000-0000-0000-000000000002">Дочка 1</Option>
-                <Option value="00000000-0000-0000-0000-000000000003">Дочка 2</Option>
-              </Select>
+            <Form.Item 
+              label="Организация" 
+              name="organizationId" 
+              rules={[{ required: true, message: 'Выберите организацию' }]}
+            >
+              <OrganizationSelect 
+                onChange={(value) => {
+                  setSelectedOrganizationId(value);
+                  form.setFieldsValue({ sourceWarehouseId: undefined, targetWarehouseId: undefined });
+                }}
+              />
             </Form.Item>
 
-            <Form.Item label="Склад-отправитель" name="sourceWarehouseId" rules={[{ required: true }]}>
-              <Select placeholder="Выберите склад-отправитель">
-                {/* TODO: загрузка из API */}
-              </Select>
+            <Form.Item label="Склад-отправитель" name="sourceWarehouseId" rules={[{ required: true, message: 'Выберите склад-отправитель' }]}>
+              <WarehouseSelect
+                organizationId={selectedOrganizationId}
+              />
             </Form.Item>
 
-            <Form.Item label="Склад-получатель" name="targetWarehouseId" rules={[{ required: true }]}>
-              <Select placeholder="Выберите склад-получатель">
-                {/* TODO: загрузка из API */}
-              </Select>
+            <Form.Item label="Склад-получатель" name="targetWarehouseId" rules={[{ required: true, message: 'Выберите склад-получатель' }]}>
+              <WarehouseSelect
+                organizationId={selectedOrganizationId}
+              />
             </Form.Item>
           </BaseDocumentForm>
 

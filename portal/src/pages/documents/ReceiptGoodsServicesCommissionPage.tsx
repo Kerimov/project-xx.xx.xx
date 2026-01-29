@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, Checkbox, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
+import { OrganizationSelect, CounterpartySelect, ContractSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
 
@@ -28,6 +29,8 @@ export function ReceiptGoodsServicesCommissionPage() {
   const [form] = Form.useForm();
   const [items, setItems] = useState<CommissionItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | undefined>();
+  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | undefined>();
 
   const handleSave = async () => {
     try {
@@ -282,26 +285,53 @@ export function ReceiptGoodsServicesCommissionPage() {
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" showTime />
             </Form.Item>
 
+            <Form.Item 
+              label="Организация" 
+              name="organizationId" 
+              rules={[{ required: true, message: 'Выберите организацию' }]}
+            >
+              <OrganizationSelect 
+                onChange={(value) => {
+                  setSelectedOrganizationId(value);
+                  form.setFieldsValue({ contractId: undefined });
+                }}
+              />
+            </Form.Item>
+
             <Form.Item
               label="Контрагент"
-              name="counterpartyName"
+              name="counterpartyId"
               rules={[{ required: true, message: 'Выберите контрагента' }]}
             >
-              <Input placeholder="Введите ИНН или наименование" />
+              <CounterpartySelect
+                onChange={(value, counterparty) => {
+                  setSelectedCounterpartyId(value);
+                  if (counterparty) {
+                    form.setFieldsValue({ 
+                      counterpartyName: counterparty.name,
+                      counterpartyInn: counterparty.inn 
+                    });
+                  }
+                }}
+                onNameChange={(name) => {
+                  form.setFieldsValue({ counterpartyName: name });
+                }}
+              />
+            </Form.Item>
+
+            <Form.Item name="counterpartyName" hidden>
+              <Input />
+            </Form.Item>
+
+            <Form.Item name="counterpartyInn" hidden>
+              <Input />
             </Form.Item>
 
             <Form.Item label="Договор" name="contractId">
-              <Select placeholder="Выберите договор" allowClear>
-                {/* TODO: загрузка из API */}
-              </Select>
-            </Form.Item>
-
-            <Form.Item label="Организация" name="organizationId" rules={[{ required: true }]}>
-              <Select placeholder="Выберите организацию">
-                <Option value="00000000-0000-0000-0000-000000000001">ЕЦОФ</Option>
-                <Option value="00000000-0000-0000-0000-000000000002">Дочка 1</Option>
-                <Option value="00000000-0000-0000-0000-000000000003">Дочка 2</Option>
-              </Select>
+              <ContractSelect
+                organizationId={selectedOrganizationId}
+                counterpartyId={selectedCounterpartyId}
+              />
             </Form.Item>
 
             <Form.Item name="isUPD" valuePropName="checked">
