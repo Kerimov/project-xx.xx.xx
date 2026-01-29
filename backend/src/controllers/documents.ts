@@ -53,6 +53,9 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
       return res.status(404).json({ error: { message: 'Document not found' } });
     }
 
+    // Получаем полные данные из версии документа
+    const versionData = await documentsRepo.getDocumentVersion(id, row.current_version);
+    
     // Получаем связанные данные
     const [files, checks, history] = await Promise.all([
       documentsRepo.getDocumentFiles(id),
@@ -60,19 +63,36 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
       documentsRepo.getDocumentHistory(id)
     ]);
 
+    // Объединяем данные из таблицы documents и из версии документа
     const document = {
       id: row.id,
       number: row.number,
       date: row.date.toISOString().split('T')[0],
       type: row.type,
-      company: row.organization_name || '',
-      counterparty: row.counterparty_name || '',
-      amount: row.amount,
-      currency: row.currency,
+      organizationId: row.organization_id,
+      organizationName: row.organization_name || '',
+      counterpartyId: versionData?.data?.counterpartyId || null,
+      counterpartyName: row.counterparty_name || versionData?.data?.counterpartyName || '',
+      counterpartyInn: row.counterparty_inn || versionData?.data?.counterpartyInn || null,
+      contractId: versionData?.data?.contractId || null,
+      paymentAccountId: versionData?.data?.paymentAccountId || null,
+      warehouseId: versionData?.data?.warehouseId || null,
+      hasDiscrepancies: versionData?.data?.hasDiscrepancies || false,
+      originalReceived: versionData?.data?.originalReceived || false,
+      isUPD: versionData?.data?.isUPD || false,
+      invoiceRequired: versionData?.data?.invoiceRequired || false,
+      items: versionData?.data?.items || [],
+      totalAmount: row.amount || versionData?.data?.totalAmount || versionData?.data?.amount || 0,
+      totalVAT: versionData?.data?.totalVAT || 0,
+      amount: row.amount || versionData?.data?.amount || versionData?.data?.totalAmount || 0,
+      currency: row.currency || versionData?.data?.currency || 'RUB',
       portalStatus: row.portal_status,
       uhStatus: row.uh_status || 'None',
       version: `v${row.current_version}`,
       packageId: row.package_id,
+      // Для обратной совместимости
+      company: row.organization_name || '',
+      counterparty: row.counterparty_name || versionData?.data?.counterpartyName || '',
       files: files.map(f => ({
         id: f.id,
         name: f.file_name,

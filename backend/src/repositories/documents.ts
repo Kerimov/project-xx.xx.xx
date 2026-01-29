@@ -327,3 +327,26 @@ export async function getDocumentHistory(documentId: string, version?: number) {
   const result = await pool.query(query, params);
   return result.rows;
 }
+
+export async function getDocumentVersion(documentId: string, version: number) {
+  const result = await pool.query(
+    `SELECT * FROM document_versions 
+     WHERE document_id = $1 AND version = $2`,
+    [documentId, version]
+  );
+  
+  if (result.rows.length === 0) {
+    return null;
+  }
+  
+  const row = result.rows[0];
+  return {
+    id: row.id,
+    documentId: row.document_id,
+    version: row.version,
+    status: row.status,
+    data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data,
+    createdAt: row.created_at,
+    createdBy: row.created_by
+  };
+}

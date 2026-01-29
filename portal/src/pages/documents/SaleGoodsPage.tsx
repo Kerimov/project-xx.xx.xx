@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, Checkbox, message } from 'antd';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, Checkbox, message, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { OrganizationSelect, CounterpartySelect, ContractSelect, WarehouseSelect, AccountSelect } from '../../components/forms';
@@ -25,32 +25,107 @@ interface SaleGoodsItem {
   countryOfOrigin?: string;
 }
 
-export function SaleGoodsPage() {
+interface SaleGoodsPageProps {
+  documentId?: string;
+}
+
+export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
   const navigate = useNavigate();
+  const paramsId = useParams<{ id?: string }>().id;
+  const id = documentId || paramsId;
+  const isEditMode = !!id;
   const [form] = Form.useForm();
   const [items, setItems] = useState<SaleGoodsItem[]>([]);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | undefined>();
   const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | undefined>();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(isEditMode);
+
+  // Загружаем документ при редактировании
+  useEffect(() => {
+    if (isEditMode && id) {
+      const loadDocument = async () => {
+        try {
+          setLoading(true);
+          const response = await api.documents.getById(id);
+          const doc = response.data;
+          
+          // Заполняем форму данными документа
+          form.setFieldsValue({
+            number: doc.number,
+            date: doc.date ? dayjs(doc.date) : undefined,
+            organizationId: doc.organizationId,
+            counterpartyId: doc.counterpartyId,
+            counterpartyName: doc.counterpartyName,
+            counterpartyInn: doc.counterpartyInn,
+            contractId: doc.contractId,
+            warehouseId: doc.warehouseId,
+            currency: doc.currency || 'RUB',
+            totalAmount: doc.totalAmount
+          });
+
+          setSelectedOrganizationId(doc.organizationId);
+          setSelectedCounterpartyId(doc.counterpartyId);
+          
+          // Загружаем позиции документа
+          if (doc.items && Array.isArray(doc.items)) {
+            setItems(doc.items);
+          }
+        } catch (error: any) {
+          message.error('Ошибка загрузки документа: ' + (error.message || 'Неизвестная ошибка'));
+          navigate('/documents');
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadDocument();
+    }
+  }, [id, isEditMode, form, navigate]);
 
   const handleSave = async () => {
     try {
+      setLoading(true);
       const values = await form.validateFields();
       const document = {
-        ...values,
-        date: values.date.format('YYYY-MM-DD'),
+        number: values.number,
+        date: values.date ? (typeof values.date === 'string' ? values.date : values.date.format('YYYY-MM-DD')) : undefined,
         type: 'SaleGoods',
-        items,
-        portalStatus: 'Draft',
-        totalAmount: items.reduce((sum, item) => sum + item.totalAmount, 0),
-        totalVAT: items.reduce((sum, item) => sum + item.vatAmount, 0)
+        organizationId: values.organizationId,
+        counterpartyName: values.counterpartyName,
+        counterpartyInn: values.counterpartyInn,
+        contractId: values.contractId,
+        warehouseId: values.warehouseId,
+        currency: values.currency || 'RUB',
+        items: items.map((item, idx) => ({
+          rowNumber: idx + 1,
+          nomenclatureName: item.nomenclatureName || '',
+          quantity: item.quantity || 0,
+          unit: item.unit || 'шт',
+          price: item.price || 0,
+          amount: item.amount || 0,
+          vatPercent: item.vatPercent || 20,
+          vatAmount: item.vatAmount || 0,
+          totalAmount: item.totalAmount || 0,
+          accountId: item.accountId,
+          countryOfOrigin: item.countryOfOrigin
+        })),
+        totalAmount: values.totalAmount || items.reduce((sum, item) => sum + (item.totalAmount || 0), 0),
+        totalVAT: items.reduce((sum, item) => sum + (item.vatAmount || 0), 0),
+        portalStatus: 'Draft'
       };
 
-      const response = await api.documents.create(document);
-      message.success('Документ сохранён');
-      navigate(`/documents/${response.data.id}`);
-    } catch (error) {
-      message.error('Ошибка при сохранении документа');
+      if (isEditMode && id) {
+        await api.documents.update(id, document);
+        message.success('Документ обновлён');
+        navigate(`/documents/${id}`);
+      } else {
+        const response = await api.documents.create(document);
+        message.success('Документ сохранён');
+        navigate(`/documents/${response.data.id}`);
+      }
+    } catch (error: any) {
+      message.error('Ошибка при сохранении документа: ' + (error.message || 'Неизвестная ошибка'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -243,15 +318,23 @@ export function SaleGoodsPage() {
   const totalAmount = items.reduce((sum, item) => sum + item.totalAmount, 0);
   const totalVAT = items.reduce((sum, item) => sum + item.vatAmount, 0);
 
+  if (loading && isEditMode) {
+    return (
+      <div className="page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/documents')}>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(isEditMode ? `/documents/${id}` : '/documents')}>
             Назад
           </Button>
           <Title level={3} style={{ margin: 0 }}>
-            Реализация товаров: Накладная, УПД (создание)
+            Реализация товаров: Накладная, УПД {isEditMode ? '(редактирование)' : '(создание)'}
           </Title>
         </Space>
 
