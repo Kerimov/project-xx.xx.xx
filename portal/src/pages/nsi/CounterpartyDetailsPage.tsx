@@ -9,6 +9,7 @@ interface Counterparty {
   name: string;
   inn: string;
   data?: any;
+  contractsCount?: number;
 }
 
 export function CounterpartyDetailsPage() {
@@ -68,9 +69,19 @@ export function CounterpartyDetailsPage() {
         <Descriptions column={1} bordered>
           <Descriptions.Item label="Наименование">{counterparty.name}</Descriptions.Item>
           <Descriptions.Item label="ИНН">{counterparty.inn || '-'}</Descriptions.Item>
+          {counterparty.contractsCount !== undefined && (
+            <Descriptions.Item label="Договоров">
+              <Button 
+                type="link" 
+                onClick={() => navigate(`/nsi?tab=contracts&counterpartyId=${counterparty.id}`)}
+              >
+                {counterparty.contractsCount}
+              </Button>
+            </Descriptions.Item>
+          )}
           {counterparty.data && (
             <Descriptions.Item label="Дополнительные данные">
-              <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '300px', overflow: 'auto' }}>
                 {JSON.stringify(counterparty.data, null, 2)}
               </pre>
             </Descriptions.Item>

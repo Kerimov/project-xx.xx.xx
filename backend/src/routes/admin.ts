@@ -3,9 +3,14 @@
 import { Router, Request, Response } from 'express';
 import { uhQueueService } from '../services/uh-queue.js';
 import { nsiSyncService } from '../services/nsi-sync.js';
-// TODO: добавить middleware для проверки прав администратора
+import { authenticateToken } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/admin.js';
 
 export const adminRouter = Router();
+
+// Все админ-роуты требуют аутентификации и прав администратора
+adminRouter.use(authenticateToken);
+adminRouter.use(requireAdmin);
 
 // Статистика очереди УХ
 adminRouter.get('/queue/stats', async (req: Request, res: Response) => {

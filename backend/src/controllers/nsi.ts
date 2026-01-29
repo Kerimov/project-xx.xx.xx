@@ -33,6 +33,45 @@ export async function getOrganizations(req: Request, res: Response, next: NextFu
   }
 }
 
+// Получение организации по ID
+export async function getOrganizationById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      'SELECT id, code, name, inn FROM organizations WHERE id = $1',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+    
+    const org = result.rows[0];
+    
+    // Получаем связанные данные
+    const [contractsResult, accountsResult, warehousesResult] = await Promise.all([
+      pool.query('SELECT COUNT(*) as count FROM contracts WHERE organization_id = $1', [id]),
+      pool.query('SELECT COUNT(*) as count FROM accounts WHERE organization_id = $1', [id]),
+      pool.query('SELECT COUNT(*) as count FROM warehouses WHERE organization_id = $1', [id])
+    ]);
+    
+    res.json({
+      data: {
+        id: org.id,
+        code: org.code,
+        name: org.name,
+        inn: org.inn,
+        contractsCount: parseInt(contractsResult.rows[0].count),
+        accountsCount: parseInt(accountsResult.rows[0].count),
+        warehousesCount: parseInt(warehousesResult.rows[0].count)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 // Получение списка контрагентов (из НСИ или локальной таблицы)
 export async function getCounterparties(req: Request, res: Response, next: NextFunction) {
   try {
@@ -67,6 +106,42 @@ export async function getCounterparties(req: Request, res: Response, next: NextF
         inn: row.inn,
         data: row.data
       }))
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Получение контрагента по ID
+export async function getCounterpartyById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      'SELECT id, name, inn, data FROM counterparties WHERE id = $1',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Counterparty not found' });
+    }
+    
+    const cp = result.rows[0];
+    
+    // Получаем количество договоров
+    const contractsResult = await pool.query(
+      'SELECT COUNT(*) as count FROM contracts WHERE counterparty_id = $1',
+      [id]
+    );
+    
+    res.json({
+      data: {
+        id: cp.id,
+        name: cp.name,
+        inn: cp.inn,
+        data: cp.data,
+        contractsCount: parseInt(contractsResult.rows[0].count)
+      }
     });
   } catch (error) {
     next(error);
@@ -125,6 +200,43 @@ export async function getContracts(req: Request, res: Response, next: NextFuncti
   }
 }
 
+// Получение договора по ID
+export async function getContractById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(`
+      SELECT c.id, c.name, c.organization_id, c.counterparty_id, c.data,
+             o.name as organization_name,
+             cp.name as counterparty_name
+      FROM contracts c
+      LEFT JOIN organizations o ON c.organization_id = o.id
+      LEFT JOIN counterparties cp ON c.counterparty_id = cp.id
+      WHERE c.id = $1
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Contract not found' });
+    }
+    
+    const contract = result.rows[0];
+    
+    res.json({
+      data: {
+        id: contract.id,
+        name: contract.name,
+        organizationId: contract.organization_id,
+        organizationName: contract.organization_name,
+        counterpartyId: contract.counterparty_id,
+        counterpartyName: contract.counterparty_name,
+        data: contract.data
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 // Получение списка счетов
 export async function getAccounts(req: Request, res: Response, next: NextFunction) {
   try {
@@ -175,6 +287,41 @@ export async function getAccounts(req: Request, res: Response, next: NextFunctio
   }
 }
 
+// Получение счета по ID
+export async function getAccountById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(`
+      SELECT a.id, a.code, a.name, a.organization_id, a.type, a.data,
+             o.name as organization_name
+      FROM accounts a
+      LEFT JOIN organizations o ON a.organization_id = o.id
+      WHERE a.id = $1
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+    
+    const account = result.rows[0];
+    
+    res.json({
+      data: {
+        id: account.id,
+        code: account.code,
+        name: account.name,
+        organizationId: account.organization_id,
+        organizationName: account.organization_name,
+        type: account.type,
+        data: account.data
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 // Получение списка складов
 export async function getWarehouses(req: Request, res: Response, next: NextFunction) {
   try {
@@ -213,6 +360,40 @@ export async function getWarehouses(req: Request, res: Response, next: NextFunct
         organizationName: row.organization_name,
         data: row.data
       }))
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Получение склада по ID
+export async function getWarehouseById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(`
+      SELECT w.id, w.code, w.name, w.organization_id, w.data,
+             o.name as organization_name
+      FROM warehouses w
+      LEFT JOIN organizations o ON w.organization_id = o.id
+      WHERE w.id = $1
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Warehouse not found' });
+    }
+    
+    const warehouse = result.rows[0];
+    
+    res.json({
+      data: {
+        id: warehouse.id,
+        code: warehouse.code,
+        name: warehouse.name,
+        organizationId: warehouse.organization_id,
+        organizationName: warehouse.organization_name,
+        data: warehouse.data
+      }
     });
   } catch (error) {
     next(error);

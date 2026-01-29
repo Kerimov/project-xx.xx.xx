@@ -26,10 +26,9 @@ export function ContractDetailsPage() {
       
       setLoading(true);
       try {
-        const response = await api.nsi.contracts();
-        const cnt = response.data?.find((c: Contract) => c.id === id);
-        if (cnt) {
-          setContract(cnt);
+        const response = await api.nsi.getContract(id);
+        if (response.data) {
+          setContract(response.data);
         } else {
           message.error('Договор не найден');
           navigate('/nsi');
@@ -70,11 +69,35 @@ export function ContractDetailsPage() {
       <Card title="Карточка договора">
         <Descriptions column={1} bordered>
           <Descriptions.Item label="Наименование">{contract.name}</Descriptions.Item>
-          <Descriptions.Item label="Организация">{contract.organizationName || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Контрагент">{contract.counterpartyName || '-'}</Descriptions.Item>
+          <Descriptions.Item label="Организация">
+            {contract.organizationId ? (
+              <Button 
+                type="link" 
+                onClick={() => navigate(`/nsi/organizations/${contract.organizationId}`)}
+                style={{ padding: 0 }}
+              >
+                {contract.organizationName || contract.organizationId}
+              </Button>
+            ) : (
+              contract.organizationName || '-'
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="Контрагент">
+            {contract.counterpartyId ? (
+              <Button 
+                type="link" 
+                onClick={() => navigate(`/nsi/counterparties/${contract.counterpartyId}`)}
+                style={{ padding: 0 }}
+              >
+                {contract.counterpartyName || contract.counterpartyId}
+              </Button>
+            ) : (
+              contract.counterpartyName || '-'
+            )}
+          </Descriptions.Item>
           {contract.data && (
             <Descriptions.Item label="Дополнительные данные">
-              <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '300px', overflow: 'auto' }}>
                 {JSON.stringify(contract.data, null, 2)}
               </pre>
             </Descriptions.Item>

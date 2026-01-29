@@ -1,7 +1,8 @@
-import { Card, Col, Descriptions, Row, Space, Tabs, Tag, Typography } from 'antd';
+import { Card, Col, Descriptions, Row, Space, Tabs, Tag, Typography, Button, message, Dropdown } from 'antd';
 import type { TabsProps } from 'antd';
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { StopOutlined, CheckCircleOutlined, LockOutlined, EditOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
 
 const { Title, Text } = Typography;
@@ -23,9 +24,17 @@ const uhStatusLabel: Record<string, { text: string; color: string }> = {
 
 export function DocumentDetailsPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [doc, setDoc] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [statusTransitions, setStatusTransitions] = useState<{
+    currentStatus: string;
+    editable: boolean;
+    availableTransitions: string[];
+  } | null>(null);
+  const [changingStatus, setChangingStatus] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -33,8 +42,14 @@ export function DocumentDetailsPage() {
       try {
         setLoading(true);
         setError(null);
-        const response = await api.documents.getById(id);
-        setDoc(response.data);
+        const [docResponse, transitionsResponse] = await Promise.all([
+          api.documents.getById(id),
+          api.documents.getStatusTransitions(id).catch(() => null)
+        ]);
+        setDoc(docResponse.data);
+        if (transitionsResponse) {
+          setStatusTransitions(transitionsResponse.data);
+        }
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Ошибка загрузки документа';
         setError(msg);
@@ -45,6 +60,53 @@ export function DocumentDetailsPage() {
     };
     loadDocument();
   }, [id]);
+
+  const handleCancel = async () => {
+    if (!id || !doc) return;
+    
+    if (!confirm('Вы уверены, что хотите отменить этот документ?')) {
+      return;
+    }
+
+    try {
+      setCancelling(true);
+      await api.documents.cancel(id);
+      message.success('Документ отменен');
+      // Перезагружаем документ
+      const response = await api.documents.getById(id);
+      setDoc(response.data);
+    } catch (error: any) {
+      message.error('Ошибка при отмене документа: ' + (error.message || 'Неизвестная ошибка'));
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const canCancel = doc && ['Draft', 'Validated'].includes(doc.portalStatus);
+  const canEdit = statusTransitions?.editable ?? false;
+  const availableTransitions = statusTransitions?.availableTransitions || [];
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (!id || !doc) return;
+
+    try {
+      setChangingStatus(true);
+      await api.documents.changeStatus(id, newStatus);
+      message.success(`Статус документа изменен на "${portalStatusLabel[newStatus]?.text || newStatus}"`);
+      
+      // Перезагружаем документ и переходы
+      const [docResponse, transitionsResponse] = await Promise.all([
+        api.documents.getById(id),
+        api.documents.getStatusTransitions(id)
+      ]);
+      setDoc(docResponse.data);
+      setStatusTransitions(transitionsResponse.data);
+    } catch (error: any) {
+      message.error('Ошибка при изменении статуса: ' + (error.message || 'Неизвестная ошибка'));
+    } finally {
+      setChangingStatus(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -188,12 +250,50 @@ export function DocumentDetailsPage() {
   return (
     <div className="page">
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Space align="baseline" size="middle">
-          <Title level={3} style={{ marginBottom: 0 }}>
-            Документ {doc.number}
-          </Title>
-          <Tag color={portal.color}>{portal.text}</Tag>
-          <Tag color={uh.color}>{uh.text}</Tag>
+        <Space align="baseline" size="middle" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space align="baseline" size="middle">
+            <Title level={3} style={{ marginBottom: 0 }}>
+              Документ {doc.number}
+            </Title>
+            <Tag color={portal.color}>{portal.text}</Tag>
+            <Tag color={uh.color}>{uh.text}</Tag>
+            {canEdit ? (
+              <Tag icon={<EditOutlined />} color="green">Редактируемый</Tag>
+            ) : (
+              <Tag icon={<LockOutlined />} color="default">Только чтение</Tag>
+            )}
+          </Space>
+          <Space>
+            {availableTransitions.length > 0 && (
+              <Dropdown
+                menu={{
+                  items: availableTransitions.map(status => ({
+                    key: status,
+                    label: statusTransitionLabels[status] || status,
+                    onClick: () => handleStatusChange(status)
+                  }))
+                }}
+                trigger={['click']}
+              >
+                <Button 
+                  icon={<CheckCircleOutlined />}
+                  loading={changingStatus}
+                >
+                  Изменить статус
+                </Button>
+              </Dropdown>
+            )}
+            {canCancel && (
+              <Button 
+                danger 
+                icon={<StopOutlined />}
+                onClick={handleCancel}
+                loading={cancelling}
+              >
+                Отменить документ
+              </Button>
+            )}
+          </Space>
         </Space>
         <Tabs items={items} />
       </Space>

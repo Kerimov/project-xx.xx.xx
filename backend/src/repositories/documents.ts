@@ -220,6 +220,64 @@ export async function freezeDocumentVersion(documentId: string, version: number)
   return result.rows[0] || null;
 }
 
+export async function updateDocumentStatus(
+  documentId: string,
+  newStatus: string,
+  metadata?: { validatedAt?: Date; frozenAt?: Date }
+) {
+  const updates: string[] = ['portal_status = $2', 'updated_at = CURRENT_TIMESTAMP'];
+  const params: any[] = [documentId, newStatus];
+  let paramIndex = 3;
+
+  if (metadata?.validatedAt) {
+    updates.push(`validated_at = $${paramIndex++}`);
+    params.push(metadata.validatedAt);
+  }
+
+  if (metadata?.frozenAt) {
+    updates.push(`frozen_at = $${paramIndex++}`);
+    params.push(metadata.frozenAt);
+  }
+
+  const result = await pool.query(
+    `UPDATE documents
+     SET ${updates.join(', ')}
+     WHERE id = $1
+     RETURNING *`,
+    params
+  );
+
+  return result.rows[0] || null;
+}
+
+export async function cancelDocument(documentId: string) {
+  // Отменяем документ (можно отменить только если он не заморожен и не отправлен в УХ)
+  const result = await pool.query(
+    `UPDATE documents
+     SET portal_status = 'Cancelled', updated_at = CURRENT_TIMESTAMP
+     WHERE id = $1 
+       AND portal_status NOT IN ('Frozen', 'QueuedToUH', 'SentToUH', 'AcceptedByUH', 'PostedInUH')
+     RETURNING *`,
+    [documentId]
+  );
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  // Также отменяем версию документа
+  await pool.query(
+    `UPDATE document_versions
+     SET status = 'Cancelled'
+     WHERE document_id = $1 AND version = (
+       SELECT current_version FROM documents WHERE id = $1
+     )`,
+    [documentId]
+  );
+
+  return result.rows[0];
+}
+
 export async function getDocumentFiles(documentId: string, version?: number) {
   let query = `SELECT * FROM document_files WHERE document_id = $1`;
   const params: any[] = [documentId];

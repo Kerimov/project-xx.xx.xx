@@ -26,10 +26,9 @@ export function AccountDetailsPage() {
       
       setLoading(true);
       try {
-        const response = await api.nsi.accounts();
-        const acc = response.data?.find((a: Account) => a.id === id);
-        if (acc) {
-          setAccount(acc);
+        const response = await api.nsi.getAccount(id);
+        if (response.data) {
+          setAccount(response.data);
         } else {
           message.error('Счет не найден');
           navigate('/nsi');
@@ -71,11 +70,23 @@ export function AccountDetailsPage() {
         <Descriptions column={1} bordered>
           <Descriptions.Item label="Код">{account.code || '-'}</Descriptions.Item>
           <Descriptions.Item label="Наименование">{account.name}</Descriptions.Item>
-          <Descriptions.Item label="Организация">{account.organizationName || '-'}</Descriptions.Item>
+          <Descriptions.Item label="Организация">
+            {account.organizationId ? (
+              <Button 
+                type="link" 
+                onClick={() => navigate(`/nsi/organizations/${account.organizationId}`)}
+                style={{ padding: 0 }}
+              >
+                {account.organizationName || account.organizationId}
+              </Button>
+            ) : (
+              account.organizationName || '-'
+            )}
+          </Descriptions.Item>
           <Descriptions.Item label="Тип">{account.type || '-'}</Descriptions.Item>
           {account.data && (
             <Descriptions.Item label="Дополнительные данные">
-              <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '300px', overflow: 'auto' }}>
                 {JSON.stringify(account.data, null, 2)}
               </pre>
             </Descriptions.Item>

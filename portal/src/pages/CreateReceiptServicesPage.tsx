@@ -219,17 +219,18 @@ export function CreateReceiptServicesPage() {
       dataIndex: 'accountId',
       key: 'accountId',
       width: 150,
-      render: (_: any, record: ReceiptServicesItem, index: number) => (
-        <Select
-          value={record.accountId}
-          onChange={(value) => updateItem(index, 'accountId', value)}
-          placeholder="Выберите счет"
-          allowClear
-          style={{ width: '100%' }}
-        >
-          {/* TODO: загрузка счетов из API */}
-        </Select>
-      )
+      render: (_: any, record: ReceiptServicesItem, index: number) => {
+        const organizationId = form.getFieldValue('organizationId');
+        return (
+          <AccountSelect
+            value={record.accountId}
+            onChange={(value) => updateItem(index, 'accountId', value)}
+            organizationId={organizationId}
+            placeholder="Выберите счет"
+            style={{ width: '100%' }}
+          />
+        );
+      }
     },
     {
       title: 'Действия',

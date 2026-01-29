@@ -70,10 +70,22 @@ export function WarehouseDetailsPage() {
         <Descriptions column={1} bordered>
           <Descriptions.Item label="Код">{warehouse.code || '-'}</Descriptions.Item>
           <Descriptions.Item label="Наименование">{warehouse.name}</Descriptions.Item>
-          <Descriptions.Item label="Организация">{warehouse.organizationName || '-'}</Descriptions.Item>
+          <Descriptions.Item label="Организация">
+            {warehouse.organizationId ? (
+              <Button 
+                type="link" 
+                onClick={() => navigate(`/nsi/organizations/${warehouse.organizationId}`)}
+                style={{ padding: 0 }}
+              >
+                {warehouse.organizationName || warehouse.organizationId}
+              </Button>
+            ) : (
+              warehouse.organizationName || '-'
+            )}
+          </Descriptions.Item>
           {warehouse.data && (
             <Descriptions.Item label="Дополнительные данные">
-              <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: '300px', overflow: 'auto' }}>
                 {JSON.stringify(warehouse.data, null, 2)}
               </pre>
             </Descriptions.Item>

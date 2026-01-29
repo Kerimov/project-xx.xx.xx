@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, CounterpartySelect, ContractSelect } from '../../components/forms';
+import { OrganizationSelect, CounterpartySelect, ContractSelect, WarehouseSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
 
@@ -328,10 +328,10 @@ export function ReturnToSupplierPage() {
               />
             </Form.Item>
 
-            <Form.Item label="Склад" name="warehouseId" rules={[{ required: true }]}>
-              <Select placeholder="Выберите склад">
-                {/* TODO: загрузка из API */}
-              </Select>
+            <Form.Item label="Склад" name="warehouseId" rules={[{ required: true, message: 'Выберите склад' }]}>
+              <WarehouseSelect
+                organizationId={selectedOrganizationId}
+              />
             </Form.Item>
 
             <Form.Item label="Основание возврата:" name="returnBasis">

@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint \"src/**/*.ts\"",
-    "create-db": "tsx scripts/create-db.ts"
+    "create-db": "tsx scripts/create-db.ts",
+    "seed-nsi": "tsx scripts/seed-nsi.ts"
   },
   "dependencies": {
     "@types/multer": "^2.0.0",

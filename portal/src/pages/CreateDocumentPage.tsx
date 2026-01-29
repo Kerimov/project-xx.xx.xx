@@ -45,6 +45,7 @@ import {
   message
 } from 'antd';
 import { SaveOutlined, CheckOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { OrganizationSelect, CounterpartySelect, ContractSelect, AccountSelect } from '../components/forms';
 import type { ReceiptGoodsDocument, ReceiptGoodsItem } from '../types/documents';
 import { api } from '../services/api';
 import dayjs from 'dayjs';
@@ -127,6 +128,8 @@ export function CreateDocumentPage() {
   const [form] = Form.useForm();
   const [items, setItems] = useState<ReceiptGoodsItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | undefined>();
+  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | undefined>();
 
   const handleSave = async (values: any) => {
     setLoading(true);
@@ -350,17 +353,18 @@ export function CreateDocumentPage() {
       dataIndex: 'accountId',
       key: 'accountId',
       width: 150,
-      render: (_: any, record: ReceiptGoodsItem, index: number) => (
-        <Select
-          value={record.accountId}
-          onChange={(value) => updateItem(index, 'accountId', value)}
-          placeholder="Выберите счет"
-          allowClear
-          style={{ width: '100%' }}
-        >
-          {/* TODO: загрузка счетов из API */}
-        </Select>
-      )
+      render: (_: any, record: ReceiptGoodsItem, index: number) => {
+        const organizationId = form.getFieldValue('organizationId');
+        return (
+          <AccountSelect
+            value={record.accountId}
+            onChange={(value) => updateItem(index, 'accountId', value)}
+            organizationId={organizationId}
+            placeholder="Выберите счет"
+            style={{ width: '100%' }}
+          />
+        );
+      }
     },
     {
       title: 'Страна происхождения',

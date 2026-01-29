@@ -2,6 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import * as documentsRepo from '../repositories/documents.js';
 import { uhQueueService } from '../services/uh-queue.js';
 import { logger } from '../utils/logger.js';
+import {
+  transitionStatus,
+  isEditable,
+  getAvailableTransitions,
+  type PortalStatus
+} from '../services/document-status.js';
 
 export async function getDocuments(req: Request, res: Response, next: NextFunction) {
   try {
@@ -148,10 +154,22 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
     const { id } = req.params;
     const updates = req.body;
     
-    // TODO: валидация через Zod
-    // TODO: создание новой версии документа вместо прямого обновления
+    const document = await documentsRepo.getDocumentById(id);
+    if (!document) {
+      return res.status(404).json({ error: { message: 'Document not found' } });
+    }
+
+    // Проверяем, можно ли редактировать документ в текущем статусе
+    const currentStatus = document.portal_status as PortalStatus;
+    if (!isEditable(currentStatus)) {
+      return res.status(403).json({
+        error: {
+          message: `Документ нельзя редактировать в статусе "${currentStatus}". Доступно редактирование только в статусах: Draft, Validated, RejectedByUH`
+        }
+      });
+    }
     
-    const document = await documentsRepo.updateDocument(id, {
+    const updated = await documentsRepo.updateDocument(id, {
       number: updates.number,
       date: updates.date ? new Date(updates.date) : undefined,
       type: updates.type,
@@ -161,11 +179,13 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
       currency: updates.currency
     } as any);
     
-    if (!document) {
+    if (!updated) {
       return res.status(404).json({ error: { message: 'Document not found' } });
     }
+
+    logger.info('Document updated', { documentId: id, status: currentStatus });
     
-    res.json({ data: document });
+    res.json({ data: updated });
   } catch (error) {
     next(error);
   }
@@ -180,17 +200,166 @@ export async function freezeDocumentVersion(req: Request, res: Response, next: N
       return res.status(404).json({ error: { message: 'Document not found' } });
     }
 
+    const currentStatus = document.portal_status as PortalStatus;
+    const transition = transitionStatus(currentStatus, 'Frozen');
+    
+    if (!transition.success) {
+      return res.status(400).json({
+        error: { message: transition.error || 'Невозможно заморозить документ' }
+      });
+    }
+
     // Замораживаем документ
     const frozen = await documentsRepo.freezeDocumentVersion(id, document.current_version);
     
     // Добавляем задачу в очередь для отправки в УХ
     await uhQueueService.enqueue(id, 'UpsertDocument');
     
+    logger.info('Document frozen', { documentId: id, version: document.current_version });
+    
     res.json({
       data: {
         id: frozen.id,
         portalStatus: frozen.portal_status,
         frozenAt: frozen.frozen_at?.toISOString()
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Переводит статус документа
+ */
+export async function changeDocumentStatus(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({
+        error: { message: 'Статус не указан' }
+      });
+    }
+
+    const document = await documentsRepo.getDocumentById(id);
+    if (!document) {
+      return res.status(404).json({ error: { message: 'Document not found' } });
+    }
+
+    const currentStatus = document.portal_status as PortalStatus;
+    const newStatus = status as PortalStatus;
+    
+    const transition = transitionStatus(currentStatus, newStatus);
+    
+    if (!transition.success) {
+      return res.status(400).json({
+        error: { message: transition.error || 'Невозможно перевести документ в указанный статус' }
+      });
+    }
+
+    // Обновляем статус документа
+    const metadata: any = {};
+    if (newStatus === 'Validated') {
+      metadata.validatedAt = new Date();
+    } else if (newStatus === 'Frozen') {
+      metadata.frozenAt = new Date();
+    }
+
+    const updated = await documentsRepo.updateDocumentStatus(id, newStatus, metadata);
+    
+    if (!updated) {
+      return res.status(500).json({
+        error: { message: 'Не удалось обновить статус документа' }
+      });
+    }
+
+    // Если статус Frozen, добавляем в очередь УХ
+    if (newStatus === 'Frozen') {
+      await uhQueueService.enqueue(id, 'UpsertDocument');
+    }
+
+    logger.info('Document status changed', {
+      documentId: id,
+      from: currentStatus,
+      to: newStatus
+    });
+    
+    res.json({
+      data: {
+        id: updated.id,
+        portalStatus: updated.portal_status,
+        availableTransitions: getAvailableTransitions(newStatus)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Получает доступные переходы статуса для документа
+ */
+export async function getDocumentStatusTransitions(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    
+    const document = await documentsRepo.getDocumentById(id);
+    if (!document) {
+      return res.status(404).json({ error: { message: 'Document not found' } });
+    }
+
+    const currentStatus = document.portal_status as PortalStatus;
+    const transitions = getAvailableTransitions(currentStatus);
+    const editable = isEditable(currentStatus);
+    
+    res.json({
+      data: {
+        currentStatus,
+        editable,
+        availableTransitions: transitions
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function cancelDocument(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    
+    const document = await documentsRepo.getDocumentById(id);
+    if (!document) {
+      return res.status(404).json({ error: { message: 'Document not found' } });
+    }
+
+    // Проверяем, можно ли отменить документ
+    if (['Frozen', 'QueuedToUH', 'SentToUH', 'AcceptedByUH', 'PostedInUH'].includes(document.portal_status)) {
+      return res.status(400).json({ 
+        error: { 
+          message: 'Нельзя отменить документ в статусе: ' + document.portal_status 
+        } 
+      });
+    }
+
+    // Отменяем документ
+    const cancelled = await documentsRepo.cancelDocument(id);
+    
+    if (!cancelled) {
+      return res.status(400).json({ 
+        error: { message: 'Не удалось отменить документ. Возможно, он уже в финальном статусе.' } 
+      });
+    }
+    
+    logger.info('Document cancelled', { documentId: id });
+    
+    res.json({
+      data: {
+        id: cancelled.id,
+        portalStatus: cancelled.portal_status,
+        updatedAt: cancelled.updated_at?.toISOString()
       }
     });
   } catch (error) {

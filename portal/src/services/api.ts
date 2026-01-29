@@ -60,7 +60,17 @@ export const api = {
 
     freeze: (id: string) => request<{ data: any }>(`/documents/${id}/freeze`, {
       method: 'POST'
-    })
+    }),
+    cancel: (id: string) => request<{ data: any }>(`/documents/${id}/cancel`, {
+      method: 'POST'
+    }),
+    changeStatus: (id: string, status: string) => request<{ data: any }>(`/documents/${id}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status })
+    }),
+    getStatusTransitions: (id: string) => request<{ data: { currentStatus: string; editable: boolean; availableTransitions: string[] } }>(
+      `/documents/${id}/status/transitions`
+    )
   },
 
   // Пакеты
@@ -139,6 +149,7 @@ export const api = {
       if (search) params.append('search', search);
       return request<{ data: any[] }>(`/nsi/organizations${params.toString() ? `?${params.toString()}` : ''}`);
     },
+    getOrganization: (id: string) => request<{ data: any }>(`/nsi/organizations/${id}`),
 
     counterparties: (search?: string, inn?: string) => {
       const params = new URLSearchParams();
@@ -146,6 +157,7 @@ export const api = {
       if (inn) params.append('inn', inn);
       return request<{ data: any[] }>(`/nsi/counterparties${params.toString() ? `?${params.toString()}` : ''}`);
     },
+    getCounterparty: (id: string) => request<{ data: any }>(`/nsi/counterparties/${id}`),
 
     contracts: (organizationId?: string, counterpartyName?: string) => {
       const params = new URLSearchParams();
@@ -153,6 +165,7 @@ export const api = {
       if (counterpartyName) params.append('counterpartyName', counterpartyName);
       return request<{ data: any[] }>(`/nsi/contracts${params.toString() ? `?${params.toString()}` : ''}`);
     },
+    getContract: (id: string) => request<{ data: any }>(`/nsi/contracts/${id}`),
 
     accounts: (organizationId?: string, type?: string) => {
       const params = new URLSearchParams();
@@ -160,11 +173,13 @@ export const api = {
       if (type) params.append('type', type);
       return request<{ data: any[] }>(`/nsi/accounts${params.toString() ? `?${params.toString()}` : ''}`);
     },
+    getAccount: (id: string) => request<{ data: any }>(`/nsi/accounts/${id}`),
 
     warehouses: (organizationId?: string) => {
       const params = new URLSearchParams();
       if (organizationId) params.append('organizationId', organizationId);
       return request<{ data: any[] }>(`/nsi/warehouses${params.toString() ? `?${params.toString()}` : ''}`);
-    }
+    },
+    getWarehouse: (id: string) => request<{ data: any }>(`/nsi/warehouses/${id}`)
   }
 };
