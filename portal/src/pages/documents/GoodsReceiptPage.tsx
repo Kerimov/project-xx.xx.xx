@@ -45,11 +45,12 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
           
           // Заполняем форму данными документа
           form.setFieldsValue({
-            number: doc.number,
+            number: doc.number || '',
             date: doc.date ? dayjs(doc.date) : undefined,
             organizationId: doc.organizationId,
             warehouseId: doc.warehouseId,
-            receiptBasis: doc.receiptBasis
+            receiptBasis: doc.receiptBasis || '',
+            currency: doc.currency || 'RUB'
           });
 
           setSelectedOrganizationId(doc.organizationId);
@@ -81,9 +82,15 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
         totalAmount: items.reduce((sum, item) => sum + item.amount, 0)
       };
 
-      const response = await api.documents.create(document);
-      message.success('Документ сохранён');
-      navigate(`/documents/${response.data.id}`);
+      if (isEditMode && documentId) {
+        await api.documents.update(documentId, document);
+        message.success('Документ обновлён');
+        navigate(`/documents/${documentId}`);
+      } else {
+        const response = await api.documents.create(document);
+        message.success('Документ сохранён');
+        navigate(`/documents/${response.data.id}`);
+      }
     } catch (error) {
       message.error('Ошибка при сохранении документа');
     }
@@ -101,10 +108,17 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
         totalAmount: items.reduce((sum, item) => sum + item.amount, 0)
       };
 
-      const response = await api.documents.create(document);
-      await api.documents.freeze(response.data.id);
-      message.success('Документ заморожен');
-      navigate(`/documents/${response.data.id}`);
+      if (isEditMode && documentId) {
+        await api.documents.update(documentId, document);
+        await api.documents.freeze(documentId);
+        message.success('Документ заморожен');
+        navigate(`/documents/${documentId}`);
+      } else {
+        const response = await api.documents.create(document);
+        await api.documents.freeze(response.data.id);
+        message.success('Документ заморожен');
+        navigate(`/documents/${response.data.id}`);
+      }
     } catch (error) {
       message.error('Ошибка при заморозке документа');
     }
@@ -238,33 +252,26 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
 
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
 
-  if (loading && isEditMode) {
-    return (
-      <div className="page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
-
   return (
     <div className="page">
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(isEditMode ? `/documents/${documentId}` : '/documents')}>
-            Назад
-          </Button>
-          <Title level={3} style={{ margin: 0 }}>
-            Оприходование товаров {isEditMode ? '(редактирование)' : '(создание)'}
-          </Title>
-        </Space>
+      <Spin spinning={loading && isEditMode} tip="Загрузка документа...">
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Space>
+            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(isEditMode ? `/documents/${documentId}` : '/documents')}>
+              Назад
+            </Button>
+            <Title level={3} style={{ margin: 0 }}>
+              Оприходование товаров {isEditMode ? '(редактирование)' : '(создание)'}
+            </Title>
+          </Space>
 
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{
-            date: dayjs()
-          }}
-        >
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{
+              date: dayjs()
+            }}
+          >
           <BaseDocumentForm
             title="Основные реквизиты"
             onSave={handleSave}
@@ -343,7 +350,8 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
             </Space>
           </BaseDocumentForm>
         </Form>
-      </Space>
+        </Space>
+      </Spin>
     </div>
   );
 }

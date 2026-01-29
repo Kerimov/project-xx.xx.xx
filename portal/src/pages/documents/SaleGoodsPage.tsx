@@ -51,16 +51,20 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
           
           // Заполняем форму данными документа
           form.setFieldsValue({
-            number: doc.number,
+            number: doc.number || '',
             date: doc.date ? dayjs(doc.date) : undefined,
+            documentNumber: doc.documentNumber || '',
             organizationId: doc.organizationId,
             counterpartyId: doc.counterpartyId,
-            counterpartyName: doc.counterpartyName,
-            counterpartyInn: doc.counterpartyInn,
+            counterpartyName: doc.counterpartyName || '',
+            counterpartyInn: doc.counterpartyInn || '',
             contractId: doc.contractId,
             warehouseId: doc.warehouseId,
             currency: doc.currency || 'RUB',
-            totalAmount: doc.totalAmount
+            totalAmount: doc.totalAmount || doc.amount || 0,
+            paymentTerms: doc.paymentTerms || '',
+            isUPD: doc.isUPD || false,
+            invoiceRequired: doc.invoiceRequired || 'notRequired'
           });
 
           setSelectedOrganizationId(doc.organizationId);
@@ -318,18 +322,11 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
   const totalAmount = items.reduce((sum, item) => sum + item.totalAmount, 0);
   const totalVAT = items.reduce((sum, item) => sum + item.vatAmount, 0);
 
-  if (loading && isEditMode) {
-    return (
-      <div className="page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
-
   return (
     <div className="page">
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Space>
+      <Spin spinning={loading && isEditMode} tip="Загрузка документа...">
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Space>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(isEditMode ? `/documents/${id}` : '/documents')}>
             Назад
           </Button>
@@ -505,6 +502,7 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
           </BaseDocumentForm>
         </Form>
       </Space>
+      </Spin>
     </div>
   );
 }

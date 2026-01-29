@@ -103,6 +103,11 @@ export async function createDocument(data: {
   items?: any[]; // табличная часть (товары/услуги)
   totalAmount?: number;
   totalVAT?: number;
+  dueDate?: string;
+  receiptBasis?: string;
+  returnBasis?: string;
+  documentNumber?: string;
+  paymentTerms?: string;
   createdBy?: string;
 }) {
   // Валидация UUID для organizationId
@@ -154,7 +159,13 @@ export async function createDocument(data: {
     items: data.items || [],
     totalAmount: data.totalAmount || data.amount || 0,
     totalVAT: data.totalVAT || 0,
-    amount: data.amount || data.totalAmount || 0
+    amount: data.amount || data.totalAmount || 0,
+    currency: data.currency || 'RUB',
+    dueDate: data.dueDate,
+    receiptBasis: data.receiptBasis,
+    returnBasis: data.returnBasis,
+    documentNumber: data.documentNumber,
+    paymentTerms: data.paymentTerms
   };
 
   await pool.query(
@@ -349,4 +360,16 @@ export async function getDocumentVersion(documentId: string, version: number) {
     createdAt: row.created_at,
     createdBy: row.created_by
   };
+}
+
+export async function updateDocumentVersion(documentId: string, version: number, data: any) {
+  const result = await pool.query(
+    `UPDATE document_versions
+     SET data = $3, updated_at = CURRENT_TIMESTAMP
+     WHERE document_id = $1 AND version = $2
+     RETURNING *`,
+    [documentId, version, JSON.stringify(data)]
+  );
+  
+  return result.rows[0] || null;
 }

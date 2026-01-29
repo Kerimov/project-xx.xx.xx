@@ -5,6 +5,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { OrganizationSelect, WarehouseSelect } from '../../components/forms';
 import { api } from '../../services/api';
+import { useDocumentEdit } from './useDocumentEdit';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
@@ -22,14 +23,24 @@ interface InventoryItem {
   amount: number;
 }
 
-export function InventoryPage() {
+interface InventoryPageProps {
+  documentId?: string;
+}
+
+export function InventoryPage({ documentId }: InventoryPageProps = {}) {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [items, setItems] = useState<InventoryItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { id, isEditMode, loading, setLoading } = useDocumentEdit({
+    documentId,
+    form,
+    navigate,
+    setItems
+  });
 
   const handleSave = async () => {
     try {
+      setLoading(true);
       const values = await form.validateFields();
       const document = {
         ...values,
@@ -39,16 +50,25 @@ export function InventoryPage() {
         portalStatus: 'Draft'
       };
 
-      const response = await api.documents.create(document);
-      message.success('Документ сохранён');
-      navigate(`/documents/${response.data.id}`);
+      if (isEditMode && id) {
+        await api.documents.update(id, document);
+        message.success('Документ обновлён');
+        navigate(`/documents/${id}`);
+      } else {
+        const response = await api.documents.create(document);
+        message.success('Документ сохранён');
+        navigate(`/documents/${response.data.id}`);
+      }
     } catch (error) {
       message.error('Ошибка при сохранении документа');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleFreeze = async () => {
     try {
+      setLoading(true);
       const values = await form.validateFields();
       const document = {
         ...values,
@@ -58,12 +78,21 @@ export function InventoryPage() {
         portalStatus: 'Frozen'
       };
 
-      const response = await api.documents.create(document);
-      await api.documents.freeze(response.data.id);
-      message.success('Документ заморожен');
-      navigate(`/documents/${response.data.id}`);
+      if (isEditMode && id) {
+        await api.documents.update(id, document);
+        await api.documents.freeze(id);
+        message.success('Документ заморожен');
+        navigate(`/documents/${id}`);
+      } else {
+        const response = await api.documents.create(document);
+        await api.documents.freeze(response.data.id);
+        message.success('Документ заморожен');
+        navigate(`/documents/${response.data.id}`);
+      }
     } catch (error) {
       message.error('Ошибка при заморозке документа');
+    } finally {
+      setLoading(false);
     }
   };
 

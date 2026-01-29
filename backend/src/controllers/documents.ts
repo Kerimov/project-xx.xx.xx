@@ -81,6 +81,11 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
       originalReceived: versionData?.data?.originalReceived || false,
       isUPD: versionData?.data?.isUPD || false,
       invoiceRequired: versionData?.data?.invoiceRequired || false,
+      dueDate: versionData?.data?.dueDate || null,
+      receiptBasis: versionData?.data?.receiptBasis || null,
+      returnBasis: versionData?.data?.returnBasis || null,
+      documentNumber: versionData?.data?.documentNumber || null,
+      paymentTerms: versionData?.data?.paymentTerms || null,
       items: versionData?.data?.items || [],
       totalAmount: row.amount || versionData?.data?.totalAmount || versionData?.data?.amount || 0,
       totalVAT: versionData?.data?.totalVAT || 0,
@@ -147,6 +152,11 @@ export async function createDocument(req: Request, res: Response, next: NextFunc
       items: documentData.items,
       totalAmount: documentData.totalAmount,
       totalVAT: documentData.totalVAT,
+      dueDate: documentData.dueDate,
+      receiptBasis: documentData.receiptBasis,
+      returnBasis: documentData.returnBasis,
+      documentNumber: documentData.documentNumber,
+      paymentTerms: documentData.paymentTerms,
       createdBy: (req as any).user?.username || 'system'
     });
     
@@ -189,19 +199,48 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
       });
     }
     
+    // Обновляем базовую таблицу documents
     const updated = await documentsRepo.updateDocument(id, {
       number: updates.number,
       date: updates.date ? new Date(updates.date) : undefined,
       type: updates.type,
       counterparty_name: updates.counterpartyName,
       counterparty_inn: updates.counterpartyInn,
-      amount: updates.amount,
+      amount: updates.totalAmount || updates.amount,
       currency: updates.currency
     } as any);
     
     if (!updated) {
       return res.status(404).json({ error: { message: 'Document not found' } });
     }
+
+    // Обновляем версию документа с полными данными
+    const versionData = {
+      number: updates.number,
+      date: updates.date,
+      type: updates.type,
+      counterpartyName: updates.counterpartyName,
+      counterpartyInn: updates.counterpartyInn,
+      contractId: updates.contractId,
+      paymentAccountId: updates.paymentAccountId,
+      warehouseId: updates.warehouseId,
+      hasDiscrepancies: updates.hasDiscrepancies,
+      originalReceived: updates.originalReceived,
+      isUPD: updates.isUPD,
+      invoiceRequired: updates.invoiceRequired,
+      items: updates.items || [],
+      totalAmount: updates.totalAmount || updates.amount || 0,
+      totalVAT: updates.totalVAT || 0,
+      amount: updates.amount || updates.totalAmount || 0,
+      currency: updates.currency || 'RUB',
+      dueDate: updates.dueDate,
+      receiptBasis: updates.receiptBasis,
+      returnBasis: updates.returnBasis,
+      documentNumber: updates.documentNumber,
+      paymentTerms: updates.paymentTerms
+    };
+
+    await documentsRepo.updateDocumentVersion(id, document.current_version, versionData);
 
     logger.info('Document updated', { documentId: id, status: currentStatus });
     
