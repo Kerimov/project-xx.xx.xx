@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { logger } from '../utils/logger.js';
+import * as documentsRepo from '../repositories/documents.js';
 
 const uploadDir = process.env.UPLOAD_DIR || './uploads';
 
@@ -61,6 +62,27 @@ export async function uploadFile(req: Request, res: Response, next: NextFunction
     );
 
     logger.info('File uploaded successfully', { documentId, fileId: result.rows[0].id, fileName: result.rows[0].file_name });
+
+    // Добавляем запись в историю документа
+    const user = req.user;
+    try {
+      await documentsRepo.addDocumentHistory(
+        documentId,
+        `Загружен файл: ${file.originalname}`,
+        user?.id || user?.username || 'system',
+        user?.username || 'Система',
+        undefined, // версия не указана для файлов
+        { 
+          fileName: file.originalname,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+          fileId: result.rows[0].id
+        }
+      );
+    } catch (historyError) {
+      // Логируем ошибку, но не прерываем загрузку файла
+      logger.warn('Failed to add file upload to history', { documentId, error: historyError });
+    }
 
     res.status(201).json({
       data: {

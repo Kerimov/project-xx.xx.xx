@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { message } from 'antd';
 import dayjs from 'dayjs';
 import { api } from '../../services/api';
+import { parseDateSafe } from '../../utils/dateUtils';
 
 type SetString = (value?: string) => void;
 type SetItems = (items: any[]) => void;
@@ -22,17 +23,17 @@ interface UseDocumentEditOptions {
 function mapDocumentToFormValues(doc: any) {
   return {
     ...doc,
-    date: doc.date ? dayjs(doc.date) : undefined,
-    dueDate: doc.dueDate ? dayjs(doc.dueDate) : undefined,
-    startDate: doc.startDate ? dayjs(doc.startDate) : undefined,
-    endDate: doc.endDate ? dayjs(doc.endDate) : undefined,
-    periodStart: doc.periodStart ? dayjs(doc.periodStart) : undefined,
-    periodEnd: doc.periodEnd ? dayjs(doc.periodEnd) : undefined,
-    invoiceDate: doc.invoiceDate ? dayjs(doc.invoiceDate) : undefined,
-    serviceStartDate: doc.serviceStartDate ? dayjs(doc.serviceStartDate) : undefined,
-    serviceEndDate: doc.serviceEndDate ? dayjs(doc.serviceEndDate) : undefined,
-    adjustmentDate: doc.adjustmentDate ? dayjs(doc.adjustmentDate) : undefined,
-    validUntil: doc.validUntil ? dayjs(doc.validUntil) : undefined
+    date: parseDateSafe(doc.date),
+    dueDate: parseDateSafe(doc.dueDate),
+    startDate: parseDateSafe(doc.startDate),
+    endDate: parseDateSafe(doc.endDate),
+    periodStart: parseDateSafe(doc.periodStart),
+    periodEnd: parseDateSafe(doc.periodEnd),
+    invoiceDate: parseDateSafe(doc.invoiceDate),
+    serviceStartDate: parseDateSafe(doc.serviceStartDate),
+    serviceEndDate: parseDateSafe(doc.serviceEndDate),
+    adjustmentDate: parseDateSafe(doc.adjustmentDate),
+    validUntil: parseDateSafe(doc.validUntil)
   };
 }
 

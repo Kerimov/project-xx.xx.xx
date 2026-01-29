@@ -6,6 +6,7 @@ import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { OrganizationSelect, CounterpartySelect, ContractSelect, WarehouseSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
+import { parseDateSafe } from '../../utils/dateUtils';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -51,7 +52,7 @@ export function ReturnToSupplierPage({ documentId }: ReturnToSupplierPageProps =
           // Заполняем форму данными документа
           form.setFieldsValue({
             number: doc.number || '',
-            date: doc.date ? dayjs(doc.date) : undefined,
+            date: parseDateSafe(doc.date),
             organizationId: doc.organizationId,
             counterpartyId: doc.counterpartyId,
             counterpartyName: doc.counterpartyName || '',

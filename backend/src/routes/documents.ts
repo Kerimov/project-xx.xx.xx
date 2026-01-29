@@ -8,18 +8,24 @@ import {
   cancelDocument,
   deleteDocument,
   changeDocumentStatus,
-  getDocumentStatusTransitions
+  getDocumentStatusTransitions,
+  addDocumentCheck
 } from '../controllers/documents.js';
 import { validate, validateQuery, validateParams } from '../middleware/validate.js';
 import {
   createDocumentSchema,
   updateDocumentSchema,
   freezeDocumentSchema,
-  listDocumentsSchema
+  listDocumentsSchema,
+  createDocumentCheckSchema
 } from '../validators/documents.js';
+import { authenticateToken } from '../middleware/auth.js';
 import { z } from 'zod';
 
 export const documentsRouter = Router();
+
+// Применяем аутентификацию ко всем роутам документов
+documentsRouter.use(authenticateToken);
 
 const documentIdSchema = z.object({
   id: z.string().uuid('Invalid document ID format')
@@ -49,3 +55,4 @@ documentsRouter.post('/:id/freeze', validateParams(documentIdSchema), freezeDocu
 documentsRouter.post('/:id/cancel', validateParams(documentIdSchema), cancelDocument);
 documentsRouter.delete('/:id', validateParams(documentIdSchema), deleteDocument);
 documentsRouter.post('/:id/status', validateParams(documentIdSchema), validate(changeStatusSchema), changeDocumentStatus);
+documentsRouter.post('/:id/checks', validateParams(documentIdSchema), validate(createDocumentCheckSchema), addDocumentCheck);

@@ -82,7 +82,12 @@ export const api = {
     }),
     getStatusTransitions: (id: string) => request<{ data: { currentStatus: string; editable: boolean; availableTransitions: string[] } }>(
       `/documents/${id}/status/transitions`
-    )
+    ),
+    addCheck: (id: string, check: { source: string; level: 'error' | 'warning' | 'info'; message: string; field?: string; version?: number }) => 
+      request<{ data: any }>(`/documents/${id}/checks`, {
+        method: 'POST',
+        body: JSON.stringify(check)
+      })
   },
 
   // Пакеты

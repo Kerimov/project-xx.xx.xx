@@ -1,4 +1,4 @@
-import { Card, Col, Descriptions, Row, Space, Tabs, Tag, Typography, Button, message, Dropdown, Modal, Upload, List, Popconfirm } from 'antd';
+import { Card, Col, Descriptions, Row, Space, Tabs, Tag, Typography, Button, message, Dropdown, Modal, Upload, List, Popconfirm, Timeline } from 'antd';
 import type { TabsProps } from 'antd';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -377,48 +377,124 @@ export function DocumentDetailsPage() {
     },
     {
       key: 'checks',
-      label: 'Проверки',
+      label: `Проверки (${checks.length})`,
       children: (
         <Card size="small">
-          {checks.map((c) => (
-            <div key={c.id} style={{ marginBottom: 12 }}>
-              <Space>
-                <Tag
-                  color={
-                    c.level === 'error'
-                      ? 'error'
-                      : c.level === 'warning'
-                      ? 'warning'
-                      : 'default'
-                  }
-                >
-                  {c.level === 'error' ? 'Ошибка' : 'Предупреждение'}
-                </Tag>
-                <Tag>{c.source}</Tag>
-                {c.field && <Tag color="default">{c.field}</Tag>}
-              </Space>
-              <div>
-                <Text>{c.message}</Text>
-              </div>
-            </div>
-          ))}
+          {checks.length === 0 ? (
+            <Text type="secondary">Проверки отсутствуют</Text>
+          ) : (
+            <List
+              dataSource={checks}
+              renderItem={(c) => (
+                <List.Item>
+                  <List.Item.Meta
+                    title={
+                      <Space>
+                        <Tag
+                          color={
+                            c.level === 'error'
+                              ? 'error'
+                              : c.level === 'warning'
+                              ? 'warning'
+                              : 'default'
+                          }
+                        >
+                          {c.level === 'error' ? 'Ошибка' : c.level === 'warning' ? 'Предупреждение' : 'Информация'}
+                        </Tag>
+                        <Tag>{c.source}</Tag>
+                        {c.field && <Tag color="default">{c.field}</Tag>}
+                      </Space>
+                    }
+                    description={<Text>{c.message}</Text>}
+                  />
+                </List.Item>
+              )}
+            />
+          )}
         </Card>
       )
     },
     {
       key: 'history',
-      label: 'История',
+      label: `История (${history.length})`,
       children: (
         <Card size="small">
-          {history.map((h) => (
-            <div key={h.id} style={{ marginBottom: 8 }}>
-              <Text strong>{h.at}</Text>{' '}
-              <Text type="secondary">{h.user}</Text>
-              <div>
-                <Text>{h.action}</Text>
-              </div>
-            </div>
-          ))}
+          {history.length === 0 ? (
+            <Text type="secondary">История изменений отсутствует</Text>
+          ) : (
+            <Timeline
+              items={history.map((h) => {
+                const details = h.details;
+                const changedFields = details?.changedFields || [];
+                
+                return {
+                  children: (
+                    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                      <Space>
+                        <Text strong>{h.action}</Text>
+                      </Space>
+                      <Space>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          {dayjs(h.at).format('DD.MM.YYYY HH:mm:ss')}
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          • {h.user || 'Система'}
+                        </Text>
+                      </Space>
+                      {changedFields.length > 0 && (
+                        <div style={{ marginTop: 8, paddingLeft: 16, borderLeft: '2px solid #d9d9d9' }}>
+                          <Text type="secondary" style={{ fontSize: '12px', fontWeight: 500 }}>
+                            Измененные поля:
+                          </Text>
+                          <List
+                            size="small"
+                            dataSource={changedFields}
+                            renderItem={(field: any) => {
+                              // Функция для форматирования значений
+                              const formatValue = (value: any): string => {
+                                if (value === null || value === undefined) return '(пусто)';
+                                if (Array.isArray(value)) {
+                                  return `[${value.length} элементов]`;
+                                }
+                                if (typeof value === 'object') {
+                                  return `{объект}`;
+                                }
+                                if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
+                                  // Дата в формате ISO
+                                  return dayjs(value).format('DD.MM.YYYY');
+                                }
+                                const str = String(value);
+                                return str.length > 50 ? str.substring(0, 50) + '...' : str;
+                              };
+
+                              return (
+                                <List.Item style={{ padding: '4px 0', border: 'none' }}>
+                                  <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                                    <Text style={{ fontSize: '12px' }}>
+                                      <Text strong>{field.label || field.field}:</Text>
+                                    </Text>
+                                    <Space style={{ fontSize: '11px', paddingLeft: 8 }} wrap>
+                                      <Text delete type="secondary">
+                                        {formatValue(field.oldValue)}
+                                      </Text>
+                                      <Text>→</Text>
+                                      <Text type="success">
+                                        {formatValue(field.newValue)}
+                                      </Text>
+                                    </Space>
+                                  </Space>
+                                </List.Item>
+                              );
+                            }}
+                          />
+                        </div>
+                      )}
+                    </Space>
+                  )
+                };
+              })}
+            />
+          )}
         </Card>
       )
     }

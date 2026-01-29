@@ -70,8 +70,20 @@ export const listDocumentsSchema = z.object({
   offset: z.number().int().nonnegative().default(0)
 });
 
+// Схема для создания проверки документа
+export const createDocumentCheckSchema = z.object({
+  source: z.string().min(1, 'Источник проверки обязателен'),
+  level: z.enum(['error', 'warning', 'info'], {
+    errorMap: () => ({ message: 'Уровень проверки должен быть: error, warning или info' })
+  }),
+  message: z.string().min(1, 'Сообщение проверки обязательно'),
+  field: z.string().optional().nullable(),
+  version: z.number().int().positive().optional()
+});
+
 // Типы для TypeScript
 export type CreateDocumentInput = z.infer<typeof createDocumentSchema>;
 export type UpdateDocumentInput = z.infer<typeof updateDocumentSchema>;
 export type FreezeDocumentInput = z.infer<typeof freezeDocumentSchema>;
 export type ListDocumentsInput = z.infer<typeof listDocumentsSchema>;
+export type CreateDocumentCheckInput = z.infer<typeof createDocumentCheckSchema>;

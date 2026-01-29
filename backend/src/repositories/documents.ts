@@ -334,6 +334,31 @@ export async function getDocumentChecks(documentId: string, version?: number) {
   return result.rows;
 }
 
+export async function addDocumentCheck(
+  documentId: string,
+  source: string,
+  level: 'error' | 'warning' | 'info',
+  message: string,
+  field?: string,
+  version?: number
+) {
+  const result = await pool.query(
+    `INSERT INTO document_checks (document_id, version, source, level, field, message)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
+      documentId,
+      version || null,
+      source,
+      level,
+      field || null,
+      message
+    ]
+  );
+  
+  return result.rows[0];
+}
+
 export async function getDocumentHistory(documentId: string, version?: number) {
   let query = `SELECT * FROM document_history WHERE document_id = $1`;
   const params: any[] = [documentId];
@@ -347,6 +372,31 @@ export async function getDocumentHistory(documentId: string, version?: number) {
 
   const result = await pool.query(query, params);
   return result.rows;
+}
+
+export async function addDocumentHistory(
+  documentId: string,
+  action: string,
+  userId?: string,
+  userName?: string,
+  version?: number,
+  details?: any
+) {
+  const result = await pool.query(
+    `INSERT INTO document_history (document_id, version, action, user_id, user_name, details)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
+      documentId,
+      version || null,
+      action,
+      userId || null,
+      userName || null,
+      details ? JSON.stringify(details) : null
+    ]
+  );
+  
+  return result.rows[0];
 }
 
 export async function getDocumentVersion(documentId: string, version: number) {

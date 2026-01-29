@@ -13,15 +13,23 @@ body {
 }
 
 .app-logo {
-  height: 48px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
   font-size: 18px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 0 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  flex-shrink: 0;
+  line-height: 64px;
 }
 
 .app-header {
@@ -31,10 +39,28 @@ body {
   padding: 0 24px;
   background: #ffffff;
   border-bottom: 1px solid #f0f0f0;
+  position: relative;
+  z-index: 10;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 64px;
+  line-height: 64px;
 }
 
 .app-header-title {
-  margin: 0;
+  margin: 0 !important;
+  white-space: nowrap;
+  overflow: visible;
+  flex-shrink: 0;
+  max-width: 100%;
+  height: auto;
+  line-height: 64px;
+}
+
+.app-header-title h4 {
+  margin: 0 !important;
+  line-height: 64px;
 }
 
 .app-header-icon {
@@ -48,6 +74,99 @@ body {
 
 .app-content {
   padding: 24px;
+  overflow-x: auto;
+}
+
+/* Предотвращение наложения элементов */
+.ant-layout {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+}
+
+.ant-layout-sider {
+  position: relative !important;
+  z-index: 0 !important;
+  overflow: hidden;
+  flex: 0 0 260px;
+  max-width: 260px;
+  min-width: 260px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ant-layout-sider .ant-menu {
+  border-right: none;
+  flex: 1;
+}
+
+/* Убираем fixed позиционирование для Sider, если оно есть */
+.ant-layout-has-sider > .ant-layout,
+.ant-layout-has-sider > .ant-layout-content {
+  margin-left: 0 !important;
+}
+
+.ant-layout-sider-collapsed {
+  flex: 0 0 80px;
+  max-width: 80px;
+  min-width: 80px;
+}
+
+/* Убеждаемся, что Sider не накладывается на Header */
+.ant-layout-sider.ant-layout-sider-fixed,
+.ant-layout-sider.ant-layout-sider-collapsed {
+  position: relative !important;
+  z-index: 0 !important;
+}
+
+/* Убираем все возможные fixed/absolute позиционирования */
+.ant-layout-sider[style*="position: fixed"],
+.ant-layout-sider[style*="position:absolute"] {
+  position: relative !important;
+}
+
+.ant-layout-header {
+  position: relative !important;
+  z-index: 10 !important;
+  flex: 1;
+  min-width: 0;
+  background: #ffffff !important;
+  margin-left: 0 !important;
+  height: 64px !important;
+  line-height: 64px !important;
+  padding: 0 !important;
+}
+
+/* Стили для меню в сайдбаре */
+.ant-layout-sider .ant-menu {
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.ant-layout-sider .ant-menu-item {
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+/* Исправление для внутреннего Layout */
+.ant-layout > .ant-layout {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  margin-left: 0 !important;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+}
+
+/* Убеждаемся, что header и логотип на одной высоте */
+.ant-layout-sider .app-logo,
+.ant-layout-header {
+  height: 64px;
+  line-height: 64px;
 }
 
 .page {

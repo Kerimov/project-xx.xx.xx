@@ -9,10 +9,14 @@ import {
 } from '../controllers/files.js';
 import { uploadSingle } from '../middleware/upload.js';
 import { validateParams } from '../middleware/validate.js';
+import { authenticateToken } from '../middleware/auth.js';
 import { z } from 'zod';
 import multer from 'multer';
 
 export const filesRouter = Router();
+
+// Применяем аутентификацию ко всем роутам файлов
+filesRouter.use(authenticateToken);
 
 const fileIdSchema = z.object({
   fileId: z.string().uuid('Invalid file ID format')

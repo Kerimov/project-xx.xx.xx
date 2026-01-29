@@ -8,6 +8,7 @@ import {
   getAvailableTransitions,
   type PortalStatus
 } from '../services/document-status.js';
+import { validateDocument } from '../services/document-validation.js';
 
 export async function getDocuments(req: Request, res: Response, next: NextFunction) {
   try {
@@ -26,7 +27,9 @@ export async function getDocuments(req: Request, res: Response, next: NextFuncti
     const documents = rows.map(row => ({
       id: row.id,
       number: row.number,
-      date: row.date.toISOString().split('T')[0],
+      date: row.date instanceof Date 
+        ? `${row.date.getFullYear()}-${String(row.date.getMonth() + 1).padStart(2, '0')}-${String(row.date.getDate()).padStart(2, '0')}`
+        : row.date.toISOString().split('T')[0],
       type: row.type,
       company: row.organization_name || '',
       counterparty: row.counterparty_name || '',
@@ -67,7 +70,9 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
     const document = {
       id: row.id,
       number: row.number,
-      date: row.date.toISOString().split('T')[0],
+      date: row.date instanceof Date 
+        ? `${row.date.getFullYear()}-${String(row.date.getMonth() + 1).padStart(2, '0')}-${String(row.date.getDate()).padStart(2, '0')}`
+        : row.date.toISOString().split('T')[0],
       type: row.type,
       organizationId: row.organization_id,
       organizationName: row.organization_name || '',
@@ -115,8 +120,9 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
       history: history.map(h => ({
         id: h.id,
         at: h.created_at.toISOString(),
-        user: h.user_id || '',
-        action: h.action
+        user: h.user_name || h.user_id || '',
+        action: h.action,
+        details: h.details ? (typeof h.details === 'string' ? JSON.parse(h.details) : h.details) : null
       }))
     };
 
@@ -157,10 +163,33 @@ export async function createDocument(req: Request, res: Response, next: NextFunc
       returnBasis: documentData.returnBasis,
       documentNumber: documentData.documentNumber,
       paymentTerms: documentData.paymentTerms,
-      createdBy: (req as any).user?.username || 'system'
+      createdBy: req.user?.username || 'system'
     });
     
-    logger.info('Document created successfully', { documentId: document.id });
+    // Добавляем запись в историю
+    const user = req.user;
+    if (!user) {
+      logger.warn('No user in request when creating document', { documentId: document.id });
+    }
+    
+    await documentsRepo.addDocumentHistory(
+      document.id,
+      'Документ создан',
+      user?.id || user?.username || 'system',
+      user?.username || 'Система',
+      1,
+      { number: document.number, type: document.type }
+    );
+
+    // Выполняем валидацию документа и создаем проверки
+    try {
+      await validateDocument(document.id, documentData, 1);
+    } catch (validationError: any) {
+      logger.warn('Document validation failed', { documentId: document.id, error: validationError.message });
+      // Не прерываем создание документа, только логируем ошибку валидации
+    }
+    
+    logger.info('Document created successfully', { documentId: document.id, username: user?.username });
     res.status(201).json({ data: document });
   } catch (error: any) {
     logger.error('Error creating document', error, { documentType: documentData.type });
@@ -214,6 +243,10 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
       return res.status(404).json({ error: { message: 'Document not found' } });
     }
 
+    // Получаем текущую версию документа для сравнения
+    const currentVersionData = await documentsRepo.getDocumentVersion(id, document.current_version);
+    const oldData = currentVersionData?.data || {};
+
     // Создаём новую версию документа с полными данными
     const versionData = {
       number: updates.number,
@@ -243,8 +276,62 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
       serviceEndDate: updates.serviceEndDate
     };
 
+    // Сравниваем старые и новые значения для определения измененных полей
+    const fieldLabels: Record<string, string> = {
+      number: 'Номер документа',
+      date: 'Дата',
+      counterpartyName: 'Контрагент',
+      counterpartyInn: 'ИНН контрагента',
+      contractId: 'Договор',
+      paymentAccountId: 'Счет оплаты',
+      warehouseId: 'Склад',
+      hasDiscrepancies: 'Есть расхождения',
+      originalReceived: 'Оригинал получен',
+      isUPD: 'УПД',
+      invoiceRequired: 'Требуется счет',
+      items: 'Позиции документа',
+      totalAmount: 'Сумма',
+      totalVAT: 'НДС',
+      amount: 'Сумма',
+      currency: 'Валюта',
+      dueDate: 'Срок оплаты',
+      receiptBasis: 'Основание оприходования',
+      returnBasis: 'Основание возврата',
+      documentNumber: 'Номер документа-основания',
+      paymentTerms: 'Условия оплаты',
+      servicePeriod: 'Период оказания услуг',
+      serviceStartDate: 'Дата начала услуг',
+      serviceEndDate: 'Дата окончания услуг'
+    };
+
+    const changedFields: Array<{ field: string; label: string; oldValue: any; newValue: any }> = [];
+    
+    // Функция для нормализации значений для сравнения
+    const normalizeValue = (value: any): any => {
+      if (value === null || value === undefined) return null;
+      if (typeof value === 'string') return value.trim();
+      if (Array.isArray(value)) return JSON.stringify(value);
+      return value;
+    };
+
+    // Проверяем каждое поле на изменения
+    for (const [key, newValue] of Object.entries(versionData)) {
+      const oldValue = oldData[key];
+      const normalizedOld = normalizeValue(oldValue);
+      const normalizedNew = normalizeValue(newValue);
+      
+      if (normalizedOld !== normalizedNew) {
+        changedFields.push({
+          field: key,
+          label: fieldLabels[key] || key,
+          oldValue: oldValue ?? null,
+          newValue: newValue ?? null
+        });
+      }
+    }
+
     // Создаём новую версию вместо обновления существующей
-    await documentsRepo.createNewDocumentVersion(id, versionData, (req as any).user?.username || 'system');
+    const newVersion = await documentsRepo.createNewDocumentVersion(id, versionData, req.user?.username || 'system');
 
     // Получаем обновленный документ с новой версией
     const updatedDoc = await documentsRepo.getDocumentById(id);
@@ -257,6 +344,38 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
     if (updatedDoc.id !== id) {
       logger.error('Document ID changed during update!', { originalId: id, newId: updatedDoc.id });
       return res.status(500).json({ error: { message: 'Internal error: Document ID changed' } });
+    }
+
+    // Добавляем запись в историю с деталями изменений
+    const user = req.user;
+    const actionText = changedFields.length > 0 
+      ? `Документ отредактирован (изменено полей: ${changedFields.length})`
+      : 'Документ отредактирован';
+    
+    await documentsRepo.addDocumentHistory(
+      id,
+      actionText,
+      user?.id || user?.username || 'system',
+      user?.username || 'Система',
+      updatedDoc.current_version,
+      { 
+        previousVersion: document.current_version,
+        newVersion: updatedDoc.current_version,
+        changedFields: changedFields.map(f => ({
+          field: f.field,
+          label: f.label,
+          oldValue: f.oldValue,
+          newValue: f.newValue
+        }))
+      }
+    );
+
+    // Выполняем валидацию обновленного документа и создаем проверки
+    try {
+      await validateDocument(id, versionData, updatedDoc.current_version);
+    } catch (validationError: any) {
+      logger.warn('Document validation failed', { documentId: id, error: validationError.message });
+      // Не прерываем обновление документа, только логируем ошибку валидации
     }
 
     logger.info('Document updated', { documentId: id, status: currentStatus, newVersion: updatedDoc.current_version });
@@ -290,6 +409,17 @@ export async function freezeDocumentVersion(req: Request, res: Response, next: N
     
     // Добавляем задачу в очередь для отправки в УХ
     await uhQueueService.enqueue(id, 'UpsertDocument');
+    
+    // Добавляем запись в историю
+    const user = req.user;
+    await documentsRepo.addDocumentHistory(
+      id,
+      'Документ заморожен',
+      user?.id || user?.username || 'system',
+      user?.username || 'Система',
+      document.current_version,
+      { frozenAt: frozen.frozen_at?.toISOString() }
+    );
     
     logger.info('Document frozen', { documentId: id, version: document.current_version });
     
@@ -358,6 +488,34 @@ export async function changeDocumentStatus(req: Request, res: Response, next: Ne
       await uhQueueService.enqueue(id, 'UpsertDocument');
     }
 
+    // Добавляем запись в историю
+    const user = req.user;
+    const statusLabels: Record<string, string> = {
+      'Draft': 'Черновик',
+      'Validated': 'Проверен',
+      'Frozen': 'Заморожен',
+      'QueuedToUH': 'В очереди в УХ',
+      'SentToUH': 'Отправлен в УХ',
+      'AcceptedByUH': 'Принят УХ',
+      'PostedInUH': 'Проведен в УХ',
+      'RejectedByUH': 'Отклонен УХ',
+      'Cancelled': 'Отменен'
+    };
+    
+    await documentsRepo.addDocumentHistory(
+      id,
+      `Статус изменен: ${statusLabels[newStatus] || newStatus}`,
+      user?.id || user?.username || 'system',
+      user?.username || 'Система',
+      document.current_version,
+      { 
+        fromStatus: currentStatus,
+        toStatus: newStatus,
+        fromStatusLabel: statusLabels[currentStatus] || currentStatus,
+        toStatusLabel: statusLabels[newStatus] || newStatus
+      }
+    );
+
     logger.info('Document status changed', {
       documentId: id,
       from: currentStatus,
@@ -424,6 +582,17 @@ export async function deleteDocument(req: Request, res: Response, next: NextFunc
       });
     }
 
+    // Добавляем запись в историю перед удалением
+    const user = (req as any).user;
+    await documentsRepo.addDocumentHistory(
+      id,
+      'Документ удален',
+      user?.id || user?.username || 'system',
+      user?.username || 'Система',
+      document.current_version,
+      { number: document.number, status: document.portal_status }
+    );
+
     // Удаляем документ (CASCADE удалит все связанные данные)
     const deleted = await documentsRepo.deleteDocument(id);
     
@@ -473,6 +642,17 @@ export async function cancelDocument(req: Request, res: Response, next: NextFunc
       });
     }
     
+    // Добавляем запись в историю
+    const user = req.user;
+    await documentsRepo.addDocumentHistory(
+      id,
+      'Документ отменен',
+      user?.id || user?.username || 'system',
+      user?.username || 'Система',
+      document.current_version,
+      { cancelledAt: cancelled.cancelled_at?.toISOString() }
+    );
+    
     logger.info('Document cancelled', { documentId: id });
     
     res.json({
@@ -480,6 +660,63 @@ export async function cancelDocument(req: Request, res: Response, next: NextFunc
         id: cancelled.id,
         portalStatus: cancelled.portal_status,
         updatedAt: cancelled.updated_at?.toISOString()
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Создает проверку для документа
+ */
+export async function addDocumentCheck(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    const { source, level, message, field, version } = req.body;
+
+    // Проверяем существование документа
+    const document = await documentsRepo.getDocumentById(id);
+    if (!document) {
+      return res.status(404).json({ error: { message: 'Document not found' } });
+    }
+
+    const check = await documentsRepo.addDocumentCheck(
+      id,
+      source,
+      level as 'error' | 'warning' | 'info',
+      message,
+      field,
+      version || document.current_version
+    );
+
+    // Добавляем запись в историю
+    const user = req.user;
+    await documentsRepo.addDocumentHistory(
+      id,
+      `Добавлена проверка: ${level === 'error' ? 'Ошибка' : level === 'warning' ? 'Предупреждение' : 'Информация'}`,
+      user?.id || user?.username || 'system',
+      user?.username || 'Система',
+      version || document.current_version,
+      { source, level, field, message }
+    );
+
+    logger.info('Document check added', { 
+      documentId: id, 
+      checkId: check.id, 
+      level, 
+      source,
+      username: req.user?.username 
+    });
+
+    res.status(201).json({
+      data: {
+        id: check.id,
+        source: check.source,
+        level: check.level,
+        field: check.field,
+        message: check.message,
+        createdAt: check.created_at
       }
     });
   } catch (error) {

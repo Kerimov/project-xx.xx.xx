@@ -9,6 +9,7 @@ import { ContractSelect } from '../../components/forms/ContractSelect';
 import { AccountSelect } from '../../components/forms/AccountSelect';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
+import { parseDateSafe } from '../../utils/dateUtils';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -41,8 +42,8 @@ export function InvoiceFromSupplierPage({ documentId }: InvoiceFromSupplierPageP
           // Заполняем форму данными документа
           form.setFieldsValue({
             number: doc.number || '',
-            date: doc.date ? dayjs(doc.date) : undefined,
-            dueDate: doc.dueDate ? dayjs(doc.dueDate) : undefined,
+            date: parseDateSafe(doc.date),
+            dueDate: parseDateSafe(doc.dueDate),
             organizationId: doc.organizationId,
             counterpartyId: doc.counterpartyId,
             counterpartyName: doc.counterpartyName || '',
