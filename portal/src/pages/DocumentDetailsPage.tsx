@@ -261,9 +261,9 @@ export function DocumentDetailsPage() {
   return (
     <div className="page">
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Space align="baseline" size="middle" style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Space align="baseline" size="middle">
-            <Title level={3} style={{ marginBottom: 0 }}>
+        <Space align="baseline" size="middle" style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'nowrap' }}>
+          <Space align="baseline" size="middle" style={{ flexWrap: 'nowrap' }}>
+            <Title level={3} style={{ marginBottom: 0, whiteSpace: 'nowrap' }}>
               Документ {doc.number}
             </Title>
             <Tag color={portal.color}>{portal.text}</Tag>
@@ -274,7 +274,16 @@ export function DocumentDetailsPage() {
               <Tag icon={<LockOutlined />} color="default">Только чтение</Tag>
             )}
           </Space>
-          <Space>
+          <Space style={{ flexWrap: 'nowrap' }}>
+            {canEdit && (
+              <Button 
+                type="primary"
+                icon={<EditOutlined />}
+                onClick={() => navigate(`/documents/${id}/edit`)}
+              >
+                Редактировать
+              </Button>
+            )}
             {availableTransitions.length > 0 && (
               <Dropdown
                 menu={{

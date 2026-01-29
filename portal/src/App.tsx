@@ -45,6 +45,7 @@ function AppLayout() {
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/documents/new" element={<SelectDocumentTypePage />} />
             <Route path="/documents/new/:type" element={<CreateDocumentPage />} />
+            <Route path="/documents/:id/edit" element={<CreateDocumentPage />} />
             <Route path="/documents/:id" element={<DocumentDetailsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/integration" element={<IntegrationMonitorPage />} />

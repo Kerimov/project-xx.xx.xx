@@ -260,11 +260,13 @@ export async function changeDocumentStatus(req: Request, res: Response, next: Ne
     }
 
     // Обновляем статус документа
-    const metadata: any = {};
+    const metadata: { validatedAt?: Date; frozenAt?: Date; cancelledAt?: Date } = {};
     if (newStatus === 'Validated') {
       metadata.validatedAt = new Date();
     } else if (newStatus === 'Frozen') {
       metadata.frozenAt = new Date();
+    } else if (newStatus === 'Cancelled') {
+      metadata.cancelledAt = new Date();
     }
 
     const updated = await documentsRepo.updateDocumentStatus(id, newStatus, metadata);

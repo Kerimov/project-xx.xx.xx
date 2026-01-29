@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message } from 'antd';
+import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { OrganizationSelect, WarehouseSelect, AccountSelect } from '../../components/forms';
@@ -22,12 +22,52 @@ interface ReceiptItem {
   accountId?: string;
 }
 
-export function GoodsReceiptPage() {
+interface GoodsReceiptPageProps {
+  documentId?: string;
+}
+
+export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [items, setItems] = useState<ReceiptItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const isEditMode = !!documentId;
+  const [loading, setLoading] = useState(isEditMode);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | undefined>();
+
+  // Загружаем документ при редактировании
+  useEffect(() => {
+    if (isEditMode && documentId) {
+      const loadDocument = async () => {
+        try {
+          setLoading(true);
+          const response = await api.documents.getById(documentId);
+          const doc = response.data;
+          
+          // Заполняем форму данными документа
+          form.setFieldsValue({
+            number: doc.number,
+            date: doc.date ? dayjs(doc.date) : undefined,
+            organizationId: doc.organizationId,
+            warehouseId: doc.warehouseId,
+            receiptBasis: doc.receiptBasis
+          });
+
+          setSelectedOrganizationId(doc.organizationId);
+          
+          // Загружаем позиции документа
+          if (doc.items && Array.isArray(doc.items)) {
+            setItems(doc.items);
+          }
+        } catch (error: any) {
+          message.error('Ошибка загрузки документа: ' + (error.message || 'Неизвестная ошибка'));
+          navigate('/documents');
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadDocument();
+    }
+  }, [documentId, isEditMode, form, navigate]);
 
   const handleSave = async () => {
     try {
@@ -198,15 +238,23 @@ export function GoodsReceiptPage() {
 
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
 
+  if (loading && isEditMode) {
+    return (
+      <div className="page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/documents')}>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(isEditMode ? `/documents/${documentId}` : '/documents')}>
             Назад
           </Button>
           <Title level={3} style={{ margin: 0 }}>
-            Оприходование товаров (создание)
+            Оприходование товаров {isEditMode ? '(редактирование)' : '(создание)'}
           </Title>
         </Space>
 

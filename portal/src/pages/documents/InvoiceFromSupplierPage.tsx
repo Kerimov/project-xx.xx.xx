@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Form, Input, DatePicker, Select, InputNumber, Space, Typography, message, Table, Button } from 'antd';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Form, Input, DatePicker, Select, InputNumber, Space, Typography, message, Table, Button, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { OrganizationSelect } from '../../components/forms/OrganizationSelect';
@@ -13,14 +13,64 @@ import dayjs from 'dayjs';
 const { Title } = Typography;
 const { Option } = Select;
 
-export function InvoiceFromSupplierPage() {
+interface InvoiceFromSupplierPageProps {
+  documentId?: string;
+}
+
+export function InvoiceFromSupplierPage({ documentId }: InvoiceFromSupplierPageProps = {}) {
   const navigate = useNavigate();
+  const paramsId = useParams<{ id?: string }>().id;
+  const id = documentId || paramsId;
+  const isEditMode = !!id;
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(isEditMode);
   const [items, setItems] = useState<any[]>([]);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | undefined>();
   const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | undefined>();
   const [counterpartyName, setCounterpartyName] = useState<string>('');
+
+  // Загружаем документ при редактировании
+  useEffect(() => {
+    if (isEditMode && id) {
+      const loadDocument = async () => {
+        try {
+          setLoading(true);
+          const response = await api.documents.getById(id);
+          const doc = response.data;
+          
+          // Заполняем форму данными документа
+          form.setFieldsValue({
+            number: doc.number,
+            date: doc.date ? dayjs(doc.date) : undefined,
+            dueDate: doc.dueDate ? dayjs(doc.dueDate) : undefined,
+            organizationId: doc.organizationId,
+            counterpartyId: doc.counterpartyId,
+            counterpartyName: doc.counterpartyName,
+            counterpartyInn: doc.counterpartyInn,
+            contractId: doc.contractId,
+            paymentAccountId: doc.paymentAccountId,
+            currency: doc.currency || 'RUB',
+            totalAmount: doc.totalAmount
+          });
+
+          setSelectedOrganizationId(doc.organizationId);
+          setSelectedCounterpartyId(doc.counterpartyId);
+          setCounterpartyName(doc.counterpartyName || '');
+          
+          // Загружаем позиции документа
+          if (doc.items && Array.isArray(doc.items)) {
+            setItems(doc.items);
+          }
+        } catch (error: any) {
+          message.error('Ошибка загрузки документа: ' + (error.message || 'Неизвестная ошибка'));
+          navigate('/documents');
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadDocument();
+    }
+  }, [id, isEditMode, form, navigate]);
 
   const handleSave = async () => {
     try {
@@ -52,9 +102,15 @@ export function InvoiceFromSupplierPage() {
       };
 
       console.log('📤 Sending document:', document);
-      const response = await api.documents.create(document);
-      message.success('Документ сохранён');
-      navigate(`/documents/${response.data.id}`);
+      if (isEditMode && id) {
+        await api.documents.update(id, document);
+        message.success('Документ обновлён');
+        navigate(`/documents/${id}`);
+      } else {
+        const response = await api.documents.create(document);
+        message.success('Документ сохранён');
+        navigate(`/documents/${response.data.id}`);
+      }
     } catch (error) {
       console.error('❌ Error saving document:', error);
       const msg = error instanceof Error ? error.message : 'Ошибка при сохранении документа';
@@ -186,15 +242,23 @@ export function InvoiceFromSupplierPage() {
     }
   ];
 
+  if (loading && isEditMode) {
+    return (
+      <div className="page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/documents')}>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(isEditMode ? `/documents/${id}` : '/documents')}>
             Назад
           </Button>
           <Title level={3} style={{ margin: 0 }}>
-            Счет от поставщика (создание)
+            Счет от поставщика {isEditMode ? '(редактирование)' : '(создание)'}
           </Title>
         </Space>
 
