@@ -4,8 +4,7 @@
 		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 		base="/kk_test"
 		ib="Srvr=&quot;1c-srv.prima.pra.ru&quot;;Ref=&quot;kk_test&quot;;">
-	<ws pointEnableCommon="true"
-			publishExtensionsByDefault="true">
+	<ws pointEnableCommon="true">
 		<point name="CPMDataExchange"
 				alias="ws_Cons.1cws"
 				enable="true"
@@ -235,7 +234,16 @@
 			</accessTokenAuthentication>
 		</point>
 	</ws>
-	<httpServices publishExtensionsByDefault="true">
+	<standardOdata enable="true"
+			reuseSessions="autouse"
+			sessionMaxAge="20"
+			poolSize="10"
+			poolTimeout="5"/>
+	<analytics enable="true"
+			sessionMaxAge="1200"
+			poolSize="500"
+			poolTimeout="5"/>
+	<httpServices>
 		<service name="exchange_dsl_1_0_0_1"
 				rootUrl="exchange_dsl_1_0_0_1"
 				enable="true"
@@ -345,7 +353,7 @@
 			</accessTokenAuthentication>
 		</service>
 		<service name="ПорталЕЦОФ"
-				rootUrl="ecof/"
+				rootUrl="ecof"
 				enable="true"
 				reuseSessions="autouse"
 				sessionMaxAge="20"
@@ -357,13 +365,4 @@
 			</accessTokenAuthentication>
 		</service>
 	</httpServices>
-	<standardOdata enable="true"
-			reuseSessions="autouse"
-			sessionMaxAge="20"
-			poolSize="10"
-			poolTimeout="5"/>
-	<analytics enable="true"
-			sessionMaxAge="1200"
-			poolSize="500"
-			poolTimeout="5"/>
 </point>
