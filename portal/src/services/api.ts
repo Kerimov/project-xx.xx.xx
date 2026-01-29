@@ -253,7 +253,18 @@ export const api = {
         }>('/uh/db/config'),
       health: () => request<{ ok: boolean; error?: string }>('/uh/db/health'),
       sample: () =>
-        request<{ data: { rows: Record<string, unknown>[]; columns: string[]; source: string } }>('/uh/db/sample')
+        request<{ data: { rows: Record<string, unknown>[]; columns: string[]; source: string } }>('/uh/db/sample'),
+      servicesCheck: (baseUrl: string, credentials?: { username?: string; password?: string }) =>
+        credentials?.username
+          ? request<{
+              data: Array<{ url: string; statusCode?: number; ok: boolean; error?: string; hint?: string }>;
+            }>('/uh/db/services-check', {
+              method: 'POST',
+              body: JSON.stringify({ baseUrl, username: credentials.username, password: credentials.password ?? '' })
+            })
+          : request<{
+              data: Array<{ url: string; statusCode?: number; ok: boolean; error?: string; hint?: string }>;
+            }>(`/uh/db/services-check?baseUrl=${encodeURIComponent(baseUrl)}`)
     }
   }
 };

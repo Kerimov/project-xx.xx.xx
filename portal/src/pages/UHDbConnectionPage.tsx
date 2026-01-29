@@ -1,5 +1,5 @@
-import { Card, Descriptions, Button, Alert, Spin, Typography, Table } from 'antd';
-import { DatabaseOutlined, CheckCircleOutlined, CloseCircleOutlined, TableOutlined } from '@ant-design/icons';
+import { Card, Descriptions, Button, Alert, Spin, Typography, Table, Input } from 'antd';
+import { DatabaseOutlined, CheckCircleOutlined, CloseCircleOutlined, TableOutlined, GlobalOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
 
@@ -24,6 +24,14 @@ export function UHDbConnectionPage() {
   } | null>(null);
   const [loadingSample, setLoadingSample] = useState(false);
   const [sampleError, setSampleError] = useState<string | null>(null);
+  const [servicesBaseUrl, setServicesBaseUrl] = useState('https://localhost:8035/kk_test');
+  const [servicesLogin, setServicesLogin] = useState('');
+  const [servicesPassword, setServicesPassword] = useState('');
+  const [servicesResult, setServicesResult] = useState<
+    Array<{ url: string; statusCode?: number; ok: boolean; error?: string }>
+  | null>(null);
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [servicesError, setServicesError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +86,23 @@ export function UHDbConnectionPage() {
       setSampleError(e?.message || 'Ошибка загрузки');
     } finally {
       setLoadingSample(false);
+    }
+  };
+
+  const checkServices = async () => {
+    setLoadingServices(true);
+    setServicesError(null);
+    setServicesResult(null);
+    try {
+      const credentials = servicesLogin.trim()
+        ? { username: servicesLogin.trim(), password: servicesPassword }
+        : undefined;
+      const res = await api.uh.db.servicesCheck(servicesBaseUrl, credentials);
+      setServicesResult(res.data);
+    } catch (e: any) {
+      setServicesError(e?.message || 'Ошибка проверки');
+    } finally {
+      setLoadingServices(false);
     }
   };
 
@@ -185,6 +210,87 @@ export function UHDbConnectionPage() {
               style={{ marginTop: 8 }}
             />
           </div>
+        )}
+      </Card>
+
+      <Card
+        title={
+          <span>
+            <GlobalOutlined /> Проверка HTTP-сервисов 1С (публикация)
+          </span>
+        }
+      >
+        <div style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+          <span>
+            <Typography.Text type="secondary" style={{ marginRight: 8 }}>URL публикации:</Typography.Text>
+            <Input
+              value={servicesBaseUrl}
+              onChange={(e) => setServicesBaseUrl(e.target.value)}
+              placeholder="https://localhost:8035/kk_test"
+              style={{ width: 320 }}
+            />
+          </span>
+          <span>
+            <Typography.Text type="secondary" style={{ marginRight: 8 }}>Логин 1С:</Typography.Text>
+            <Input
+              value={servicesLogin}
+              onChange={(e) => setServicesLogin(e.target.value)}
+              placeholder="Администратор"
+              style={{ width: 140 }}
+              autoComplete="username"
+            />
+          </span>
+          <span>
+            <Typography.Text type="secondary" style={{ marginRight: 8 }}>Пароль:</Typography.Text>
+            <Input.Password
+              value={servicesPassword}
+              onChange={(e) => setServicesPassword(e.target.value)}
+              placeholder="••••••••"
+              style={{ width: 140 }}
+              autoComplete="current-password"
+            />
+          </span>
+          <Button
+            type="default"
+            onClick={checkServices}
+            loading={loadingServices}
+            icon={<GlobalOutlined />}
+          >
+            Проверить сервисы
+          </Button>
+        </div>
+        <Alert
+          type="info"
+          showIcon
+          message="Проверка идёт с бэкенда. Укажите логин и пароль 1С — запросы пойдут с Basic Auth, как при входе в сессию 1С. Либо задайте UH_1C_USER и UH_1C_PASSWORD в backend/.env."
+          style={{ marginBottom: 12 }}
+        />
+        {servicesError && (
+          <Alert type="error" message={servicesError} style={{ marginBottom: 12 }} />
+        )}
+        {servicesResult && (
+          <Table
+            size="small"
+            dataSource={servicesResult.map((r, i) => ({ ...r, key: i }))}
+            columns={[
+              { title: 'URL', dataIndex: 'url', key: 'url', ellipsis: true },
+              {
+                title: 'Статус',
+                dataIndex: 'ok',
+                key: 'ok',
+                width: 100,
+                render: (ok: boolean) =>
+                  ok ? (
+                    <span style={{ color: 'green' }}><CheckCircleOutlined /> OK</span>
+                  ) : (
+                    <span style={{ color: 'red' }}><CloseCircleOutlined /> Ошибка</span>
+                  )
+              },
+              { title: 'Код', dataIndex: 'statusCode', key: 'statusCode', width: 80 },
+              { title: 'Ошибка', dataIndex: 'error', key: 'error', ellipsis: true, render: (err: string, row: { error?: string; hint?: string }) => err || row.hint || '—' }
+            ]}
+            pagination={false}
+          />
         )}
       </Card>
     </div>

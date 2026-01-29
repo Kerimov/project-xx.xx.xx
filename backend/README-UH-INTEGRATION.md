@@ -83,6 +83,17 @@ UH_MSSQL_TRUST_SERVER_CERTIFICATE=true
 # UH_DB_SSL=true
 ```
 
+### Проверка HTTP-сервисов 1С (публикация)
+
+На странице портала «Подключение к БД 1С:УХ» можно проверить доступность OData и ПорталЕЦОФ по URL публикации. Если 1С требует Basic Auth, задайте в `backend/.env`:
+
+```env
+UH_1C_USER=Администратор
+UH_1C_PASSWORD=your-password
+```
+
+Запросы к `/odata/`, `/ecof/` и т.д. будут отправляться с заголовком `Authorization: Basic ...`.
+
 ## Использование
 
 ```typescript
