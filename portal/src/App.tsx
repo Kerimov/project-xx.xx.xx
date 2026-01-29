@@ -8,6 +8,7 @@ import { PackagesPage } from './pages/PackagesPage';
 import { DocumentsPage } from './pages/DocumentsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { IntegrationMonitorPage } from './pages/IntegrationMonitorPage';
+import { DocumentDetailsPage } from './pages/DocumentDetailsPage';
 
 const { Sider } = Layout;
 
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/packages" element={<PackagesPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
+            <Route path="/documents/:id" element={<DocumentDetailsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/integration" element={<IntegrationMonitorPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

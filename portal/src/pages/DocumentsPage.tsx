@@ -1,4 +1,5 @@
 import { Table, Tag, Typography } from 'antd';
+import { useNavigate } from 'react-router-dom';
 
 const columns = [
   { title: '№', dataIndex: 'number', key: 'number', width: 120 },
@@ -63,6 +64,7 @@ const columns = [
 const data = [
   {
     key: '1',
+    id: '1',
     number: 'СФ-000123',
     date: '22.01.2026',
     type: 'Счёт-фактура',
@@ -74,10 +76,19 @@ const data = [
 ];
 
 export function DocumentsPage() {
+  const navigate = useNavigate();
+
   return (
     <div className="page">
       <Typography.Title level={3}>Документы</Typography.Title>
-      <Table columns={columns} dataSource={data} size="middle" />
+      <Table
+        columns={columns}
+        dataSource={data}
+        size="middle"
+        onRow={(record) => ({
+          onClick: () => navigate(`/documents/${record.id}`)
+        })}
+      />
     </div>
   );
 }
