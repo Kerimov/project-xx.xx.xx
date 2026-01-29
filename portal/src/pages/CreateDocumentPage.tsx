@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CreateReceiptServicesPage } from './CreateReceiptServicesPage';
+import { ReceiptRightsPage } from './documents/ReceiptRightsPage';
+import { InvoiceFromSupplierPage } from './documents/InvoiceFromSupplierPage';
+import { PowerOfAttorneyPage } from './documents/PowerOfAttorneyPage';
+import { AdvanceReportPage } from './documents/AdvanceReportPage';
 import {
   Card,
   Form,
@@ -29,11 +33,22 @@ export function CreateDocumentPage() {
   const { type } = useParams<{ type: string }>();
 
   // Роутинг по типу документа
-  if (type === 'ReceiptServices') {
-    return <CreateReceiptServicesPage />;
+  switch (type) {
+    case 'ReceiptServices':
+      return <CreateReceiptServicesPage />;
+    case 'ReceiptRights':
+      return <ReceiptRightsPage />;
+    case 'InvoiceFromSupplier':
+      return <InvoiceFromSupplierPage />;
+    case 'PowerOfAttorney':
+      return <PowerOfAttorneyPage />;
+    case 'AdvanceReport':
+      return <AdvanceReportPage />;
+    case 'ReceiptGoods':
+    default:
+      // По умолчанию показываем форму "Поступление товаров"
+      break;
   }
-
-  // По умолчанию показываем форму "Поступление товаров" (ReceiptGoods)
   const [form] = Form.useForm();
   const [items, setItems] = useState<ReceiptGoodsItem[]>([]);
   const [loading, setLoading] = useState(false);

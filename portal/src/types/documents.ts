@@ -1,10 +1,23 @@
 // Типы документов первички для портала ЕЦОФ
 
 export type DocumentType =
+  // Поступление ТМЦ
   | 'ReceiptGoods' // Поступление товаров (накладная, УПД)
   | 'ReceiptServices' // Поступление услуг (акт, УПД)
   | 'ReceiptRights' // Поступление прав (акт, УПД)
+  | 'ReceiptGoodsServicesCommission' // Товары, услуги, комиссия
+  | 'ReceiptAdditionalExpenses' // Поступление доп. расходов
+  | 'ReceiptTickets' // Поступление билетов
+  // Возвраты и корректировки
+  | 'ReturnToSupplier' // Возвраты поставщикам
+  | 'ReceiptAdjustment' // Корректировка поступления
+  | 'DiscrepancyAct' // Акты о расхождениях
+  // Комиссия
+  | 'TransferToConsignor' // Передача товаров комитенту
+  | 'ConsignorReport' // Отчеты комитентам
+  // Счета и расчеты
   | 'InvoiceFromSupplier' // Счет от поставщика
+  | 'ReceivedInvoice' // Счета-фактуры полученные
   | 'PowerOfAttorney' // Доверенность
   | 'AdvanceReport'; // Авансовый отчет
 
