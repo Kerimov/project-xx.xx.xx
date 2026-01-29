@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, DatePicker, Select, InputNumber, Space, Typography, message, Button } from 'antd';
+import { Form, Input, DatePicker, Select, Button, Space, Typography, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { api } from '../../services/api';
@@ -10,7 +10,7 @@ const { Title } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
-export function PowerOfAttorneyPage() {
+export function CashExpenseOrderPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -21,8 +21,7 @@ export function PowerOfAttorneyPage() {
       const document = {
         ...values,
         date: values.date.format('YYYY-MM-DD'),
-        validUntil: values.validUntil?.format('YYYY-MM-DD'),
-        type: 'PowerOfAttorney',
+        type: 'CashExpenseOrder',
         portalStatus: 'Draft'
       };
 
@@ -40,8 +39,7 @@ export function PowerOfAttorneyPage() {
       const document = {
         ...values,
         date: values.date.format('YYYY-MM-DD'),
-        validUntil: values.validUntil?.format('YYYY-MM-DD'),
-        type: 'PowerOfAttorney',
+        type: 'CashExpenseOrder',
         portalStatus: 'Frozen'
       };
 
@@ -62,7 +60,7 @@ export function PowerOfAttorneyPage() {
             Назад
           </Button>
           <Title level={3} style={{ margin: 0 }}>
-            Доверенность (создание)
+            Расходный кассовый ордер (РКО) (создание)
           </Title>
         </Space>
 
@@ -70,8 +68,7 @@ export function PowerOfAttorneyPage() {
           form={form}
           layout="vertical"
           initialValues={{
-            date: dayjs(),
-            type: 'oneTime'
+            date: dayjs()
           }}
         >
           <BaseDocumentForm
@@ -81,9 +78,9 @@ export function PowerOfAttorneyPage() {
             loading={loading}
           >
             <Form.Item
-              label="Доверенность №"
+              label="РКО №"
               name="number"
-              rules={[{ required: true, message: 'Введите номер доверенности' }]}
+              rules={[{ required: true, message: 'Введите номер РКО' }]}
             >
               <Input placeholder="Введите номер" />
             </Form.Item>
@@ -96,41 +93,6 @@ export function PowerOfAttorneyPage() {
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
 
-            <Form.Item label="Тип доверенности:" name="type">
-              <Select>
-                <Option value="oneTime">Разовая</Option>
-                <Option value="recurring">С правом передоверия</Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item
-              label="Доверенность выдана:"
-              name="issuedTo"
-              rules={[{ required: true, message: 'Укажите кому выдана доверенность' }]}
-            >
-              <Input placeholder="ФИО или наименование организации" />
-            </Form.Item>
-
-            <Form.Item label="Должность:" name="position">
-              <Input placeholder="Должность доверенного лица" />
-            </Form.Item>
-
-            <Form.Item label="Паспорт:" name="passport">
-              <Input placeholder="Серия и номер паспорта" />
-            </Form.Item>
-
-            <Form.Item label="Выдано:" name="passportIssuedBy">
-              <Input placeholder="Кем выдан паспорт" />
-            </Form.Item>
-
-            <Form.Item label="Дата выдачи паспорта:" name="passportIssueDate">
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
-            </Form.Item>
-
-            <Form.Item label="Контрагент:" name="counterpartyName">
-              <Input placeholder="Введите ИНН или наименование" />
-            </Form.Item>
-
             <Form.Item label="Организация" name="organizationId" rules={[{ required: true }]}>
               <Select placeholder="Выберите организацию">
                 <Option value="00000000-0000-0000-0000-000000000001">ЕЦОФ</Option>
@@ -139,16 +101,33 @@ export function PowerOfAttorneyPage() {
               </Select>
             </Form.Item>
 
-            <Form.Item label="Действительна до:" name="validUntil">
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+            <Form.Item label="Касса:" name="cashDesk">
+              <Select placeholder="Выберите кассу">
+                {/* TODO: загрузка из API */}
+              </Select>
             </Form.Item>
 
-            <Form.Item label="На получение:" name="forReceipt">
-              <TextArea rows={3} placeholder="Укажите товары/материалы для получения" />
+            <Form.Item label="Основание:" name="basis" rules={[{ required: true }]}>
+              <TextArea rows={2} placeholder="Укажите основание выдачи" />
             </Form.Item>
 
-            <Form.Item label="Основание:" name="basis">
-              <Input placeholder="Например: договор поставки №123 от 01.01.2026" />
+            <Form.Item label="Кому выдано:" name="issuedTo" rules={[{ required: true }]}>
+              <Input placeholder="ФИО или наименование организации" />
+            </Form.Item>
+
+            <Form.Item label="Сумма:" name="amount" rules={[{ required: true }]}>
+              <InputNumber
+                style={{ width: '100%' }}
+                precision={2}
+                placeholder="0.00"
+                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
+              />
+            </Form.Item>
+
+            <Form.Item label="Статья ДДС:" name="cashFlowItem">
+              <Select placeholder="Выберите статью ДДС">
+                {/* TODO: загрузка из API */}
+              </Select>
             </Form.Item>
           </BaseDocumentForm>
         </Form>

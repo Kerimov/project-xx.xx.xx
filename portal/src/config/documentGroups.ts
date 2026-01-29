@@ -51,28 +51,28 @@ export const documentGroups: DocumentGroup[] = [
             label: 'Права (акт, УПД)',
             description: 'Поступление прав по акту или универсальному передаточному документу',
             formComponent: 'ReceiptRightsForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'ReceiptGoodsServicesCommission',
             label: 'Товары, услуги, комиссия',
             description: 'Комплексное поступление товаров, услуг и комиссионных',
             formComponent: 'ReceiptGoodsServicesCommissionForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'ReceiptAdditionalExpenses',
             label: 'Поступление доп. расходов',
             description: 'Оформление дополнительных расходов, связанных с закупкой',
             formComponent: 'ReceiptAdditionalExpensesForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'ReceiptTickets',
             label: 'Поступление билетов',
             description: 'Оформление поступления билетов (авиа, ж/д и т.д.)',
             formComponent: 'ReceiptTicketsForm',
-            implemented: false
+            implemented: true
           }
         ]
       },
@@ -85,21 +85,21 @@ export const documentGroups: DocumentGroup[] = [
             label: 'Возвраты поставщикам',
             description: 'Оформление возврата товаров поставщику',
             formComponent: 'ReturnToSupplierForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'ReceiptAdjustment',
             label: 'Корректировка поступления',
             description: 'Корректировка ранее оформленного поступления',
             formComponent: 'ReceiptAdjustmentForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'DiscrepancyAct',
             label: 'Акты о расхождениях',
             description: 'Оформление актов при обнаружении расхождений при приемке',
             formComponent: 'DiscrepancyActForm',
-            implemented: false
+            implemented: true
           }
         ]
       },
@@ -112,14 +112,14 @@ export const documentGroups: DocumentGroup[] = [
             label: 'Передача товаров комитенту',
             description: 'Передача товаров на комиссию',
             formComponent: 'TransferToConsignorForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'ConsignorReport',
             label: 'Отчеты комитентам',
             description: 'Отчеты комитентов о продаже товаров',
             formComponent: 'ConsignorReportForm',
-            implemented: false
+            implemented: true
           }
         ]
       },
@@ -132,14 +132,14 @@ export const documentGroups: DocumentGroup[] = [
             label: 'Счета от поставщиков',
             description: 'Регистрация счета на оплату от поставщика',
             formComponent: 'InvoiceFromSupplierForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'ReceivedInvoice',
             label: 'Счета-фактуры полученные',
             description: 'Регистрация входящих счетов-фактур от поставщиков',
             formComponent: 'ReceivedInvoiceForm',
-            implemented: false
+            implemented: true
           }
         ]
       },
@@ -152,14 +152,14 @@ export const documentGroups: DocumentGroup[] = [
             label: 'Доверенности',
             description: 'Оформление доверенности на получение товарно-материальных ценностей',
             formComponent: 'PowerOfAttorneyForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'AdvanceReport',
             label: 'Авансовые отчеты',
             description: 'Оформление авансового отчета подотчетного лица',
             formComponent: 'AdvanceReportForm',
-            implemented: false
+            implemented: true
           }
         ]
       }
@@ -179,21 +179,21 @@ export const documentGroups: DocumentGroup[] = [
             label: 'Товары (накладная, УПД)',
             description: 'Реализация товаров покупателю',
             formComponent: 'SaleGoodsForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'SaleServices',
             label: 'Услуги (акт, УПД)',
             description: 'Реализация услуг покупателю',
             formComponent: 'SaleServicesForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'SaleRights',
             label: 'Права (акт, УПД)',
             description: 'Реализация прав покупателю',
             formComponent: 'SaleRightsForm',
-            implemented: false
+            implemented: true
           }
         ]
       },
@@ -206,14 +206,14 @@ export const documentGroups: DocumentGroup[] = [
             label: 'Возвраты от покупателей',
             description: 'Оформление возврата товаров от покупателя',
             formComponent: 'ReturnFromBuyerForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'SaleAdjustment',
             label: 'Корректировка реализации',
             description: 'Корректировка ранее оформленной реализации',
             formComponent: 'SaleAdjustmentForm',
-            implemented: false
+            implemented: true
           }
         ]
       },
@@ -226,14 +226,14 @@ export const documentGroups: DocumentGroup[] = [
             label: 'Счета покупателям',
             description: 'Выставление счетов на оплату покупателям',
             formComponent: 'InvoiceToBuyerForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'IssuedInvoice',
             label: 'Счета-фактуры выданные',
             description: 'Исходящие счета-фактуры покупателям',
             formComponent: 'IssuedInvoiceForm',
-            implemented: false
+            implemented: true
           }
         ]
       }
@@ -253,21 +253,21 @@ export const documentGroups: DocumentGroup[] = [
             label: 'Выписка банка',
             description: 'Выписка по расчетному счету',
             formComponent: 'BankStatementForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'PaymentOrderOutgoing',
             label: 'Платежное поручение исходящее',
             description: 'Платежи поставщикам, налогам и т.д.',
             formComponent: 'PaymentOrderOutgoingForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'PaymentOrderIncoming',
             label: 'Платежное поручение входящее',
             description: 'Поступления от покупателей',
             formComponent: 'PaymentOrderIncomingForm',
-            implemented: false
+            implemented: true
           }
         ]
       },
@@ -280,14 +280,14 @@ export const documentGroups: DocumentGroup[] = [
             label: 'Приходный кассовый ордер (ПКО)',
             description: 'Поступление наличных в кассу',
             formComponent: 'CashReceiptOrderForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'CashExpenseOrder',
             label: 'Расходный кассовый ордер (РКО)',
             description: 'Выдача наличных из кассы',
             formComponent: 'CashExpenseOrderForm',
-            implemented: false
+            implemented: true
           }
         ]
       }
@@ -307,28 +307,28 @@ export const documentGroups: DocumentGroup[] = [
             label: 'Перемещение товаров',
             description: 'Перемещение между складами',
             formComponent: 'GoodsTransferForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'Inventory',
             label: 'Инвентаризация',
             description: 'Инвентаризация товаров на складе',
             formComponent: 'InventoryForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'GoodsWriteOff',
             label: 'Списание товаров',
             description: 'Списание испорченных/утерянных товаров',
             formComponent: 'GoodsWriteOffForm',
-            implemented: false
+            implemented: true
           },
           {
             type: 'GoodsReceipt',
             label: 'Оприходование товаров',
             description: 'Оприходование излишков',
             formComponent: 'GoodsReceiptForm',
-            implemented: false
+            implemented: true
           }
         ]
       }

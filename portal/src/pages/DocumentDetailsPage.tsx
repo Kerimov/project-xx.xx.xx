@@ -1,23 +1,10 @@
 import { Card, Col, Descriptions, Row, Space, Tabs, Tag, Typography } from 'antd';
 import type { TabsProps } from 'antd';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { api } from '../services/api';
 
 const { Title, Text } = Typography;
-
-const mockDocument = {
-  id: '1',
-  number: 'СФ-000123',
-  date: '22.01.2026',
-  type: 'Счёт-фактура',
-  company: 'Дочка 1',
-  counterparty: 'ООО «Поставщик»',
-  amount: 123456.78,
-  currency: 'RUB',
-  portalStatus: 'Frozen',
-  uhStatus: 'Accepted',
-  version: 'v1',
-  package: 'PKG-2026-01-001'
-};
 
 const portalStatusLabel: Record<string, { text: string; color: string }> = {
   Draft: { text: 'Черновик', color: 'default' },
@@ -34,43 +21,46 @@ const uhStatusLabel: Record<string, { text: string; color: string }> = {
   Error: { text: 'Ошибка', color: 'error' }
 };
 
-const files = [
-  {
-    id: 'f1',
-    name: 'scan_sf-000123.pdf',
-    uploadedAt: '22.01.2026 09:15',
-    uploadedBy: 'user1',
-    hash: 'e3b0c442...'
-  }
-];
-
-const checks = [
-  {
-    id: 'c1',
-    source: 'Портал',
-    level: 'warning',
-    message: 'Отсутствует ИНН контрагента, заполните позже.',
-    field: 'ИНН контрагента'
-  },
-  {
-    id: 'c2',
-    source: 'УХ',
-    level: 'error',
-    message: 'Не найден договор с указанным контрагентом.',
-    field: 'Договор'
-  }
-];
-
-const history = [
-  { id: 'h1', at: '22.01.2026 09:10', user: 'user1', action: 'Создан черновик' },
-  { id: 'h2', at: '22.01.2026 09:12', user: 'user1', action: 'Заморожена версия v1' },
-  { id: 'h3', at: '22.01.2026 09:20', user: 'system', action: 'Отправлен в УХ' },
-  { id: 'h4', at: '22.01.2026 09:25', user: 'system', action: 'Принят УХ' }
-];
-
 export function DocumentDetailsPage() {
   const { id } = useParams<{ id: string }>();
-  const doc = mockDocument; // временно используем заглушку
+  const [doc, setDoc] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    const loadDocument = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await api.documents.getById(id);
+        setDoc(response.data);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Ошибка загрузки документа';
+        setError(msg);
+        setDoc(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDocument();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="page">
+        <Text>Загрузка документа...</Text>
+      </div>
+    );
+  }
+
+  if (error || !doc) {
+    return (
+      <div className="page">
+        <Text type="danger">{error || 'Документ не найден'}</Text>
+      </div>
+    );
+  }
 
   const portal = portalStatusLabel[doc.portalStatus] ?? {
     text: doc.portalStatus,
@@ -79,6 +69,18 @@ export function DocumentDetailsPage() {
   const uh = uhStatusLabel[doc.uhStatus] ?? {
     text: doc.uhStatus,
     color: 'default'
+  };
+
+  const files = doc.files ?? [];
+  const checks = doc.checks ?? [];
+  const history = doc.history ?? [];
+
+  const formatAmount = (amount: number | null | undefined, currency: string | null | undefined) => {
+    if (amount === null || amount === undefined) return '—';
+    return amount.toLocaleString('ru-RU', {
+      style: 'currency',
+      currency: currency || 'RUB'
+    });
   };
 
   const items: TabsProps['items'] = [
@@ -95,12 +97,7 @@ export function DocumentDetailsPage() {
                 <Descriptions.Item label="Тип документа">{doc.type}</Descriptions.Item>
                 <Descriptions.Item label="Организация">{doc.company}</Descriptions.Item>
                 <Descriptions.Item label="Контрагент">{doc.counterparty}</Descriptions.Item>
-                <Descriptions.Item label="Сумма">
-                  {doc.amount.toLocaleString('ru-RU', {
-                    style: 'currency',
-                    currency: doc.currency
-                  })}
-                </Descriptions.Item>
+                <Descriptions.Item label="Сумма">{formatAmount(doc.amount, doc.currency)}</Descriptions.Item>
               </Descriptions>
             </Card>
           </Col>
@@ -109,7 +106,7 @@ export function DocumentDetailsPage() {
               <Descriptions column={1} size="small">
                 <Descriptions.Item label="ID документа портала">{doc.id}</Descriptions.Item>
                 <Descriptions.Item label="Версия">{doc.version}</Descriptions.Item>
-                <Descriptions.Item label="Пакет">{doc.package}</Descriptions.Item>
+                <Descriptions.Item label="Пакет">{doc.packageId || '—'}</Descriptions.Item>
                 <Descriptions.Item label="ID (route)">
                   <Text type="secondary">{id}</Text>
                 </Descriptions.Item>

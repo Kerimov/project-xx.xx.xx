@@ -96,8 +96,25 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
 export async function createDocument(req: Request, res: Response, next: NextFunction) {
   try {
     const documentData = req.body;
+    console.log('📝 Creating document:', JSON.stringify(documentData, null, 2));
     
-    // TODO: валидация через Zod
+    // Базовая валидация обязательных полей
+    if (!documentData.number) {
+      console.error('❌ Missing number field');
+      return res.status(400).json({ error: { message: 'Number is required' } });
+    }
+    if (!documentData.date) {
+      console.error('❌ Missing date field');
+      return res.status(400).json({ error: { message: 'Date is required' } });
+    }
+    if (!documentData.type) {
+      console.error('❌ Missing type field');
+      return res.status(400).json({ error: { message: 'Type is required' } });
+    }
+    if (!documentData.organizationId) {
+      console.error('❌ Missing organizationId field');
+      return res.status(400).json({ error: { message: 'OrganizationId is required' } });
+    }
     
     const document = await documentsRepo.createDocument({
       packageId: documentData.packageId,
@@ -119,11 +136,24 @@ export async function createDocument(req: Request, res: Response, next: NextFunc
       items: documentData.items,
       totalAmount: documentData.totalAmount,
       totalVAT: documentData.totalVAT,
-      createdBy: (req as any).user?.username
+      createdBy: (req as any).user?.username || 'system'
     });
     
+    console.log('✅ Document created successfully:', document.id);
     res.status(201).json({ data: document });
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Error creating document:', error);
+    // Более детальная информация об ошибке
+    if (error.code === '23503') {
+      return res.status(400).json({ 
+        error: { message: 'Foreign key constraint violation. Check organizationId and other references.' } 
+      });
+    }
+    if (error.code === '23505') {
+      return res.status(409).json({ 
+        error: { message: 'Document with this number already exists' } 
+      });
+    }
     next(error);
   }
 }

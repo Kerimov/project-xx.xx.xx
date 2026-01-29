@@ -5,6 +5,31 @@ import { ReceiptRightsPage } from './documents/ReceiptRightsPage';
 import { InvoiceFromSupplierPage } from './documents/InvoiceFromSupplierPage';
 import { PowerOfAttorneyPage } from './documents/PowerOfAttorneyPage';
 import { AdvanceReportPage } from './documents/AdvanceReportPage';
+import { ReceiptGoodsServicesCommissionPage } from './documents/ReceiptGoodsServicesCommissionPage';
+import { ReceiptAdditionalExpensesPage } from './documents/ReceiptAdditionalExpensesPage';
+import { ReceiptTicketsPage } from './documents/ReceiptTicketsPage';
+import { ReturnToSupplierPage } from './documents/ReturnToSupplierPage';
+import { ReceiptAdjustmentPage } from './documents/ReceiptAdjustmentPage';
+import { DiscrepancyActPage } from './documents/DiscrepancyActPage';
+import { TransferToConsignorPage } from './documents/TransferToConsignorPage';
+import { ConsignorReportPage } from './documents/ConsignorReportPage';
+import { ReceivedInvoicePage } from './documents/ReceivedInvoicePage';
+import { SaleGoodsPage } from './documents/SaleGoodsPage';
+import { SaleServicesPage } from './documents/SaleServicesPage';
+import { SaleRightsPage } from './documents/SaleRightsPage';
+import { ReturnFromBuyerPage } from './documents/ReturnFromBuyerPage';
+import { SaleAdjustmentPage } from './documents/SaleAdjustmentPage';
+import { InvoiceToBuyerPage } from './documents/InvoiceToBuyerPage';
+import { IssuedInvoicePage } from './documents/IssuedInvoicePage';
+import { BankStatementPage } from './documents/BankStatementPage';
+import { PaymentOrderOutgoingPage } from './documents/PaymentOrderOutgoingPage';
+import { PaymentOrderIncomingPage } from './documents/PaymentOrderIncomingPage';
+import { CashReceiptOrderPage } from './documents/CashReceiptOrderPage';
+import { CashExpenseOrderPage } from './documents/CashExpenseOrderPage';
+import { GoodsTransferPage } from './documents/GoodsTransferPage';
+import { InventoryPage } from './documents/InventoryPage';
+import { GoodsWriteOffPage } from './documents/GoodsWriteOffPage';
+import { GoodsReceiptPage } from './documents/GoodsReceiptPage';
 import {
   Card,
   Form,
@@ -44,6 +69,56 @@ export function CreateDocumentPage() {
       return <PowerOfAttorneyPage />;
     case 'AdvanceReport':
       return <AdvanceReportPage />;
+    case 'ReceiptGoodsServicesCommission':
+      return <ReceiptGoodsServicesCommissionPage />;
+    case 'ReceiptAdditionalExpenses':
+      return <ReceiptAdditionalExpensesPage />;
+    case 'ReceiptTickets':
+      return <ReceiptTicketsPage />;
+    case 'ReturnToSupplier':
+      return <ReturnToSupplierPage />;
+    case 'ReceiptAdjustment':
+      return <ReceiptAdjustmentPage />;
+    case 'DiscrepancyAct':
+      return <DiscrepancyActPage />;
+    case 'TransferToConsignor':
+      return <TransferToConsignorPage />;
+    case 'ConsignorReport':
+      return <ConsignorReportPage />;
+    case 'ReceivedInvoice':
+      return <ReceivedInvoicePage />;
+    case 'SaleGoods':
+      return <SaleGoodsPage />;
+    case 'SaleServices':
+      return <SaleServicesPage />;
+    case 'SaleRights':
+      return <SaleRightsPage />;
+    case 'ReturnFromBuyer':
+      return <ReturnFromBuyerPage />;
+    case 'SaleAdjustment':
+      return <SaleAdjustmentPage />;
+    case 'InvoiceToBuyer':
+      return <InvoiceToBuyerPage />;
+    case 'IssuedInvoice':
+      return <IssuedInvoicePage />;
+    case 'BankStatement':
+      return <BankStatementPage />;
+    case 'PaymentOrderOutgoing':
+      return <PaymentOrderOutgoingPage />;
+    case 'PaymentOrderIncoming':
+      return <PaymentOrderIncomingPage />;
+    case 'CashReceiptOrder':
+      return <CashReceiptOrderPage />;
+    case 'CashExpenseOrder':
+      return <CashExpenseOrderPage />;
+    case 'GoodsTransfer':
+      return <GoodsTransferPage />;
+    case 'Inventory':
+      return <InventoryPage />;
+    case 'GoodsWriteOff':
+      return <GoodsWriteOffPage />;
+    case 'GoodsReceipt':
+      return <GoodsReceiptPage />;
     case 'ReceiptGoods':
     default:
       // По умолчанию показываем форму "Поступление товаров"
@@ -56,21 +131,50 @@ export function CreateDocumentPage() {
   const handleSave = async (values: any) => {
     setLoading(true);
     try {
-      const document: ReceiptGoodsDocument = {
-        ...values,
-        date: values.date.format('YYYY-MM-DD'),
+      console.log('📋 Form values:', values);
+      
+      const document = {
+        number: values.number,
+        date: values.date ? (typeof values.date === 'string' ? values.date : values.date.format('YYYY-MM-DD')) : undefined,
         type: 'ReceiptGoods',
-        items,
-        portalStatus: 'Draft',
-        totalAmount: items.reduce((sum, item) => sum + (item.totalAmount || 0), 0),
-        totalVAT: items.reduce((sum, item) => sum + (item.vatAmount || 0), 0)
+        organizationId: values.organizationId,
+        counterpartyName: values.counterpartyName,
+        counterpartyInn: values.counterpartyInn,
+        contractId: values.contractId,
+        paymentAccountId: values.paymentAccountId,
+        warehouseId: values.warehouseId,
+        currency: values.currency || 'RUB',
+        hasDiscrepancies: values.hasDiscrepancies || false,
+        originalReceived: values.originalReceived || false,
+        isUPD: values.isUPD || false,
+        invoiceRequired: values.invoiceRequired || false,
+        items: items.map((item, idx) => ({
+          rowNumber: idx + 1,
+          nomenclatureName: item.nomenclatureName || '',
+          quantity: item.quantity || 0,
+          unit: item.unit || 'шт',
+          price: item.price || 0,
+          amount: item.amount || 0,
+          vatPercent: item.vatPercent || 20,
+          vatAmount: item.vatAmount || 0,
+          totalAmount: item.totalAmount || 0,
+          accountId: item.accountId,
+          countryOfOrigin: item.countryOfOrigin
+        })),
+        totalAmount: values.totalAmount || items.reduce((sum, item) => sum + (item.totalAmount || 0), 0),
+        totalVAT: values.totalVAT || items.reduce((sum, item) => sum + (item.vatAmount || 0), 0),
+        portalStatus: 'Draft'
       };
 
+      console.log('📤 Sending document:', document);
       const response = await api.documents.create(document);
       message.success('Документ сохранён');
       navigate(`/documents/${response.data.id}`);
     } catch (error) {
-      message.error('Ошибка при сохранении документа');
+      console.error('❌ Error saving document:', error);
+      const msg =
+        error instanceof Error ? error.message : 'Ошибка при сохранении документа';
+      message.error(msg);
     } finally {
       setLoading(false);
     }
@@ -306,7 +410,9 @@ export function CreateDocumentPage() {
             date: dayjs(),
             vatPercent: 20,
             isUPD: false,
-            invoiceRequired: false
+            invoiceRequired: false,
+            organizationId: '00000000-0000-0000-0000-000000000001',
+            currency: 'RUB'
           }}
         >
           <Card
@@ -345,7 +451,7 @@ export function CreateDocumentPage() {
               name="date"
               rules={[{ required: true, message: 'Выберите дату' }]}
             >
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" showTime />
+              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
 
             <Form.Item label="Номер:" name="documentNumber">
@@ -379,14 +485,9 @@ export function CreateDocumentPage() {
             <Form.Item label="Организация" name="organizationId" rules={[{ required: true }]}>
               <Select placeholder="Выберите организацию">
                 {/* TODO: загрузка из API */}
-                <Option value="org1">ШАР ООО</Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item label="Организация" name="organizationId" rules={[{ required: true }]}>
-              <Select placeholder="Выберите организацию">
-                {/* TODO: загрузка из API */}
-                <Option value="org1">ШАР ООО</Option>
+                <Option value="00000000-0000-0000-0000-000000000001">ЕЦОФ</Option>
+                <Option value="00000000-0000-0000-0000-000000000002">Дочка 1</Option>
+                <Option value="00000000-0000-0000-0000-000000000003">Дочка 2</Option>
               </Select>
             </Form.Item>
 
@@ -427,7 +528,7 @@ export function CreateDocumentPage() {
             <Table
               columns={itemColumns}
               dataSource={items}
-              rowKey={(record, index) => record.id || `item-${index}`}
+              rowKey={(record) => record.id || `item-${Math.random()}`}
               pagination={false}
               size="small"
               summary={() => (
@@ -437,7 +538,7 @@ export function CreateDocumentPage() {
                       <Space>
                         <Checkbox>УПД</Checkbox>
                         <span>Счет-фактура:</span>
-                        <Select defaultValue="notRequired" style={{ width: 150 }}>
+                        <Select style={{ width: 150 }}>
                           <Option value="notRequired">Не требуется</Option>
                           <Option value="required">Требуется</Option>
                         </Select>

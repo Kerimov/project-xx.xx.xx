@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, DatePicker, Select, Checkbox, Space, Typography, message } from 'antd';
+import { Form, Input, DatePicker, Select, Button, Space, Typography, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { api } from '../../services/api';
@@ -8,8 +8,9 @@ import dayjs from 'dayjs';
 
 const { Title } = Typography;
 const { Option } = Select;
+const { TextArea } = Input;
 
-export function ReceiptRightsPage() {
+export function PaymentOrderIncomingPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -20,7 +21,7 @@ export function ReceiptRightsPage() {
       const document = {
         ...values,
         date: values.date.format('YYYY-MM-DD'),
-        type: 'ReceiptRights',
+        type: 'PaymentOrderIncoming',
         portalStatus: 'Draft'
       };
 
@@ -38,7 +39,7 @@ export function ReceiptRightsPage() {
       const document = {
         ...values,
         date: values.date.format('YYYY-MM-DD'),
-        type: 'ReceiptRights',
+        type: 'PaymentOrderIncoming',
         portalStatus: 'Frozen'
       };
 
@@ -59,7 +60,7 @@ export function ReceiptRightsPage() {
             Назад
           </Button>
           <Title level={3} style={{ margin: 0 }}>
-            Поступление прав: Акт, УПД (создание)
+            Платежное поручение входящее (создание)
           </Title>
         </Space>
 
@@ -67,9 +68,7 @@ export function ReceiptRightsPage() {
           form={form}
           layout="vertical"
           initialValues={{
-            date: dayjs(),
-            isUPD: false,
-            invoiceRequired: 'notRequired'
+            date: dayjs()
           }}
         >
           <BaseDocumentForm
@@ -79,9 +78,9 @@ export function ReceiptRightsPage() {
             loading={loading}
           >
             <Form.Item
-              label="Акт, УПД №"
+              label="Платежное поручение №"
               name="number"
-              rules={[{ required: true, message: 'Введите номер документа' }]}
+              rules={[{ required: true, message: 'Введите номер платежного поручения' }]}
             >
               <Input placeholder="Введите номер" />
             </Form.Item>
@@ -91,34 +90,19 @@ export function ReceiptRightsPage() {
               name="date"
               rules={[{ required: true, message: 'Выберите дату' }]}
             >
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" showTime />
+              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
 
-            <Form.Item label="Номер:" name="documentNumber">
-              <Input placeholder="Введите номер" />
+            <Form.Item label="Сумма:" name="amount" rules={[{ required: true }]}>
+              <InputNumber
+                style={{ width: '100%' }}
+                precision={2}
+                placeholder="0.00"
+                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
+              />
             </Form.Item>
 
-            <Form.Item
-              label="Контрагент"
-              name="counterpartyName"
-              rules={[{ required: true, message: 'Выберите контрагента' }]}
-            >
-              <Input placeholder="Введите ИНН или наименование" />
-            </Form.Item>
-
-            <Form.Item label="Договор" name="contractId">
-              <Select placeholder="Выберите договор" allowClear>
-                {/* TODO: загрузка из API */}
-              </Select>
-            </Form.Item>
-
-            <Form.Item label="Счет на оплату" name="paymentAccountId">
-              <Select placeholder="Выберите счет" allowClear>
-                {/* TODO: загрузка из API */}
-              </Select>
-            </Form.Item>
-
-            <Form.Item label="Организация" name="organizationId" rules={[{ required: true }]}>
+            <Form.Item label="Организация (получатель)" name="organizationId" rules={[{ required: true }]}>
               <Select placeholder="Выберите организацию">
                 <Option value="00000000-0000-0000-0000-000000000001">ЕЦОФ</Option>
                 <Option value="00000000-0000-0000-0000-000000000002">Дочка 1</Option>
@@ -126,31 +110,32 @@ export function ReceiptRightsPage() {
               </Select>
             </Form.Item>
 
-            <Form.Item label="Период действия прав:" name="rightsPeriod">
-              <Input placeholder="Например: январь 2026" />
+            <Form.Item label="Расчетный счет получателя:" name="recipientAccount">
+              <Input placeholder="Номер счета" />
             </Form.Item>
 
-            <Form.Item label="Дата начала:" name="rightsStartDate">
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+            <Form.Item label="Плательщик:" name="payerName" rules={[{ required: true }]}>
+              <Input placeholder="Наименование плательщика" />
             </Form.Item>
 
-            <Form.Item label="Дата окончания:" name="rightsEndDate">
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+            <Form.Item label="Расчетный счет плательщика:" name="payerAccount">
+              <Input placeholder="Номер счета" />
             </Form.Item>
 
-            <Form.Item name="originalReceived" valuePropName="checked">
-              <Checkbox>Оригинал: получен</Checkbox>
+            <Form.Item label="ИНН плательщика:" name="payerInn">
+              <Input placeholder="ИНН" />
             </Form.Item>
 
-            <Form.Item name="isUPD" valuePropName="checked">
-              <Checkbox>УПД</Checkbox>
+            <Form.Item label="Банк плательщика:" name="payerBank">
+              <Input placeholder="Наименование банка" />
             </Form.Item>
 
-            <Form.Item label="Счет-фактура" name="invoiceRequired">
-              <Select>
-                <Option value="notRequired">Не требуется</Option>
-                <Option value="required">Требуется</Option>
-              </Select>
+            <Form.Item label="БИК банка плательщика:" name="payerBik">
+              <Input placeholder="БИК" />
+            </Form.Item>
+
+            <Form.Item label="Назначение платежа:" name="purpose" rules={[{ required: true }]}>
+              <TextArea rows={3} placeholder="Укажите назначение платежа" />
             </Form.Item>
           </BaseDocumentForm>
         </Form>

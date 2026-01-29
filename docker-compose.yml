@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ecof-portal-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ecof_portal
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      # Use 5433 to avoid clashing with local Postgres on 5432
+      - "5433:5432"
+    volumes:
+      - ecof_portal_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ecof_portal"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  ecof_portal_pgdata:
+

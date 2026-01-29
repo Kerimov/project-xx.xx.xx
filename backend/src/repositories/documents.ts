@@ -105,6 +105,14 @@ export async function createDocument(data: {
   totalVAT?: number;
   createdBy?: string;
 }) {
+  // Валидация UUID для organizationId
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(data.organizationId)) {
+    const err: any = new Error(`Invalid organizationId format: ${data.organizationId}`);
+    err.statusCode = 400;
+    throw err;
+  }
+
   const result = await pool.query(
     `INSERT INTO documents (
       package_id, number, date, type, organization_id,

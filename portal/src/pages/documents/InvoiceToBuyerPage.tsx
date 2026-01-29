@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, DatePicker, Select, InputNumber, Space, Typography, message, Table, Button } from 'antd';
+import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { api } from '../../services/api';
@@ -9,80 +9,52 @@ import dayjs from 'dayjs';
 const { Title } = Typography;
 const { Option } = Select;
 
-export function InvoiceFromSupplierPage() {
+interface InvoiceItem {
+  id?: string;
+  name: string;
+  quantity: number;
+  price: number;
+  amount: number;
+}
+
+export function InvoiceToBuyerPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [items, setItems] = useState<any[]>([]);
 
   const handleSave = async () => {
     try {
-      setLoading(true);
       const values = await form.validateFields();
-      console.log('📋 Form values:', values);
-      
       const document = {
-        number: values.number,
-        date: values.date ? (typeof values.date === 'string' ? values.date : values.date.format('YYYY-MM-DD')) : undefined,
-        dueDate: values.dueDate ? (typeof values.dueDate === 'string' ? values.dueDate : values.dueDate.format('YYYY-MM-DD')) : undefined,
-        type: 'InvoiceFromSupplier',
-        organizationId: values.organizationId,
-        counterpartyName: values.counterpartyName,
-        counterpartyInn: values.counterpartyInn,
-        contractId: values.contractId,
-        paymentAccountId: values.paymentAccountId,
-        currency: values.currency || 'RUB',
-        totalAmount: values.totalAmount || items.reduce((sum, item) => sum + (item.amount || 0), 0),
-        totalVAT: items.reduce((sum, item) => sum + ((item.amount || 0) * 0.2), 0),
-        items: items.map((item, idx) => ({
-          rowNumber: idx + 1,
-          name: item.name,
-          quantity: item.quantity || 0,
-          price: item.price || 0,
-          amount: item.amount || 0
-        })),
-        portalStatus: 'Draft'
+        ...values,
+        date: values.date.format('YYYY-MM-DD'),
+        dueDate: values.dueDate?.format('YYYY-MM-DD'),
+        type: 'InvoiceToBuyer',
+        items,
+        portalStatus: 'Draft',
+        totalAmount: items.reduce((sum, item) => sum + item.amount, 0)
       };
 
-      console.log('📤 Sending document:', document);
       const response = await api.documents.create(document);
       message.success('Документ сохранён');
       navigate(`/documents/${response.data.id}`);
     } catch (error) {
-      console.error('❌ Error saving document:', error);
-      const msg = error instanceof Error ? error.message : 'Ошибка при сохранении документа';
-      message.error(msg);
-    } finally {
-      setLoading(false);
+      message.error('Ошибка при сохранении документа');
     }
   };
 
   const handleFreeze = async () => {
     try {
-      setLoading(true);
       const values = await form.validateFields();
-      
       const document = {
-        number: values.number,
-        date: values.date ? (typeof values.date === 'string' ? values.date : values.date.format('YYYY-MM-DD')) : undefined,
-        dueDate: values.dueDate ? (typeof values.dueDate === 'string' ? values.dueDate : values.dueDate.format('YYYY-MM-DD')) : undefined,
-        type: 'InvoiceFromSupplier',
-        organizationId: values.organizationId,
-        counterpartyName: values.counterpartyName,
-        counterpartyInn: values.counterpartyInn,
-        contractId: values.contractId,
-        paymentAccountId: values.paymentAccountId,
-        currency: values.currency || 'RUB',
-        totalAmount: values.totalAmount || items.reduce((sum, item) => sum + (item.amount || 0), 0),
-        totalVAT: items.reduce((sum, item) => sum + ((item.amount || 0) * 0.2), 0),
-        items: items.map((item, idx) => ({
-          rowNumber: idx + 1,
-          name: item.name,
-          quantity: item.quantity || 0,
-          price: item.price || 0,
-          amount: item.amount || 0
-        })),
-        portalStatus: 'Frozen'
+        ...values,
+        date: values.date.format('YYYY-MM-DD'),
+        dueDate: values.dueDate?.format('YYYY-MM-DD'),
+        type: 'InvoiceToBuyer',
+        items,
+        portalStatus: 'Frozen',
+        totalAmount: items.reduce((sum, item) => sum + item.amount, 0)
       };
 
       const response = await api.documents.create(document);
@@ -90,11 +62,7 @@ export function InvoiceFromSupplierPage() {
       message.success('Документ заморожен');
       navigate(`/documents/${response.data.id}`);
     } catch (error) {
-      console.error('❌ Error freezing document:', error);
-      const msg = error instanceof Error ? error.message : 'Ошибка при заморозке документа';
-      message.error(msg);
-    } finally {
-      setLoading(false);
+      message.error('Ошибка при заморозке документа');
     }
   };
 
@@ -108,7 +76,7 @@ export function InvoiceFromSupplierPage() {
       title: 'Наименование',
       dataIndex: 'name',
       key: 'name',
-      render: (_: any, record: any, index: number) => (
+      render: (_: any, record: InvoiceItem, index: number) => (
         <Input
           value={record.name}
           onChange={(e) => {
@@ -125,7 +93,7 @@ export function InvoiceFromSupplierPage() {
       dataIndex: 'quantity',
       key: 'quantity',
       width: 120,
-      render: (_: any, record: any, index: number) => (
+      render: (_: any, record: InvoiceItem, index: number) => (
         <InputNumber
           value={record.quantity}
           onChange={(value) => {
@@ -144,7 +112,7 @@ export function InvoiceFromSupplierPage() {
       dataIndex: 'price',
       key: 'price',
       width: 120,
-      render: (_: any, record: any, index: number) => (
+      render: (_: any, record: InvoiceItem, index: number) => (
         <InputNumber
           value={record.price}
           onChange={(value) => {
@@ -165,7 +133,7 @@ export function InvoiceFromSupplierPage() {
       key: 'amount',
       width: 120,
       align: 'right' as const,
-      render: (_: any, record: any) => record.amount.toFixed(2)
+      render: (_: any, record: InvoiceItem) => record.amount.toFixed(2)
     },
     {
       title: 'Действия',
@@ -187,7 +155,7 @@ export function InvoiceFromSupplierPage() {
             Назад
           </Button>
           <Title level={3} style={{ margin: 0 }}>
-            Счет от поставщика (создание)
+            Счет покупателю (создание)
           </Title>
         </Space>
 
@@ -195,7 +163,8 @@ export function InvoiceFromSupplierPage() {
           form={form}
           layout="vertical"
           initialValues={{
-            date: dayjs()
+            date: dayjs(),
+            currency: 'RUB'
           }}
         >
           <BaseDocumentForm
@@ -221,9 +190,9 @@ export function InvoiceFromSupplierPage() {
             </Form.Item>
 
             <Form.Item
-              label="Контрагент"
+              label="Покупатель"
               name="counterpartyName"
-              rules={[{ required: true, message: 'Выберите контрагента' }]}
+              rules={[{ required: true, message: 'Выберите покупателя' }]}
             >
               <Input placeholder="Введите ИНН или наименование" />
             </Form.Item>
@@ -244,15 +213,6 @@ export function InvoiceFromSupplierPage() {
 
             <Form.Item label="Срок оплаты:" name="dueDate">
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
-            </Form.Item>
-
-            <Form.Item label="Сумма счета:" name="totalAmount">
-              <InputNumber
-                style={{ width: '100%' }}
-                precision={2}
-                placeholder="0.00"
-                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
-              />
             </Form.Item>
 
             <Form.Item label="Валюта:" name="currency">

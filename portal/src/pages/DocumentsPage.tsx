@@ -1,6 +1,9 @@
 import { Table, Tag, Typography, Button, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { api } from '../services/api';
+import { message } from 'antd';
 
 const columns = [
   { title: '№', dataIndex: 'number', key: 'number', width: 120 },
@@ -62,22 +65,27 @@ const columns = [
   }
 ];
 
-const data = [
-  {
-    key: '1',
-    id: '1',
-    number: 'СФ-000123',
-    date: '22.01.2026',
-    type: 'Счёт-фактура',
-    counterparty: 'ООО «Поставщик»',
-    amount: 123456.78,
-    portalStatus: 'Frozen',
-    uhStatus: 'Accepted'
-  }
-];
-
 export function DocumentsPage() {
   const navigate = useNavigate();
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadDocuments();
+  }, []);
+
+  const loadDocuments = async () => {
+    try {
+      setLoading(true);
+      const response = await api.documents.list();
+      setDocuments(response.data || []);
+    } catch (error) {
+      console.error('Error loading documents:', error);
+      message.error('Ошибка при загрузке документов');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="page">
@@ -95,8 +103,9 @@ export function DocumentsPage() {
       </Space>
       <Table
         columns={columns}
-        dataSource={data}
+        dataSource={documents.map(doc => ({ ...doc, key: doc.id }))}
         size="middle"
+        loading={loading}
         onRow={(record) => ({
           onClick: () => navigate(`/documents/${record.id}`)
         })}

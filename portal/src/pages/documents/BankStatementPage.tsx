@@ -1,20 +1,31 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, DatePicker, Select, InputNumber, Space, Typography, message, Table, Button } from 'antd';
-import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons';
+import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message } from 'antd';
+import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
 const { Option } = Select;
-const { TextArea } = Input;
 
-export function AdvanceReportPage() {
+interface StatementItem {
+  id?: string;
+  rowNumber?: number;
+  date: string;
+  documentNumber: string;
+  counterparty: string;
+  debit: number;
+  credit: number;
+  balance: number;
+  purpose: string;
+}
+
+export function BankStatementPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const [items, setItems] = useState<StatementItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [expenses, setExpenses] = useState<any[]>([]);
 
   const handleSave = async () => {
     try {
@@ -22,8 +33,8 @@ export function AdvanceReportPage() {
       const document = {
         ...values,
         date: values.date.format('YYYY-MM-DD'),
-        type: 'AdvanceReport',
-        expenses,
+        type: 'BankStatement',
+        items,
         portalStatus: 'Draft'
       };
 
@@ -41,8 +52,8 @@ export function AdvanceReportPage() {
       const document = {
         ...values,
         date: values.date.format('YYYY-MM-DD'),
-        type: 'AdvanceReport',
-        expenses,
+        type: 'BankStatement',
+        items,
         portalStatus: 'Frozen'
       };
 
@@ -55,11 +66,35 @@ export function AdvanceReportPage() {
     }
   };
 
-  const addExpense = () => {
-    setExpenses([...expenses, { description: '', amount: 0, documentNumber: '', documentDate: null }]);
+  const addItem = () => {
+    const newItem: StatementItem = {
+      date: dayjs().format('YYYY-MM-DD'),
+      documentNumber: '',
+      counterparty: '',
+      debit: 0,
+      credit: 0,
+      balance: 0,
+      purpose: ''
+    };
+    setItems([...items, newItem]);
   };
 
-  const expenseColumns = [
+  const updateItem = (index: number, field: keyof StatementItem, value: any) => {
+    const updated = [...items];
+    updated[index] = { ...updated[index], [field]: value };
+    
+    // Пересчет баланса (упрощенный)
+    const item = updated[index];
+    item.balance = (item.debit || 0) - (item.credit || 0);
+    
+    setItems(updated);
+  };
+
+  const removeItem = (index: number) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const itemColumns = [
     {
       title: 'N',
       key: 'index',
@@ -67,18 +102,16 @@ export function AdvanceReportPage() {
       render: (_: any, __: any, index: number) => index + 1
     },
     {
-      title: 'Наименование расхода',
-      dataIndex: 'description',
-      key: 'description',
-      render: (_: any, record: any, index: number) => (
-        <Input
-          value={record.description}
-          onChange={(e) => {
-            const updated = [...expenses];
-            updated[index].description = e.target.value;
-            setExpenses(updated);
-          }}
-          placeholder="Введите наименование расхода"
+      title: 'Дата',
+      dataIndex: 'date',
+      key: 'date',
+      width: 120,
+      render: (_: any, record: StatementItem, index: number) => (
+        <DatePicker
+          value={record.date ? dayjs(record.date) : null}
+          onChange={(date) => updateItem(index, 'date', date?.format('YYYY-MM-DD') || '')}
+          style={{ width: '100%' }}
+          format="DD.MM.YYYY"
         />
       )
     },
@@ -87,52 +120,68 @@ export function AdvanceReportPage() {
       dataIndex: 'documentNumber',
       key: 'documentNumber',
       width: 150,
-      render: (_: any, record: any, index: number) => (
+      render: (_: any, record: StatementItem, index: number) => (
         <Input
           value={record.documentNumber}
-          onChange={(e) => {
-            const updated = [...expenses];
-            updated[index].documentNumber = e.target.value;
-            setExpenses(updated);
-          }}
+          onChange={(e) => updateItem(index, 'documentNumber', e.target.value)}
           placeholder="№ документа"
         />
       )
     },
     {
-      title: 'Дата',
-      dataIndex: 'documentDate',
-      key: 'documentDate',
-      width: 120,
-      render: (_: any, record: any, index: number) => (
-        <DatePicker
-          value={record.documentDate}
-          onChange={(date) => {
-            const updated = [...expenses];
-            updated[index].documentDate = date;
-            setExpenses(updated);
-          }}
-          style={{ width: '100%' }}
-          format="DD.MM.YYYY"
+      title: 'Контрагент',
+      dataIndex: 'counterparty',
+      key: 'counterparty',
+      width: 200,
+      render: (_: any, record: StatementItem, index: number) => (
+        <Input
+          value={record.counterparty}
+          onChange={(e) => updateItem(index, 'counterparty', e.target.value)}
+          placeholder="Контрагент"
         />
       )
     },
     {
-      title: 'Сумма',
-      dataIndex: 'amount',
-      key: 'amount',
+      title: 'Дебет',
+      dataIndex: 'debit',
+      key: 'debit',
       width: 120,
-      render: (_: any, record: any, index: number) => (
+      align: 'right' as const,
+      render: (_: any, record: StatementItem, index: number) => (
         <InputNumber
-          value={record.amount}
-          onChange={(value) => {
-            const updated = [...expenses];
-            updated[index].amount = value || 0;
-            setExpenses(updated);
-          }}
+          value={record.debit}
+          onChange={(value) => updateItem(index, 'debit', value || 0)}
           min={0}
           precision={2}
           style={{ width: '100%' }}
+        />
+      )
+    },
+    {
+      title: 'Кредит',
+      dataIndex: 'credit',
+      key: 'credit',
+      width: 120,
+      align: 'right' as const,
+      render: (_: any, record: StatementItem, index: number) => (
+        <InputNumber
+          value={record.credit}
+          onChange={(value) => updateItem(index, 'credit', value || 0)}
+          min={0}
+          precision={2}
+          style={{ width: '100%' }}
+        />
+      )
+    },
+    {
+      title: 'Назначение платежа',
+      dataIndex: 'purpose',
+      key: 'purpose',
+      render: (_: any, record: StatementItem, index: number) => (
+        <Input
+          value={record.purpose}
+          onChange={(e) => updateItem(index, 'purpose', e.target.value)}
+          placeholder="Назначение платежа"
         />
       )
     },
@@ -141,14 +190,15 @@ export function AdvanceReportPage() {
       key: 'actions',
       width: 100,
       render: (_: any, __: any, index: number) => (
-        <Button type="link" danger onClick={() => setExpenses(expenses.filter((_, i) => i !== index))}>
+        <Button type="link" danger onClick={() => removeItem(index)}>
           Удалить
         </Button>
       )
     }
   ];
 
-  const totalAmount = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+  const totalDebit = items.reduce((sum, item) => sum + (item.debit || 0), 0);
+  const totalCredit = items.reduce((sum, item) => sum + (item.credit || 0), 0);
 
   return (
     <div className="page">
@@ -158,7 +208,7 @@ export function AdvanceReportPage() {
             Назад
           </Button>
           <Title level={3} style={{ margin: 0 }}>
-            Авансовый отчет (создание)
+            Выписка банка (создание)
           </Title>
         </Space>
 
@@ -176,9 +226,9 @@ export function AdvanceReportPage() {
             loading={loading}
           >
             <Form.Item
-              label="Авансовый отчет №"
+              label="Выписка №"
               name="number"
-              rules={[{ required: true, message: 'Введите номер отчета' }]}
+              rules={[{ required: true, message: 'Введите номер выписки' }]}
             >
               <Input placeholder="Введите номер" />
             </Form.Item>
@@ -191,14 +241,6 @@ export function AdvanceReportPage() {
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
 
-            <Form.Item
-              label="Подотчетное лицо:"
-              name="employeeName"
-              rules={[{ required: true, message: 'Укажите подотчетное лицо' }]}
-            >
-              <Input placeholder="ФИО сотрудника" />
-            </Form.Item>
-
             <Form.Item label="Организация" name="organizationId" rules={[{ required: true }]}>
               <Select placeholder="Выберите организацию">
                 <Option value="00000000-0000-0000-0000-000000000001">ЕЦОФ</Option>
@@ -207,7 +249,15 @@ export function AdvanceReportPage() {
               </Select>
             </Form.Item>
 
-            <Form.Item label="Выдано:" name="issuedAmount">
+            <Form.Item label="Расчетный счет:" name="bankAccount">
+              <Input placeholder="Номер расчетного счета" />
+            </Form.Item>
+
+            <Form.Item label="Банк:" name="bankName">
+              <Input placeholder="Наименование банка" />
+            </Form.Item>
+
+            <Form.Item label="Остаток на начало:" name="openingBalance">
               <InputNumber
                 style={{ width: '100%' }}
                 precision={2}
@@ -216,65 +266,44 @@ export function AdvanceReportPage() {
               />
             </Form.Item>
 
-            <Form.Item label="Израсходовано:" name="spentAmount">
+            <Form.Item label="Остаток на конец:" name="closingBalance">
               <InputNumber
                 style={{ width: '100%' }}
                 precision={2}
                 placeholder="0.00"
                 formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
               />
-            </Form.Item>
-
-            <Form.Item label="К возврату:" name="returnAmount">
-              <InputNumber
-                style={{ width: '100%' }}
-                precision={2}
-                placeholder="0.00"
-                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
-              />
-            </Form.Item>
-
-            <Form.Item label="К доплате:" name="additionalAmount">
-              <InputNumber
-                style={{ width: '100%' }}
-                precision={2}
-                placeholder="0.00"
-                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
-              />
-            </Form.Item>
-
-            <Form.Item label="Цель выдачи:" name="purpose">
-              <TextArea rows={2} placeholder="Укажите цель выдачи аванса" />
             </Form.Item>
           </BaseDocumentForm>
 
           <BaseDocumentForm
-            title="Расходы"
+            title="Операции по счету"
             onSave={handleSave}
             onFreeze={handleFreeze}
             loading={loading}
             showFreeze={false}
           >
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Button icon={<PlusOutlined />} onClick={addExpense}>
-                Добавить расход
-              </Button>
+              <Button onClick={addItem}>Добавить операцию</Button>
               <Table
-                columns={expenseColumns}
-                dataSource={expenses}
-                rowKey={(record) => record.id || `expense-${Math.random()}`}
+                columns={itemColumns}
+                dataSource={items}
+                rowKey={(record) => record.id || `item-${Math.random()}`}
                 pagination={false}
                 size="small"
                 summary={() => (
                   <Table.Summary fixed>
                     <Table.Summary.Row>
-                      <Table.Summary.Cell index={0} colSpan={5}>
+                      <Table.Summary.Cell index={0} colSpan={4}>
                         <strong>Итого:</strong>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={5} align="right">
-                        <strong>{totalAmount.toFixed(2)}</strong>
+                      <Table.Summary.Cell index={4} align="right">
+                        <strong>{totalDebit.toFixed(2)}</strong>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={6} />
+                      <Table.Summary.Cell index={5} align="right">
+                        <strong>{totalCredit.toFixed(2)}</strong>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={6} colSpan={2} />
                     </Table.Summary.Row>
                   </Table.Summary>
                 )}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, DatePicker, Select, InputNumber, Space, Typography, message, Button } from 'antd';
+import { Form, Input, DatePicker, Select, Button, Space, Typography, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { api } from '../../services/api';
@@ -10,7 +10,7 @@ const { Title } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
-export function PowerOfAttorneyPage() {
+export function ReceiptAdjustmentPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -21,8 +21,8 @@ export function PowerOfAttorneyPage() {
       const document = {
         ...values,
         date: values.date.format('YYYY-MM-DD'),
-        validUntil: values.validUntil?.format('YYYY-MM-DD'),
-        type: 'PowerOfAttorney',
+        adjustmentDate: values.adjustmentDate?.format('YYYY-MM-DD'),
+        type: 'ReceiptAdjustment',
         portalStatus: 'Draft'
       };
 
@@ -40,8 +40,8 @@ export function PowerOfAttorneyPage() {
       const document = {
         ...values,
         date: values.date.format('YYYY-MM-DD'),
-        validUntil: values.validUntil?.format('YYYY-MM-DD'),
-        type: 'PowerOfAttorney',
+        adjustmentDate: values.adjustmentDate?.format('YYYY-MM-DD'),
+        type: 'ReceiptAdjustment',
         portalStatus: 'Frozen'
       };
 
@@ -62,7 +62,7 @@ export function PowerOfAttorneyPage() {
             Назад
           </Button>
           <Title level={3} style={{ margin: 0 }}>
-            Доверенность (создание)
+            Корректировка поступления (создание)
           </Title>
         </Space>
 
@@ -70,8 +70,7 @@ export function PowerOfAttorneyPage() {
           form={form}
           layout="vertical"
           initialValues={{
-            date: dayjs(),
-            type: 'oneTime'
+            date: dayjs()
           }}
         >
           <BaseDocumentForm
@@ -81,9 +80,9 @@ export function PowerOfAttorneyPage() {
             loading={loading}
           >
             <Form.Item
-              label="Доверенность №"
+              label="Документ корректировки №"
               name="number"
-              rules={[{ required: true, message: 'Введите номер доверенности' }]}
+              rules={[{ required: true, message: 'Введите номер документа' }]}
             >
               <Input placeholder="Введите номер" />
             </Form.Item>
@@ -93,41 +92,26 @@ export function PowerOfAttorneyPage() {
               name="date"
               rules={[{ required: true, message: 'Выберите дату' }]}
             >
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
-            </Form.Item>
-
-            <Form.Item label="Тип доверенности:" name="type">
-              <Select>
-                <Option value="oneTime">Разовая</Option>
-                <Option value="recurring">С правом передоверия</Option>
-              </Select>
+              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" showTime />
             </Form.Item>
 
             <Form.Item
-              label="Доверенность выдана:"
-              name="issuedTo"
-              rules={[{ required: true, message: 'Укажите кому выдана доверенность' }]}
+              label="Документ поступления:"
+              name="receiptDocumentId"
+              rules={[{ required: true, message: 'Выберите документ поступления' }]}
             >
-              <Input placeholder="ФИО или наименование организации" />
+              <Input placeholder="Введите номер документа поступления" />
             </Form.Item>
 
-            <Form.Item label="Должность:" name="position">
-              <Input placeholder="Должность доверенного лица" />
-            </Form.Item>
-
-            <Form.Item label="Паспорт:" name="passport">
-              <Input placeholder="Серия и номер паспорта" />
-            </Form.Item>
-
-            <Form.Item label="Выдано:" name="passportIssuedBy">
-              <Input placeholder="Кем выдан паспорт" />
-            </Form.Item>
-
-            <Form.Item label="Дата выдачи паспорта:" name="passportIssueDate">
+            <Form.Item label="Дата корректируемого документа:" name="adjustmentDate">
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
 
-            <Form.Item label="Контрагент:" name="counterpartyName">
+            <Form.Item
+              label="Контрагент"
+              name="counterpartyName"
+              rules={[{ required: true, message: 'Выберите контрагента' }]}
+            >
               <Input placeholder="Введите ИНН или наименование" />
             </Form.Item>
 
@@ -139,16 +123,24 @@ export function PowerOfAttorneyPage() {
               </Select>
             </Form.Item>
 
-            <Form.Item label="Действительна до:" name="validUntil">
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+            <Form.Item label="Тип корректировки:" name="adjustmentType">
+              <Select>
+                <Option value="correction">Корректировка</Option>
+                <Option value="reversal">Сторно</Option>
+              </Select>
             </Form.Item>
 
-            <Form.Item label="На получение:" name="forReceipt">
-              <TextArea rows={3} placeholder="Укажите товары/материалы для получения" />
+            <Form.Item label="Причина корректировки:" name="reason">
+              <TextArea rows={3} placeholder="Укажите причину корректировки" />
             </Form.Item>
 
-            <Form.Item label="Основание:" name="basis">
-              <Input placeholder="Например: договор поставки №123 от 01.01.2026" />
+            <Form.Item label="Сумма корректировки:" name="adjustmentAmount">
+              <InputNumber
+                style={{ width: '100%' }}
+                precision={2}
+                placeholder="0.00"
+                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
+              />
             </Form.Item>
           </BaseDocumentForm>
         </Form>

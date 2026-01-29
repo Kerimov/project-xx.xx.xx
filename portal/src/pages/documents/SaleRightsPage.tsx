@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, DatePicker, Select, InputNumber, Space, Typography, message, Button } from 'antd';
+import { Form, Input, DatePicker, Select, Button, Space, Typography, Checkbox, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { api } from '../../services/api';
@@ -8,9 +8,8 @@ import dayjs from 'dayjs';
 
 const { Title } = Typography;
 const { Option } = Select;
-const { TextArea } = Input;
 
-export function PowerOfAttorneyPage() {
+export function SaleRightsPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -21,8 +20,7 @@ export function PowerOfAttorneyPage() {
       const document = {
         ...values,
         date: values.date.format('YYYY-MM-DD'),
-        validUntil: values.validUntil?.format('YYYY-MM-DD'),
-        type: 'PowerOfAttorney',
+        type: 'SaleRights',
         portalStatus: 'Draft'
       };
 
@@ -40,8 +38,7 @@ export function PowerOfAttorneyPage() {
       const document = {
         ...values,
         date: values.date.format('YYYY-MM-DD'),
-        validUntil: values.validUntil?.format('YYYY-MM-DD'),
-        type: 'PowerOfAttorney',
+        type: 'SaleRights',
         portalStatus: 'Frozen'
       };
 
@@ -62,7 +59,7 @@ export function PowerOfAttorneyPage() {
             Назад
           </Button>
           <Title level={3} style={{ margin: 0 }}>
-            Доверенность (создание)
+            Реализация прав: Акт, УПД (создание)
           </Title>
         </Space>
 
@@ -71,7 +68,9 @@ export function PowerOfAttorneyPage() {
           layout="vertical"
           initialValues={{
             date: dayjs(),
-            type: 'oneTime'
+            isUPD: false,
+            invoiceRequired: 'notRequired',
+            organizationId: '00000000-0000-0000-0000-000000000001'
           }}
         >
           <BaseDocumentForm
@@ -81,9 +80,9 @@ export function PowerOfAttorneyPage() {
             loading={loading}
           >
             <Form.Item
-              label="Доверенность №"
+              label="Акт, УПД №"
               name="number"
-              rules={[{ required: true, message: 'Введите номер доверенности' }]}
+              rules={[{ required: true, message: 'Введите номер документа' }]}
             >
               <Input placeholder="Введите номер" />
             </Form.Item>
@@ -93,42 +92,25 @@ export function PowerOfAttorneyPage() {
               name="date"
               rules={[{ required: true, message: 'Выберите дату' }]}
             >
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" showTime />
             </Form.Item>
 
-            <Form.Item label="Тип доверенности:" name="type">
-              <Select>
-                <Option value="oneTime">Разовая</Option>
-                <Option value="recurring">С правом передоверия</Option>
-              </Select>
+            <Form.Item label="Номер:" name="documentNumber">
+              <Input placeholder="Введите номер" />
             </Form.Item>
 
             <Form.Item
-              label="Доверенность выдана:"
-              name="issuedTo"
-              rules={[{ required: true, message: 'Укажите кому выдана доверенность' }]}
+              label="Покупатель"
+              name="counterpartyName"
+              rules={[{ required: true, message: 'Выберите покупателя' }]}
             >
-              <Input placeholder="ФИО или наименование организации" />
-            </Form.Item>
-
-            <Form.Item label="Должность:" name="position">
-              <Input placeholder="Должность доверенного лица" />
-            </Form.Item>
-
-            <Form.Item label="Паспорт:" name="passport">
-              <Input placeholder="Серия и номер паспорта" />
-            </Form.Item>
-
-            <Form.Item label="Выдано:" name="passportIssuedBy">
-              <Input placeholder="Кем выдан паспорт" />
-            </Form.Item>
-
-            <Form.Item label="Дата выдачи паспорта:" name="passportIssueDate">
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
-            </Form.Item>
-
-            <Form.Item label="Контрагент:" name="counterpartyName">
               <Input placeholder="Введите ИНН или наименование" />
+            </Form.Item>
+
+            <Form.Item label="Договор" name="contractId">
+              <Select placeholder="Выберите договор" allowClear>
+                {/* TODO: загрузка из API */}
+              </Select>
             </Form.Item>
 
             <Form.Item label="Организация" name="organizationId" rules={[{ required: true }]}>
@@ -139,16 +121,35 @@ export function PowerOfAttorneyPage() {
               </Select>
             </Form.Item>
 
-            <Form.Item label="Действительна до:" name="validUntil">
+            <Form.Item label="Период действия прав:" name="rightsPeriod">
+              <Input placeholder="Например: январь 2026" />
+            </Form.Item>
+
+            <Form.Item label="Дата начала:" name="rightsStartDate">
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
 
-            <Form.Item label="На получение:" name="forReceipt">
-              <TextArea rows={3} placeholder="Укажите товары/материалы для получения" />
+            <Form.Item label="Дата окончания:" name="rightsEndDate">
+              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
 
-            <Form.Item label="Основание:" name="basis">
-              <Input placeholder="Например: договор поставки №123 от 01.01.2026" />
+            <Form.Item label="Расчеты:" name="paymentTerms">
+              <Input.TextArea
+                rows={2}
+                placeholder="Срок, счета расчетов"
+                readOnly
+              />
+            </Form.Item>
+
+            <Form.Item name="isUPD" valuePropName="checked">
+              <Checkbox>УПД</Checkbox>
+            </Form.Item>
+
+            <Form.Item label="Счет-фактура" name="invoiceRequired">
+              <Select>
+                <Option value="notRequired">Не требуется</Option>
+                <Option value="required">Требуется</Option>
+              </Select>
             </Form.Item>
           </BaseDocumentForm>
         </Form>

@@ -6,14 +6,25 @@ import { packagesRouter } from './routes/packages.js';
 import { authRouter } from './routes/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { testConnection } from './db/connection.js';
+import { waitForDb } from './db/waitForDb.js';
+import { runMigrations } from './db/migrate.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Тест подключения к БД при старте
-testConnection();
+// Инициализация БД при старте (ожидаем, применяем миграции)
+(async () => {
+  try {
+    await waitForDb({ retries: 60, delayMs: 1000 });
+    await testConnection();
+    await runMigrations();
+    console.log('✅ Migrations applied');
+  } catch (e) {
+    console.error('❌ Failed to initialize database:', e);
+  }
+})();
 
 // Middleware
 app.use(cors({
