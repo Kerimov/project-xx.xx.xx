@@ -1,0 +1,235 @@
+import { pool } from '../db/connection.js';
+
+export interface DocumentRow {
+  id: string;
+  package_id: string | null;
+  number: string;
+  date: Date;
+  type: string;
+  organization_id: string;
+  counterparty_name: string | null;
+  counterparty_inn: string | null;
+  amount: number | null;
+  currency: string;
+  portal_status: string;
+  uh_status: string | null;
+  uh_document_ref: string | null;
+  uh_error_message: string | null;
+  current_version: number;
+  created_at: Date;
+  updated_at: Date;
+  created_by: string | null;
+  frozen_at: Date | null;
+  sent_to_uh_at: Date | null;
+}
+
+export async function getDocuments(filters?: {
+  packageId?: string;
+  organizationId?: string;
+  portalStatus?: string;
+  uhStatus?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  let query = `
+    SELECT d.*, o.name as organization_name
+    FROM documents d
+    LEFT JOIN organizations o ON d.organization_id = o.id
+    WHERE 1=1
+  `;
+  const params: any[] = [];
+  let paramIndex = 1;
+
+  if (filters?.packageId) {
+    query += ` AND d.package_id = $${paramIndex++}`;
+    params.push(filters.packageId);
+  }
+  if (filters?.organizationId) {
+    query += ` AND d.organization_id = $${paramIndex++}`;
+    params.push(filters.organizationId);
+  }
+  if (filters?.portalStatus) {
+    query += ` AND d.portal_status = $${paramIndex++}`;
+    params.push(filters.portalStatus);
+  }
+  if (filters?.uhStatus) {
+    query += ` AND d.uh_status = $${paramIndex++}`;
+    params.push(filters.uhStatus);
+  }
+
+  query += ` ORDER BY d.created_at DESC`;
+
+  if (filters?.limit) {
+    query += ` LIMIT $${paramIndex++}`;
+    params.push(filters.limit);
+    if (filters?.offset) {
+      query += ` OFFSET $${paramIndex++}`;
+      params.push(filters.offset);
+    }
+  }
+
+  const result = await pool.query(query, params);
+  return result.rows;
+}
+
+export async function getDocumentById(id: string) {
+  const result = await pool.query(
+    `SELECT d.*, o.name as organization_name
+     FROM documents d
+     LEFT JOIN organizations o ON d.organization_id = o.id
+     WHERE d.id = $1`,
+    [id]
+  );
+  return result.rows[0] || null;
+}
+
+export async function createDocument(data: {
+  packageId?: string;
+  number: string;
+  date: string;
+  type: string;
+  organizationId: string;
+  counterpartyName?: string;
+  counterpartyInn?: string;
+  amount?: number;
+  currency?: string;
+  createdBy?: string;
+}) {
+  const result = await pool.query(
+    `INSERT INTO documents (
+      package_id, number, date, type, organization_id,
+      counterparty_name, counterparty_inn, amount, currency,
+      portal_status, current_version, created_by
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    RETURNING *`,
+    [
+      data.packageId || null,
+      data.number,
+      data.date,
+      data.type,
+      data.organizationId,
+      data.counterpartyName || null,
+      data.counterpartyInn || null,
+      data.amount || null,
+      data.currency || 'RUB',
+      'Draft',
+      1,
+      data.createdBy || null
+    ]
+  );
+
+  // Создаём первую версию документа
+  const document = result.rows[0];
+  await pool.query(
+    `INSERT INTO document_versions (document_id, version, status, data, created_by)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [
+      document.id,
+      1,
+      'Draft',
+      JSON.stringify({
+        number: data.number,
+        date: data.date,
+        type: data.type,
+        counterpartyName: data.counterpartyName,
+        amount: data.amount
+      }),
+      data.createdBy || null
+    ]
+  );
+
+  return document;
+}
+
+export async function updateDocument(id: string, updates: Partial<DocumentRow>) {
+  const fields: string[] = [];
+  const values: any[] = [];
+  let paramIndex = 1;
+
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value !== undefined) {
+      fields.push(`${key} = $${paramIndex++}`);
+      values.push(value);
+    }
+  });
+
+  if (fields.length === 0) {
+    return getDocumentById(id);
+  }
+
+  values.push(id);
+  const result = await pool.query(
+    `UPDATE documents SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+     WHERE id = $${paramIndex}
+     RETURNING *`,
+    values
+  );
+
+  return result.rows[0] || null;
+}
+
+export async function freezeDocumentVersion(documentId: string, version: number) {
+  // Обновляем статус версии
+  await pool.query(
+    `UPDATE document_versions
+     SET status = 'Frozen', frozen_at = CURRENT_TIMESTAMP
+     WHERE document_id = $1 AND version = $2`,
+    [documentId, version]
+  );
+
+  // Обновляем статус документа
+  const result = await pool.query(
+    `UPDATE documents
+     SET portal_status = 'Frozen', frozen_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+     WHERE id = $1
+     RETURNING *`,
+    [documentId]
+  );
+
+  return result.rows[0] || null;
+}
+
+export async function getDocumentFiles(documentId: string, version?: number) {
+  let query = `SELECT * FROM document_files WHERE document_id = $1`;
+  const params: any[] = [documentId];
+
+  if (version !== undefined) {
+    query += ` AND version = $2`;
+    params.push(version);
+  }
+
+  query += ` ORDER BY uploaded_at DESC`;
+
+  const result = await pool.query(query, params);
+  return result.rows;
+}
+
+export async function getDocumentChecks(documentId: string, version?: number) {
+  let query = `SELECT * FROM document_checks WHERE document_id = $1`;
+  const params: any[] = [documentId];
+
+  if (version !== undefined) {
+    query += ` AND version = $2`;
+    params.push(version);
+  }
+
+  query += ` ORDER BY created_at DESC`;
+
+  const result = await pool.query(query, params);
+  return result.rows;
+}
+
+export async function getDocumentHistory(documentId: string, version?: number) {
+  let query = `SELECT * FROM document_history WHERE document_id = $1`;
+  const params: any[] = [documentId];
+
+  if (version !== undefined) {
+    query += ` AND version = $2`;
+    params.push(version);
+  }
+
+  query += ` ORDER BY created_at DESC`;
+
+  const result = await pool.query(query, params);
+  return result.rows;
+}
