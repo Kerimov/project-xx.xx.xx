@@ -95,5 +95,76 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ username, password })
       })
+  },
+
+  // Файлы
+  files: {
+    upload: async (documentId: string, file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const token = localStorage.getItem('auth_token');
+      
+      const response = await fetch(`${API_BASE_URL}/documents/${documentId}/files`, {
+        method: 'POST',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: { message: 'Network error' } }));
+        throw new Error(error.error?.message || 'Upload failed');
+      }
+
+      return response.json();
+    },
+
+    list: (documentId: string) => request<{ data: any[] }>(`/documents/${documentId}/files`),
+
+    download: (fileId: string) => {
+      const token = localStorage.getItem('auth_token');
+      window.open(`${API_BASE_URL}/files/${fileId}${token ? `?token=${token}` : ''}`, '_blank');
+    },
+
+    delete: (fileId: string) => request<{ data: { success: boolean } }>(`/files/${fileId}`, {
+      method: 'DELETE'
+    })
+  },
+
+  // НСИ (справочники)
+  nsi: {
+    organizations: (search?: string) => {
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      return request<{ data: any[] }>(`/nsi/organizations${params.toString() ? `?${params.toString()}` : ''}`);
+    },
+
+    counterparties: (search?: string, inn?: string) => {
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (inn) params.append('inn', inn);
+      return request<{ data: any[] }>(`/nsi/counterparties${params.toString() ? `?${params.toString()}` : ''}`);
+    },
+
+    contracts: (organizationId?: string, counterpartyName?: string) => {
+      const params = new URLSearchParams();
+      if (organizationId) params.append('organizationId', organizationId);
+      if (counterpartyName) params.append('counterpartyName', counterpartyName);
+      return request<{ data: any[] }>(`/nsi/contracts${params.toString() ? `?${params.toString()}` : ''}`);
+    },
+
+    accounts: (organizationId?: string, type?: string) => {
+      const params = new URLSearchParams();
+      if (organizationId) params.append('organizationId', organizationId);
+      if (type) params.append('type', type);
+      return request<{ data: any[] }>(`/nsi/accounts${params.toString() ? `?${params.toString()}` : ''}`);
+    },
+
+    warehouses: (organizationId?: string) => {
+      const params = new URLSearchParams();
+      if (organizationId) params.append('organizationId', organizationId);
+      return request<{ data: any[] }>(`/nsi/warehouses${params.toString() ? `?${params.toString()}` : ''}`);
+    }
   }
 };

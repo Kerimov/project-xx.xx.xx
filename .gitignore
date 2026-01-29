@@ -24,3 +24,14 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+
+# Uploads
+uploads/
+*.pdf
+*.jpg
+*.jpeg
+*.png
+*.xlsx
+*.xls
+*.doc
+*.docx

@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import { documentsRouter } from './routes/documents.js';
 import { packagesRouter } from './routes/packages.js';
 import { authRouter } from './routes/auth.js';
+import { filesRouter } from './routes/files.js';
+import { nsiRouter } from './routes/nsi.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { testConnection } from './db/connection.js';
 import { waitForDb } from './db/waitForDb.js';
@@ -43,6 +45,8 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/documents', documentsRouter);
 app.use('/api/packages', packagesRouter);
+app.use('/api', filesRouter);
+app.use('/api/nsi', nsiRouter);
 
 // Error handling
 app.use(errorHandler);

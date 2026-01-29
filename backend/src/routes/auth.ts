@@ -2,18 +2,15 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { pool } from '../db/connection.js';
+import { validate } from '../middleware/validate.js';
+import { loginSchema } from '../validators/auth.js';
 
 export const authRouter = Router();
 
-authRouter.post('/login', async (req: Request, res: Response) => {
+authRouter.post('/login', validate(loginSchema), async (req: Request, res: Response) => {
   try {
+    // Данные уже валидированы через middleware
     const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({ error: { message: 'Username and password required' } });
-    }
-
-    // TODO: валидация через Zod
 
     const result = await pool.query(
       'SELECT id, username, password_hash, role, organization_id FROM users WHERE username = $1 AND is_active = true',

@@ -95,26 +95,9 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
 
 export async function createDocument(req: Request, res: Response, next: NextFunction) {
   try {
+    // Данные уже валидированы через middleware validate()
     const documentData = req.body;
     console.log('📝 Creating document:', JSON.stringify(documentData, null, 2));
-    
-    // Базовая валидация обязательных полей
-    if (!documentData.number) {
-      console.error('❌ Missing number field');
-      return res.status(400).json({ error: { message: 'Number is required' } });
-    }
-    if (!documentData.date) {
-      console.error('❌ Missing date field');
-      return res.status(400).json({ error: { message: 'Date is required' } });
-    }
-    if (!documentData.type) {
-      console.error('❌ Missing type field');
-      return res.status(400).json({ error: { message: 'Type is required' } });
-    }
-    if (!documentData.organizationId) {
-      console.error('❌ Missing organizationId field');
-      return res.status(400).json({ error: { message: 'OrganizationId is required' } });
-    }
     
     const document = await documentsRepo.createDocument({
       packageId: documentData.packageId,
