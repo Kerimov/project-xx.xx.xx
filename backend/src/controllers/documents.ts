@@ -214,7 +214,7 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
       return res.status(404).json({ error: { message: 'Document not found' } });
     }
 
-    // Обновляем версию документа с полными данными
+    // Создаём новую версию документа с полными данными
     const versionData = {
       number: updates.number,
       date: updates.date,
@@ -237,14 +237,31 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
       receiptBasis: updates.receiptBasis,
       returnBasis: updates.returnBasis,
       documentNumber: updates.documentNumber,
-      paymentTerms: updates.paymentTerms
+      paymentTerms: updates.paymentTerms,
+      servicePeriod: updates.servicePeriod,
+      serviceStartDate: updates.serviceStartDate,
+      serviceEndDate: updates.serviceEndDate
     };
 
-    await documentsRepo.updateDocumentVersion(id, document.current_version, versionData);
+    // Создаём новую версию вместо обновления существующей
+    await documentsRepo.createNewDocumentVersion(id, versionData, (req as any).user?.username || 'system');
 
-    logger.info('Document updated', { documentId: id, status: currentStatus });
+    // Получаем обновленный документ с новой версией
+    const updatedDoc = await documentsRepo.getDocumentById(id);
     
-    res.json({ data: updated });
+    if (!updatedDoc) {
+      return res.status(404).json({ error: { message: 'Document not found after update' } });
+    }
+
+    // Убеждаемся, что ID не изменился
+    if (updatedDoc.id !== id) {
+      logger.error('Document ID changed during update!', { originalId: id, newId: updatedDoc.id });
+      return res.status(500).json({ error: { message: 'Internal error: Document ID changed' } });
+    }
+
+    logger.info('Document updated', { documentId: id, status: currentStatus, newVersion: updatedDoc.current_version });
+    
+    res.json({ data: updatedDoc });
   } catch (error) {
     next(error);
   }
@@ -381,6 +398,48 @@ export async function getDocumentStatusTransitions(req: Request, res: Response, 
         editable,
         availableTransitions: transitions
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteDocument(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    
+    const document = await documentsRepo.getDocumentById(id);
+    if (!document) {
+      return res.status(404).json({ error: { message: 'Document not found' } });
+    }
+
+    // Проверяем, можно ли удалить документ
+    // Нельзя удалять документы, которые уже отправлены в УХ или проведены
+    const forbiddenStatuses: PortalStatus[] = ['Frozen', 'QueuedToUH', 'SentToUH', 'AcceptedByUH', 'PostedInUH'];
+    if (forbiddenStatuses.includes(document.portal_status as PortalStatus)) {
+      return res.status(400).json({ 
+        error: { 
+          message: `Нельзя удалить документ в статусе "${document.portal_status}". Можно удалять только документы в статусах: Draft, Validated, Cancelled, RejectedByUH`
+        } 
+      });
+    }
+
+    // Удаляем документ (CASCADE удалит все связанные данные)
+    const deleted = await documentsRepo.deleteDocument(id);
+    
+    if (!deleted) {
+      return res.status(404).json({ 
+        error: { message: 'Document not found' } 
+      });
+    }
+
+    logger.info('Document deleted', { documentId: id, status: document.portal_status });
+    
+    res.json({ 
+      data: { 
+        id: deleted.id,
+        message: 'Документ успешно удален'
+      } 
     });
   } catch (error) {
     next(error);

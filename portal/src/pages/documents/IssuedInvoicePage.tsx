@@ -5,6 +5,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { OrganizationSelect, CounterpartySelect } from '../../components/forms';
 import { api } from '../../services/api';
+import { useDocumentEdit } from './useDocumentEdit';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
@@ -23,16 +24,28 @@ interface InvoiceItem {
   totalAmount: number;
 }
 
-export function IssuedInvoicePage() {
+interface IssuedInvoicePageProps {
+  documentId?: string;
+}
+
+export function IssuedInvoicePage({ documentId }: IssuedInvoicePageProps = {}) {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [items, setItems] = useState<InvoiceItem[]>([]);
-  const [loading, setLoading] = useState(false);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | undefined>();
   const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | undefined>();
+  const { id, isEditMode, loading, setLoading } = useDocumentEdit({
+    documentId,
+    form,
+    navigate,
+    setItems,
+    setSelectedOrganizationId,
+    setSelectedCounterpartyId
+  });
 
   const handleSave = async () => {
     try {
+      setLoading(true);
       const values = await form.validateFields();
       const document = {
         ...values,
@@ -45,16 +58,25 @@ export function IssuedInvoicePage() {
         totalVAT: items.reduce((sum, item) => sum + item.vatAmount, 0)
       };
 
-      const response = await api.documents.create(document);
-      message.success('Документ сохранён');
-      navigate(`/documents/${response.data.id}`);
+      if (isEditMode && id) {
+        await api.documents.update(id, document);
+        message.success('Документ обновлён');
+        navigate(`/documents/${id}`);
+      } else {
+        const response = await api.documents.create(document);
+        message.success('Документ сохранён');
+        navigate(`/documents/${response.data.id}`);
+      }
     } catch (error) {
       message.error('Ошибка при сохранении документа');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleFreeze = async () => {
     try {
+      setLoading(true);
       const values = await form.validateFields();
       const document = {
         ...values,
@@ -67,12 +89,21 @@ export function IssuedInvoicePage() {
         totalVAT: items.reduce((sum, item) => sum + item.vatAmount, 0)
       };
 
-      const response = await api.documents.create(document);
-      await api.documents.freeze(response.data.id);
-      message.success('Документ заморожен');
-      navigate(`/documents/${response.data.id}`);
+      if (isEditMode && id) {
+        await api.documents.update(id, document);
+        await api.documents.freeze(id);
+        message.success('Документ заморожен');
+        navigate(`/documents/${id}`);
+      } else {
+        const response = await api.documents.create(document);
+        await api.documents.freeze(response.data.id);
+        message.success('Документ заморожен');
+        navigate(`/documents/${response.data.id}`);
+      }
     } catch (error) {
       message.error('Ошибка при заморозке документа');
+    } finally {
+      setLoading(false);
     }
   };
 

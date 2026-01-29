@@ -6,6 +6,7 @@ import {
   updateDocument,
   freezeDocumentVersion,
   cancelDocument,
+  deleteDocument,
   changeDocumentStatus,
   getDocumentStatusTransitions
 } from '../controllers/documents.js';
@@ -25,7 +26,18 @@ const documentIdSchema = z.object({
 });
 
 const changeStatusSchema = z.object({
-  status: z.enum(['Draft', 'Validated', 'Frozen', 'Cancelled'])
+  // Полный список статусов портала. Валидация перехода всё равно делается в controller/service.
+  status: z.enum([
+    'Draft',
+    'Validated',
+    'Frozen',
+    'QueuedToUH',
+    'SentToUH',
+    'AcceptedByUH',
+    'PostedInUH',
+    'RejectedByUH',
+    'Cancelled'
+  ])
 });
 
 documentsRouter.get('/', validateQuery(listDocumentsSchema), getDocuments);
@@ -35,4 +47,5 @@ documentsRouter.post('/', validate(createDocumentSchema), createDocument);
 documentsRouter.put('/:id', validateParams(documentIdSchema), validate(updateDocumentSchema), updateDocument);
 documentsRouter.post('/:id/freeze', validateParams(documentIdSchema), freezeDocumentVersion);
 documentsRouter.post('/:id/cancel', validateParams(documentIdSchema), cancelDocument);
+documentsRouter.delete('/:id', validateParams(documentIdSchema), deleteDocument);
 documentsRouter.post('/:id/status', validateParams(documentIdSchema), validate(changeStatusSchema), changeDocumentStatus);

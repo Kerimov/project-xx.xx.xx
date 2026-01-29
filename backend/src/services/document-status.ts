@@ -15,7 +15,8 @@ export type PortalStatus =
 
 // Матрица разрешенных переходов статусов
 const ALLOWED_TRANSITIONS: Record<PortalStatus, PortalStatus[]> = {
-  Draft: ['Validated', 'Cancelled'],
+  // Разрешаем "Заморозить" прямо из черновика (по UX портала)
+  Draft: ['Validated', 'Frozen', 'Cancelled'],
   Validated: ['Draft', 'Frozen', 'Cancelled'],
   Frozen: ['QueuedToUH'], // Автоматический переход
   QueuedToUH: ['SentToUH'], // Автоматический переход

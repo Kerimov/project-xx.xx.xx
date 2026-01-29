@@ -294,6 +294,16 @@ export async function cancelDocument(documentId: string) {
   return result.rows[0];
 }
 
+export async function deleteDocument(documentId: string) {
+  // Удаляем документ (CASCADE удалит все связанные записи: версии, файлы, проверки, историю)
+  const result = await pool.query(
+    `DELETE FROM documents WHERE id = $1 RETURNING *`,
+    [documentId]
+  );
+  
+  return result.rows[0] || null;
+}
+
 export async function getDocumentFiles(documentId: string, version?: number) {
   let query = `SELECT * FROM document_files WHERE document_id = $1`;
   const params: any[] = [documentId];
@@ -372,4 +382,37 @@ export async function updateDocumentVersion(documentId: string, version: number,
   );
   
   return result.rows[0] || null;
+}
+
+export async function createNewDocumentVersion(documentId: string, data: any, createdBy?: string) {
+  // Получаем текущую версию и увеличиваем её
+  const docResult = await pool.query(
+    `UPDATE documents
+     SET current_version = current_version + 1, updated_at = CURRENT_TIMESTAMP
+     WHERE id = $1
+     RETURNING current_version`,
+    [documentId]
+  );
+  
+  if (docResult.rows.length === 0) {
+    return null;
+  }
+  
+  const newVersion = docResult.rows[0].current_version;
+  
+  // Создаём новую версию документа
+  const versionResult = await pool.query(
+    `INSERT INTO document_versions (document_id, version, status, data, created_by)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING *`,
+    [
+      documentId,
+      newVersion,
+      'Draft',
+      JSON.stringify(data),
+      createdBy || null
+    ]
+  );
+  
+  return versionResult.rows[0] || null;
 }

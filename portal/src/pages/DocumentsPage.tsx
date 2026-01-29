@@ -1,8 +1,8 @@
-import { Table, Tag, Typography, Button, Space, Tabs } from 'antd';
+import { Table, Tag, Typography, Button, Space, Tabs, Popconfirm } from 'antd';
 import type { TabsProps } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { api } from '../services/api';
 import { message } from 'antd';
 import { documentGroups } from '../config/documentGroups';
@@ -20,83 +20,14 @@ const getDocumentTypeLabel = (type: string): string => {
   return type; // Если не найдено, возвращаем сам тип
 };
 
-const columns = [
-  { title: '№', dataIndex: 'number', key: 'number', width: 120 },
-  { title: 'Дата', dataIndex: 'date', key: 'date', width: 120 },
-  { 
-    title: 'Вид документа', 
-    dataIndex: 'type', 
-    key: 'type', 
-    width: 200,
-    render: (type: string) => getDocumentTypeLabel(type)
-  },
-  { title: 'Контрагент', dataIndex: 'counterparty', key: 'counterparty' },
-  { title: 'Сумма', dataIndex: 'amount', key: 'amount', align: 'right', width: 140 },
-  {
-    title: 'Статус портала',
-    dataIndex: 'portalStatus',
-    key: 'portalStatus',
-    width: 160,
-    render: (status: string) => {
-      const colorMap: Record<string, string> = {
-        Draft: 'default',
-        Validated: 'processing',
-        Frozen: 'geekblue',
-        QueuedToUH: 'processing',
-        SentToUH: 'processing'
-      };
-      const labelMap: Record<string, string> = {
-        Draft: 'Черновик',
-        Validated: 'Проверен',
-        Frozen: 'Заморожен',
-        QueuedToUH: 'В очереди в УХ',
-        SentToUH: 'Отправлен в УХ'
-      };
-
-      const color = colorMap[status] || 'default';
-      const label = labelMap[status] || status;
-
-      return <Tag color={color}>{label}</Tag>;
-    }
-  },
-  {
-    title: 'Статус УХ',
-    dataIndex: 'uhStatus',
-    key: 'uhStatus',
-    width: 140,
-    render: (status: string) => {
-      const colorMap: Record<string, string> = {
-        None: 'default',
-        Accepted: 'processing',
-        Posted: 'success',
-        Error: 'error'
-      };
-      const labelMap: Record<string, string> = {
-        None: '—',
-        Accepted: 'Принят',
-        Posted: 'Проведён',
-        Error: 'Ошибка'
-      };
-
-      const color = colorMap[status] || 'default';
-      const label = labelMap[status] || status;
-
-      return <Tag color={color}>{label}</Tag>;
-    }
-  }
-];
-
 export function DocumentsPage() {
   const navigate = useNavigate();
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<string>('all');
 
-  useEffect(() => {
-    loadDocuments();
-  }, []);
-
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.documents.list();
@@ -107,7 +38,132 @@ export function DocumentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const columns = useMemo(() => [
+    { title: '№', dataIndex: 'number', key: 'number', width: 120 },
+    { title: 'Дата', dataIndex: 'date', key: 'date', width: 120 },
+    { 
+      title: 'Вид документа', 
+      dataIndex: 'type', 
+      key: 'type', 
+      width: 200,
+      render: (type: string) => getDocumentTypeLabel(type)
+    },
+    { title: 'Контрагент', dataIndex: 'counterparty', key: 'counterparty' },
+    { title: 'Сумма', dataIndex: 'amount', key: 'amount', align: 'right', width: 140 },
+    {
+      title: 'Статус портала',
+      dataIndex: 'portalStatus',
+      key: 'portalStatus',
+      width: 160,
+      render: (status: string) => {
+        const colorMap: Record<string, string> = {
+          Draft: 'default',
+          Validated: 'processing',
+          Frozen: 'geekblue',
+          QueuedToUH: 'processing',
+          SentToUH: 'processing'
+        };
+        const labelMap: Record<string, string> = {
+          Draft: 'Черновик',
+          Validated: 'Проверен',
+          Frozen: 'Заморожен',
+          QueuedToUH: 'В очереди в УХ',
+          SentToUH: 'Отправлен в УХ'
+        };
+
+        const color = colorMap[status] || 'default';
+        const label = labelMap[status] || status;
+
+        return <Tag color={color}>{label}</Tag>;
+      }
+    },
+    {
+      title: 'Статус УХ',
+      dataIndex: 'uhStatus',
+      key: 'uhStatus',
+      width: 140,
+      render: (status: string) => {
+        const colorMap: Record<string, string> = {
+          None: 'default',
+          Accepted: 'processing',
+          Posted: 'success',
+          Error: 'error'
+        };
+        const labelMap: Record<string, string> = {
+          None: '—',
+          Accepted: 'Принят',
+          Posted: 'Проведён',
+          Error: 'Ошибка'
+        };
+
+        const color = colorMap[status] || 'default';
+        const label = labelMap[status] || status;
+
+        return <Tag color={color}>{label}</Tag>;
+      }
+    },
+    {
+      title: 'Действия',
+      key: 'actions',
+      width: 150,
+      render: (_: any, record: any) => {
+        const canDelete = ['Draft', 'Validated', 'Cancelled', 'RejectedByUH'].includes(record.portalStatus);
+        return (
+          <Space>
+            <Button 
+              type="link" 
+              onClick={() => navigate(`/documents/${record.id}`)}
+            >
+              Открыть
+            </Button>
+            {canDelete && (
+              <Popconfirm
+                title="Удаление документа"
+                description={`Удалить документ "${record.number}"?`}
+                onConfirm={async (e) => {
+                  e?.stopPropagation();
+                  try {
+                    setDeletingIds(prev => new Set(prev).add(record.id));
+                    await api.documents.delete(record.id);
+                    message.success('Документ удален');
+                    loadDocuments();
+                  } catch (error: any) {
+                    message.error('Ошибка при удалении: ' + (error.message || 'Неизвестная ошибка'));
+                  } finally {
+                    setDeletingIds(prev => {
+                      const next = new Set(prev);
+                      next.delete(record.id);
+                      return next;
+                    });
+                  }
+                }}
+                onCancel={(e) => e?.stopPropagation()}
+                okText="Удалить"
+                okType="danger"
+                cancelText="Отмена"
+              >
+                <Button 
+                  type="link" 
+                  danger 
+                  icon={<DeleteOutlined />}
+                  loading={deletingIds.has(record.id)}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Удалить
+                </Button>
+              </Popconfirm>
+            )}
+          </Space>
+        );
+      }
+    }
+  ], [navigate, deletingIds, loadDocuments]);
+
+  useEffect(() => {
+    loadDocuments();
+  }, []);
 
   // Группировка документов по группам и подгруппам
   const documentsByGroupAndSubgroup = useMemo(() => {

@@ -12,21 +12,33 @@ import {
   Table,
   InputNumber,
   Checkbox,
-  message
+  message,
+  Spin
 } from 'antd';
 import { SaveOutlined, CheckOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import type { ReceiptServicesDocument, ReceiptServicesItem } from '../types/documents';
 import { api } from '../services/api';
+import { useDocumentEdit } from './documents/useDocumentEdit';
+import { AccountSelect } from '../components/forms';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
 const { Option } = Select;
 
-export function CreateReceiptServicesPage() {
+interface CreateReceiptServicesPageProps {
+  documentId?: string;
+}
+
+export function CreateReceiptServicesPage({ documentId }: CreateReceiptServicesPageProps = {}) {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [items, setItems] = useState<ReceiptServicesItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { id, isEditMode, loading, setLoading } = useDocumentEdit({
+    documentId,
+    form,
+    navigate,
+    setItems
+  });
 
   const handleSave = async (values: any) => {
     setLoading(true);
@@ -34,6 +46,8 @@ export function CreateReceiptServicesPage() {
       const document: ReceiptServicesDocument = {
         ...values,
         date: values.date.format('YYYY-MM-DD'),
+        serviceStartDate: values.serviceStartDate?.format('YYYY-MM-DD'),
+        serviceEndDate: values.serviceEndDate?.format('YYYY-MM-DD'),
         type: 'ReceiptServices',
         items,
         portalStatus: 'Draft',
@@ -41,9 +55,15 @@ export function CreateReceiptServicesPage() {
         totalVAT: items.reduce((sum, item) => sum + (item.vatAmount || 0), 0)
       };
 
-      const response = await api.documents.create(document);
-      message.success('Документ сохранён');
-      navigate(`/documents/${response.data.id}`);
+      if (isEditMode && id) {
+        await api.documents.update(id, document);
+        message.success('Документ обновлён');
+        navigate(`/documents/${id}`);
+      } else {
+        const response = await api.documents.create(document);
+        message.success('Документ сохранён');
+        navigate(`/documents/${response.data.id}`);
+      }
     } catch (error) {
       message.error('Ошибка при сохранении документа');
     } finally {
@@ -58,6 +78,8 @@ export function CreateReceiptServicesPage() {
       const document: ReceiptServicesDocument = {
         ...values,
         date: values.date.format('YYYY-MM-DD'),
+        serviceStartDate: values.serviceStartDate?.format('YYYY-MM-DD'),
+        serviceEndDate: values.serviceEndDate?.format('YYYY-MM-DD'),
         type: 'ReceiptServices',
         items,
         portalStatus: 'Frozen',
@@ -65,10 +87,17 @@ export function CreateReceiptServicesPage() {
         totalVAT: items.reduce((sum, item) => sum + (item.vatAmount || 0), 0)
       };
 
-      const response = await api.documents.create(document);
-      const frozenResponse = await api.documents.freeze(response.data.id);
-      message.success('Документ заморожен');
-      navigate(`/documents/${response.data.id}`);
+      if (isEditMode && id) {
+        await api.documents.update(id, document);
+        await api.documents.freeze(id);
+        message.success('Документ заморожен');
+        navigate(`/documents/${id}`);
+      } else {
+        const response = await api.documents.create(document);
+        await api.documents.freeze(response.data.id);
+        message.success('Документ заморожен');
+        navigate(`/documents/${response.data.id}`);
+      }
     } catch (error) {
       message.error('Ошибка при заморозке документа');
     } finally {
@@ -249,27 +278,28 @@ export function CreateReceiptServicesPage() {
 
   return (
     <div className="page">
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/documents')}>
-            Назад
-          </Button>
-          <Title level={3} style={{ margin: 0 }}>
-            Поступление услуг: Акт, УПД (создание)
-          </Title>
-        </Space>
+      <Spin spinning={loading && isEditMode} tip="Загрузка документа...">
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Space>
+            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(isEditMode && id ? `/documents/${id}` : '/documents')}>
+              Назад
+            </Button>
+            <Title level={3} style={{ margin: 0 }}>
+              Поступление услуг: Акт, УПД {isEditMode ? '(редактирование)' : '(создание)'}
+            </Title>
+          </Space>
 
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSave}
-          initialValues={{
-            date: dayjs(),
-            vatPercent: 20,
-            isUPD: false,
-            invoiceRequired: false
-          }}
-        >
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSave}
+            initialValues={{
+              date: dayjs(),
+              vatPercent: 20,
+              isUPD: false,
+              invoiceRequired: false
+            }}
+          >
           <Card
             title="Основные реквизиты"
             extra={
@@ -410,7 +440,8 @@ export function CreateReceiptServicesPage() {
             />
           </Card>
         </Form>
-      </Space>
+        </Space>
+      </Spin>
     </div>
   );
 }

@@ -1,8 +1,8 @@
-import { Card, Col, Descriptions, Row, Space, Tabs, Tag, Typography, Button, message, Dropdown } from 'antd';
+import { Card, Col, Descriptions, Row, Space, Tabs, Tag, Typography, Button, message, Dropdown, Modal } from 'antd';
 import type { TabsProps } from 'antd';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { StopOutlined, CheckCircleOutlined, LockOutlined, EditOutlined } from '@ant-design/icons';
+import { StopOutlined, CheckCircleOutlined, LockOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
 
 const { Title, Text } = Typography;
@@ -40,6 +40,7 @@ export function DocumentDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [statusTransitions, setStatusTransitions] = useState<{
     currentStatus: string;
     editable: boolean;
@@ -94,6 +95,7 @@ export function DocumentDetailsPage() {
   };
 
   const canCancel = doc && ['Draft', 'Validated'].includes(doc.portalStatus);
+  const canDelete = doc && ['Draft', 'Validated', 'Cancelled', 'RejectedByUH'].includes(doc.portalStatus);
   const canEdit = statusTransitions?.editable ?? false;
   const availableTransitions = statusTransitions?.availableTransitions || [];
 
@@ -117,6 +119,30 @@ export function DocumentDetailsPage() {
     } finally {
       setChangingStatus(false);
     }
+  };
+
+  const handleDelete = async () => {
+    if (!id || !doc) return;
+    
+    Modal.confirm({
+      title: 'Удаление документа',
+      content: `Вы уверены, что хотите удалить документ "${doc.number}"? Это действие нельзя отменить.`,
+      okText: 'Удалить',
+      okType: 'danger',
+      cancelText: 'Отмена',
+      onOk: async () => {
+        try {
+          setDeleting(true);
+          await api.documents.delete(id);
+          message.success('Документ успешно удален');
+          navigate('/documents');
+        } catch (error: any) {
+          message.error('Ошибка при удалении документа: ' + (error.message || 'Неизвестная ошибка'));
+        } finally {
+          setDeleting(false);
+        }
+      }
+    });
   };
 
   if (loading) {
@@ -311,6 +337,16 @@ export function DocumentDetailsPage() {
                 loading={cancelling}
               >
                 Отменить документ
+              </Button>
+            )}
+            {canDelete && (
+              <Button 
+                danger 
+                icon={<DeleteOutlined />}
+                onClick={handleDelete}
+                loading={deleting}
+              >
+                Удалить
               </Button>
             )}
           </Space>

@@ -73,6 +73,9 @@ export const api = {
     cancel: (id: string) => request<{ data: any }>(`/documents/${id}/cancel`, {
       method: 'POST'
     }),
+    delete: (id: string) => request<{ data: any }>(`/documents/${id}`, {
+      method: 'DELETE'
+    }),
     changeStatus: (id: string, status: string) => request<{ data: any }>(`/documents/${id}/status`, {
       method: 'POST',
       body: JSON.stringify({ status })

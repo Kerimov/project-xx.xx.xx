@@ -28,7 +28,11 @@ function mapDocumentToFormValues(doc: any) {
     endDate: doc.endDate ? dayjs(doc.endDate) : undefined,
     periodStart: doc.periodStart ? dayjs(doc.periodStart) : undefined,
     periodEnd: doc.periodEnd ? dayjs(doc.periodEnd) : undefined,
-    invoiceDate: doc.invoiceDate ? dayjs(doc.invoiceDate) : undefined
+    invoiceDate: doc.invoiceDate ? dayjs(doc.invoiceDate) : undefined,
+    serviceStartDate: doc.serviceStartDate ? dayjs(doc.serviceStartDate) : undefined,
+    serviceEndDate: doc.serviceEndDate ? dayjs(doc.serviceEndDate) : undefined,
+    adjustmentDate: doc.adjustmentDate ? dayjs(doc.adjustmentDate) : undefined,
+    validUntil: doc.validUntil ? dayjs(doc.validUntil) : undefined
   };
 }
 

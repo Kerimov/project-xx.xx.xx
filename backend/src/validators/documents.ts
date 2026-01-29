@@ -53,9 +53,7 @@ export const createDocumentSchema = z.object({
 }).passthrough();
 
 // Схема обновления документа
-export const updateDocumentSchema = createDocumentSchema.partial().extend({
-  id: uuidSchema
-});
+export const updateDocumentSchema = createDocumentSchema.partial();
 
 // Схема для заморозки документа
 export const freezeDocumentSchema = z.object({
