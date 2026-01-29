@@ -19,8 +19,6 @@ export interface DocumentBase {
   counterpartyInn?: string;
   contractId?: string;
   paymentAccountId?: string;
-  warehouseId?: string;
-  hasDiscrepancies?: boolean;
   originalReceived?: boolean;
   portalStatus: 'Draft' | 'Validated' | 'Frozen' | 'QueuedToUH' | 'SentToUH';
   uhStatus?: 'None' | 'Accepted' | 'Posted' | 'Error';
@@ -29,15 +27,24 @@ export interface DocumentBase {
 // Поступление товаров (накладная, УПД)
 export interface ReceiptGoodsDocument extends DocumentBase {
   type: 'ReceiptGoods';
+  documentNumber?: string; // Дополнительное поле "Номер"
+  warehouseId?: string; // Склад (обязательное для товаров)
+  hasDiscrepancies?: boolean; // Есть расхождения
+  paymentTerms?: string; // Расчеты: срок, счета (60.01, 60.02)
+  consignor?: string; // Грузоотправитель
+  consignee?: string; // Грузополучатель
+  vatOnTop?: boolean; // НДС сверху
+  vatIncluded?: boolean; // НДС включен в стоимость
   items: ReceiptGoodsItem[];
   isUPD?: boolean; // УПД (универсальный передаточный документ)
-  invoiceRequired?: boolean;
+  invoiceRequired?: 'notRequired' | 'required'; // Счет-фактура
   totalAmount: number;
   totalVAT: number;
 }
 
 export interface ReceiptGoodsItem {
   id?: string;
+  rowNumber?: number; // N - порядковый номер строки
   nomenclatureId?: string;
   nomenclatureName: string;
   quantity: number;
@@ -48,15 +55,19 @@ export interface ReceiptGoodsItem {
   vatAmount: number;
   totalAmount: number;
   accountId?: string; // счет учета
-  countryOfOrigin?: string;
+  countryOfOrigin?: string; // Страна происхождения
 }
 
 // Поступление услуг (акт, УПД)
 export interface ReceiptServicesDocument extends DocumentBase {
   type: 'ReceiptServices';
+  documentNumber?: string; // Дополнительное поле "Номер"
+  servicePeriod?: string; // Период оказания услуг
+  serviceStartDate?: string; // Дата начала оказания услуг
+  serviceEndDate?: string; // Дата окончания оказания услуг
   items: ReceiptServicesItem[];
   isUPD?: boolean;
-  invoiceRequired?: boolean;
+  invoiceRequired?: 'notRequired' | 'required'; // Счет-фактура
   totalAmount: number;
   totalVAT: number;
 }

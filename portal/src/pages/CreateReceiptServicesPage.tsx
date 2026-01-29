@@ -85,7 +85,8 @@ export function CreateReceiptServicesPage() {
       amount: 0,
       vatPercent: 20,
       vatAmount: 0,
-      totalAmount: 0
+      totalAmount: 0,
+      accountId: undefined
     };
     setItems([...items, newItem]);
   };
@@ -108,6 +109,14 @@ export function CreateReceiptServicesPage() {
   };
 
   const itemColumns = [
+    {
+      title: 'N',
+      dataIndex: 'rowNumber',
+      key: 'rowNumber',
+      width: 50,
+      align: 'center' as const,
+      render: (_: any, record: ReceiptServicesItem, index: number) => index + 1
+    },
     {
       title: 'Услуга',
       dataIndex: 'serviceName',
@@ -206,6 +215,23 @@ export function CreateReceiptServicesPage() {
       render: (_: any, record: ReceiptServicesItem) => record.totalAmount.toFixed(2)
     },
     {
+      title: 'Счет учета',
+      dataIndex: 'accountId',
+      key: 'accountId',
+      width: 150,
+      render: (_: any, record: ReceiptServicesItem, index: number) => (
+        <Select
+          value={record.accountId}
+          onChange={(value) => updateItem(index, 'accountId', value)}
+          placeholder="Выберите счет"
+          allowClear
+          style={{ width: '100%' }}
+        >
+          {/* TODO: загрузка счетов из API */}
+        </Select>
+      )
+    },
+    {
       title: 'Действия',
       key: 'actions',
       width: 100,
@@ -279,7 +305,11 @@ export function CreateReceiptServicesPage() {
               name="date"
               rules={[{ required: true, message: 'Выберите дату' }]}
             >
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" showTime />
+            </Form.Item>
+
+            <Form.Item label="Номер:" name="documentNumber">
+              <Input placeholder="Введите номер" />
             </Form.Item>
 
             <Form.Item
@@ -309,28 +339,39 @@ export function CreateReceiptServicesPage() {
               </Select>
             </Form.Item>
 
+            <Form.Item label="Период оказания услуг:" name="servicePeriod">
+              <Input placeholder="Например: январь 2026" />
+            </Form.Item>
+
+            <Form.Item label="Дата начала:" name="serviceStartDate">
+              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+            </Form.Item>
+
+            <Form.Item label="Дата окончания:" name="serviceEndDate">
+              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+            </Form.Item>
+
+            <Form.Item label="Расчеты:" name="paymentTerms">
+              <Input.TextArea
+                rows={2}
+                placeholder="Срок, счета расчетов"
+                readOnly
+              />
+            </Form.Item>
+
             <Form.Item name="originalReceived" valuePropName="checked">
               <Checkbox>Оригинал: получен</Checkbox>
-            </Form.Item>
-
-            <Form.Item name="isUPD" valuePropName="checked">
-              <Checkbox>УПД</Checkbox>
-            </Form.Item>
-
-            <Form.Item label="Счет-фактура" name="invoiceRequired">
-              <Select defaultValue="notRequired">
-                <Option value="notRequired">Не требуется</Option>
-                <Option value="required">Требуется</Option>
-              </Select>
             </Form.Item>
           </Card>
 
           <Card
             title="Услуги"
             extra={
-              <Button type="primary" onClick={addItem}>
-                Добавить
-              </Button>
+              <Space>
+                <Button onClick={addItem}>Добавить</Button>
+                <Button>Подбор</Button>
+                <Button>Изменить</Button>
+              </Space>
             }
           >
             <Table
@@ -343,19 +384,23 @@ export function CreateReceiptServicesPage() {
                 <Table.Summary fixed>
                   <Table.Summary.Row>
                     <Table.Summary.Cell index={0} colSpan={5}>
-                      <strong>Итого:</strong>
+                      <Space>
+                        <Checkbox>УПД</Checkbox>
+                        <span>Счет-фактура:</span>
+                        <Select defaultValue="notRequired" style={{ width: 150 }}>
+                          <Option value="notRequired">Не требуется</Option>
+                          <Option value="required">Требуется</Option>
+                        </Select>
+                      </Space>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={5} align="right">
-                      <strong>{totalAmount.toFixed(2)}</strong>
+                      <strong>Всего: {totalAmount.toFixed(2)}</strong>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={6} />
                     <Table.Summary.Cell index={7} align="right">
-                      <strong>{totalVAT.toFixed(2)}</strong>
+                      <strong>НДС (в т.ч.): {totalVAT.toFixed(2)}</strong>
                     </Table.Summary.Cell>
-                    <Table.Summary.Cell index={8} align="right">
-                      <strong>{(totalAmount + totalVAT).toFixed(2)}</strong>
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={9} />
+                    <Table.Summary.Cell index={8} />
                   </Table.Summary.Row>
                 </Table.Summary>
               )}

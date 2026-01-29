@@ -88,6 +88,7 @@ export function CreateDocumentPage() {
 
   const addItem = () => {
     const newItem: ReceiptGoodsItem = {
+      rowNumber: items.length + 1,
       nomenclatureName: '',
       quantity: 1,
       unit: 'шт',
@@ -95,7 +96,9 @@ export function CreateDocumentPage() {
       amount: 0,
       vatPercent: 20,
       vatAmount: 0,
-      totalAmount: 0
+      totalAmount: 0,
+      accountId: undefined,
+      countryOfOrigin: undefined
     };
     setItems([...items, newItem]);
   };
@@ -118,6 +121,14 @@ export function CreateDocumentPage() {
   };
 
   const itemColumns = [
+    {
+      title: 'N',
+      dataIndex: 'rowNumber',
+      key: 'rowNumber',
+      width: 50,
+      align: 'center' as const,
+      render: (_: any, record: ReceiptGoodsItem, index: number) => index + 1
+    },
     {
       title: 'Номенклатура',
       dataIndex: 'nomenclatureName',
@@ -216,6 +227,36 @@ export function CreateDocumentPage() {
       render: (_: any, record: ReceiptGoodsItem) => record.totalAmount.toFixed(2)
     },
     {
+      title: 'Счет учета',
+      dataIndex: 'accountId',
+      key: 'accountId',
+      width: 150,
+      render: (_: any, record: ReceiptGoodsItem, index: number) => (
+        <Select
+          value={record.accountId}
+          onChange={(value) => updateItem(index, 'accountId', value)}
+          placeholder="Выберите счет"
+          allowClear
+          style={{ width: '100%' }}
+        >
+          {/* TODO: загрузка счетов из API */}
+        </Select>
+      )
+    },
+    {
+      title: 'Страна происхождения',
+      dataIndex: 'countryOfOrigin',
+      key: 'countryOfOrigin',
+      width: 180,
+      render: (_: any, record: ReceiptGoodsItem, index: number) => (
+        <Input
+          value={record.countryOfOrigin}
+          onChange={(e) => updateItem(index, 'countryOfOrigin', e.target.value)}
+          placeholder="РОССИЯ"
+        />
+      )
+    },
+    {
       title: 'Действия',
       key: 'actions',
       width: 100,
@@ -289,7 +330,11 @@ export function CreateDocumentPage() {
               name="date"
               rules={[{ required: true, message: 'Выберите дату' }]}
             >
-              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
+              <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" showTime />
+            </Form.Item>
+
+            <Form.Item label="Номер:" name="documentNumber">
+              <Input placeholder="Введите номер" />
             </Form.Item>
 
             <Form.Item
@@ -323,34 +368,45 @@ export function CreateDocumentPage() {
               </Select>
             </Form.Item>
 
-            <Form.Item label="Склад" name="warehouseId" rules={[{ required: true }]}>
-              <Select placeholder="Выберите склад">
+            <Form.Item label="Организация" name="organizationId" rules={[{ required: true }]}>
+              <Select placeholder="Выберите организацию">
                 {/* TODO: загрузка из API */}
+                <Option value="org1">ШАР ООО</Option>
               </Select>
             </Form.Item>
+
+
+            <Form.Item label="Расчеты:" name="paymentTerms">
+              <Input.TextArea
+                rows={2}
+                placeholder="Срок 23.01.2026, 60.01, 60.02, зачет аванса автоматически"
+                readOnly
+              />
+            </Form.Item>
+
+            <Space>
+              <Button type="link" onClick={() => message.info('Открыть форму грузоотправителя и грузополучателя')}>
+                Грузоотправитель и грузополучатель
+              </Button>
+              <Button type="link" onClick={() => message.info('Настройки НДС')}>
+                НДС сверху. НДС включен в стоимость
+              </Button>
+            </Space>
 
             <Form.Item name="originalReceived" valuePropName="checked">
               <Checkbox>Оригинал: получен</Checkbox>
-            </Form.Item>
-
-            <Form.Item name="isUPD" valuePropName="checked">
-              <Checkbox>УПД</Checkbox>
-            </Form.Item>
-
-            <Form.Item label="Счет-фактура" name="invoiceRequired">
-              <Select defaultValue="notRequired">
-                <Option value="notRequired">Не требуется</Option>
-                <Option value="required">Требуется</Option>
-              </Select>
             </Form.Item>
           </Card>
 
           <Card
             title="Товары"
             extra={
-              <Button type="primary" onClick={addItem}>
-                Добавить
-              </Button>
+              <Space>
+                <Button onClick={addItem}>Добавить</Button>
+                <Button>Подбор</Button>
+                <Button>Изменить</Button>
+                <Button>Добавить по штрихкоду</Button>
+              </Space>
             }
           >
             <Table
@@ -362,20 +418,24 @@ export function CreateDocumentPage() {
               summary={() => (
                 <Table.Summary fixed>
                   <Table.Summary.Row>
-                    <Table.Summary.Cell index={0} colSpan={5}>
-                      <strong>Итого:</strong>
+                    <Table.Summary.Cell index={0} colSpan={6}>
+                      <Space>
+                        <Checkbox>УПД</Checkbox>
+                        <span>Счет-фактура:</span>
+                        <Select defaultValue="notRequired" style={{ width: 150 }}>
+                          <Option value="notRequired">Не требуется</Option>
+                          <Option value="required">Требуется</Option>
+                        </Select>
+                      </Space>
                     </Table.Summary.Cell>
-                    <Table.Summary.Cell index={5} align="right">
-                      <strong>{totalAmount.toFixed(2)}</strong>
+                    <Table.Summary.Cell index={6} align="right">
+                      <strong>Всего: {totalAmount.toFixed(2)}</strong>
                     </Table.Summary.Cell>
-                    <Table.Summary.Cell index={6} />
-                    <Table.Summary.Cell index={7} align="right">
-                      <strong>{totalVAT.toFixed(2)}</strong>
-                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={7} />
                     <Table.Summary.Cell index={8} align="right">
-                      <strong>{(totalAmount + totalVAT).toFixed(2)}</strong>
+                      <strong>НДС (в т.ч.): {totalVAT.toFixed(2)}</strong>
                     </Table.Summary.Cell>
-                    <Table.Summary.Cell index={9} />
+                    <Table.Summary.Cell index={9} colSpan={3} />
                   </Table.Summary.Row>
                 </Table.Summary>
               )}
