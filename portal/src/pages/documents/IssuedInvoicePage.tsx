@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
+import { OrganizationSelect, CounterpartySelect } from '../../components/forms';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
 
@@ -27,6 +28,8 @@ export function IssuedInvoicePage() {
   const [form] = Form.useForm();
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | undefined>();
+  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | undefined>();
 
   const handleSave = async () => {
     try {
@@ -271,12 +274,41 @@ export function IssuedInvoicePage() {
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" showTime />
             </Form.Item>
 
+            <Form.Item 
+              label="Организация (продавец)" 
+              name="organizationId" 
+              rules={[{ required: true, message: 'Выберите организацию' }]}
+            >
+              <OrganizationSelect 
+                onChange={(value) => {
+                  setSelectedOrganizationId(value);
+                }}
+              />
+            </Form.Item>
+
             <Form.Item
               label="Покупатель"
-              name="counterpartyName"
+              name="counterpartyId"
               rules={[{ required: true, message: 'Выберите покупателя' }]}
             >
-              <Input placeholder="Введите ИНН или наименование" />
+              <CounterpartySelect
+                onChange={(value, counterparty) => {
+                  setSelectedCounterpartyId(value);
+                  if (counterparty) {
+                    form.setFieldsValue({ 
+                      counterpartyName: counterparty.name,
+                      counterpartyInn: counterparty.inn 
+                    });
+                  }
+                }}
+                onNameChange={(name) => {
+                  form.setFieldsValue({ counterpartyName: name });
+                }}
+              />
+            </Form.Item>
+
+            <Form.Item name="counterpartyName" hidden>
+              <Input />
             </Form.Item>
 
             <Form.Item label="ИНН покупателя:" name="counterpartyInn">
@@ -285,14 +317,6 @@ export function IssuedInvoicePage() {
 
             <Form.Item label="КПП покупателя:" name="counterpartyKpp">
               <Input placeholder="Введите КПП" />
-            </Form.Item>
-
-            <Form.Item label="Организация (продавец)" name="organizationId" rules={[{ required: true }]}>
-              <Select placeholder="Выберите организацию">
-                <Option value="00000000-0000-0000-0000-000000000001">ЕЦОФ</Option>
-                <Option value="00000000-0000-0000-0000-000000000002">Дочка 1</Option>
-                <Option value="00000000-0000-0000-0000-000000000003">Дочка 2</Option>
-              </Select>
             </Form.Item>
 
             <Form.Item label="Основание:" name="basis">

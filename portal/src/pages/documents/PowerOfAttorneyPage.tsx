@@ -14,6 +14,8 @@ export function PowerOfAttorneyPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | undefined>();
+  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | undefined>();
 
   const handleSave = async () => {
     try {
@@ -127,16 +129,41 @@ export function PowerOfAttorneyPage() {
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
 
-            <Form.Item label="Контрагент:" name="counterpartyName">
-              <Input placeholder="Введите ИНН или наименование" />
+            <Form.Item 
+              label="Организация" 
+              name="organizationId" 
+              rules={[{ required: true, message: 'Выберите организацию' }]}
+            >
+              <OrganizationSelect 
+                onChange={(value) => {
+                  setSelectedOrganizationId(value);
+                }}
+              />
             </Form.Item>
 
-            <Form.Item label="Организация" name="organizationId" rules={[{ required: true }]}>
-              <Select placeholder="Выберите организацию">
-                <Option value="00000000-0000-0000-0000-000000000001">ЕЦОФ</Option>
-                <Option value="00000000-0000-0000-0000-000000000002">Дочка 1</Option>
-                <Option value="00000000-0000-0000-0000-000000000003">Дочка 2</Option>
-              </Select>
+            <Form.Item label="Контрагент:" name="counterpartyId">
+              <CounterpartySelect
+                onChange={(value, counterparty) => {
+                  setSelectedCounterpartyId(value);
+                  if (counterparty) {
+                    form.setFieldsValue({ 
+                      counterpartyName: counterparty.name,
+                      counterpartyInn: counterparty.inn 
+                    });
+                  }
+                }}
+                onNameChange={(name) => {
+                  form.setFieldsValue({ counterpartyName: name });
+                }}
+              />
+            </Form.Item>
+
+            <Form.Item name="counterpartyName" hidden>
+              <Input />
+            </Form.Item>
+
+            <Form.Item name="counterpartyInn" hidden>
+              <Input />
             </Form.Item>
 
             <Form.Item label="Действительна до:" name="validUntil">

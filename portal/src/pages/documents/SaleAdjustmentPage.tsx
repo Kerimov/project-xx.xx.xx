@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
+import { OrganizationSelect, CounterpartySelect } from '../../components/forms';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
 
@@ -14,6 +15,8 @@ export function SaleAdjustmentPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | undefined>();
+  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | undefined>();
 
   const handleSave = async () => {
     try {
@@ -108,20 +111,45 @@ export function SaleAdjustmentPage() {
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
 
-            <Form.Item
-              label="Покупатель"
-              name="counterpartyName"
-              rules={[{ required: true, message: 'Выберите покупателя' }]}
+            <Form.Item 
+              label="Организация" 
+              name="organizationId" 
+              rules={[{ required: true, message: 'Выберите организацию' }]}
             >
-              <Input placeholder="Введите ИНН или наименование" />
+              <OrganizationSelect 
+                onChange={(value) => {
+                  setSelectedOrganizationId(value);
+                }}
+              />
             </Form.Item>
 
-            <Form.Item label="Организация" name="organizationId" rules={[{ required: true }]}>
-              <Select placeholder="Выберите организацию">
-                <Option value="00000000-0000-0000-0000-000000000001">ЕЦОФ</Option>
-                <Option value="00000000-0000-0000-0000-000000000002">Дочка 1</Option>
-                <Option value="00000000-0000-0000-0000-000000000003">Дочка 2</Option>
-              </Select>
+            <Form.Item
+              label="Покупатель"
+              name="counterpartyId"
+              rules={[{ required: true, message: 'Выберите покупателя' }]}
+            >
+              <CounterpartySelect
+                onChange={(value, counterparty) => {
+                  setSelectedCounterpartyId(value);
+                  if (counterparty) {
+                    form.setFieldsValue({ 
+                      counterpartyName: counterparty.name,
+                      counterpartyInn: counterparty.inn 
+                    });
+                  }
+                }}
+                onNameChange={(name) => {
+                  form.setFieldsValue({ counterpartyName: name });
+                }}
+              />
+            </Form.Item>
+
+            <Form.Item name="counterpartyName" hidden>
+              <Input />
+            </Form.Item>
+
+            <Form.Item name="counterpartyInn" hidden>
+              <Input />
             </Form.Item>
 
             <Form.Item label="Тип корректировки:" name="adjustmentType">

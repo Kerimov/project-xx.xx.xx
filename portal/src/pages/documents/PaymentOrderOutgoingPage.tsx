@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
+import { OrganizationSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
 
@@ -122,12 +123,12 @@ export function PaymentOrderOutgoingPage() {
               </Select>
             </Form.Item>
 
-            <Form.Item label="Организация (плательщик)" name="organizationId" rules={[{ required: true }]}>
-              <Select placeholder="Выберите организацию">
-                <Option value="00000000-0000-0000-0000-000000000001">ЕЦОФ</Option>
-                <Option value="00000000-0000-0000-0000-000000000002">Дочка 1</Option>
-                <Option value="00000000-0000-0000-0000-000000000003">Дочка 2</Option>
-              </Select>
+            <Form.Item 
+              label="Организация (плательщик)" 
+              name="organizationId" 
+              rules={[{ required: true, message: 'Выберите организацию' }]}
+            >
+              <OrganizationSelect />
             </Form.Item>
 
             <Form.Item label="Расчетный счет плательщика:" name="payerAccount">

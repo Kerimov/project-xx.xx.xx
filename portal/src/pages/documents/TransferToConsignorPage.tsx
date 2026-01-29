@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
+import { OrganizationSelect, CounterpartySelect, ContractSelect, WarehouseSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
 
@@ -217,32 +218,59 @@ export function TransferToConsignorPage() {
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" showTime />
             </Form.Item>
 
+            <Form.Item 
+              label="Организация" 
+              name="organizationId" 
+              rules={[{ required: true, message: 'Выберите организацию' }]}
+            >
+              <OrganizationSelect 
+                onChange={(value) => {
+                  setSelectedOrganizationId(value);
+                  form.setFieldsValue({ contractId: undefined, warehouseId: undefined });
+                }}
+              />
+            </Form.Item>
+
             <Form.Item
               label="Комитент"
-              name="consignorName"
+              name="consignorId"
               rules={[{ required: true, message: 'Выберите комитента' }]}
             >
-              <Input placeholder="Введите ИНН или наименование комитента" />
+              <CounterpartySelect
+                onChange={(value, counterparty) => {
+                  setSelectedCounterpartyId(value);
+                  if (counterparty) {
+                    form.setFieldsValue({ 
+                      consignorName: counterparty.name,
+                      consignorInn: counterparty.inn 
+                    });
+                  }
+                }}
+                onNameChange={(name) => {
+                  form.setFieldsValue({ consignorName: name });
+                }}
+              />
+            </Form.Item>
+
+            <Form.Item name="consignorName" hidden>
+              <Input />
+            </Form.Item>
+
+            <Form.Item name="consignorInn" hidden>
+              <Input />
             </Form.Item>
 
             <Form.Item label="Договор комиссии" name="contractId">
-              <Select placeholder="Выберите договор" allowClear>
-                {/* TODO: загрузка из API */}
-              </Select>
+              <ContractSelect
+                organizationId={selectedOrganizationId}
+                counterpartyId={selectedCounterpartyId}
+              />
             </Form.Item>
 
-            <Form.Item label="Организация" name="organizationId" rules={[{ required: true }]}>
-              <Select placeholder="Выберите организацию">
-                <Option value="00000000-0000-0000-0000-000000000001">ЕЦОФ</Option>
-                <Option value="00000000-0000-0000-0000-000000000002">Дочка 1</Option>
-                <Option value="00000000-0000-0000-0000-000000000003">Дочка 2</Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item label="Склад" name="warehouseId" rules={[{ required: true }]}>
-              <Select placeholder="Выберите склад">
-                {/* TODO: загрузка из API */}
-              </Select>
+            <Form.Item label="Склад" name="warehouseId" rules={[{ required: true, message: 'Выберите склад' }]}>
+              <WarehouseSelect
+                organizationId={selectedOrganizationId}
+              />
             </Form.Item>
           </BaseDocumentForm>
 

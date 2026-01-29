@@ -241,12 +241,12 @@ export function BankStatementPage() {
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
 
-            <Form.Item label="Организация" name="organizationId" rules={[{ required: true }]}>
-              <Select placeholder="Выберите организацию">
-                <Option value="00000000-0000-0000-0000-000000000001">ЕЦОФ</Option>
-                <Option value="00000000-0000-0000-0000-000000000002">Дочка 1</Option>
-                <Option value="00000000-0000-0000-0000-000000000003">Дочка 2</Option>
-              </Select>
+            <Form.Item 
+              label="Организация" 
+              name="organizationId" 
+              rules={[{ required: true, message: 'Выберите организацию' }]}
+            >
+              <OrganizationSelect />
             </Form.Item>
 
             <Form.Item label="Расчетный счет:" name="bankAccount">
