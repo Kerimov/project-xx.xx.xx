@@ -77,8 +77,7 @@ export function InvoiceFromSupplierPage({ documentId }: InvoiceFromSupplierPageP
     try {
       setLoading(true);
       const values = await form.validateFields();
-      console.log('📋 Form values:', values);
-      
+
       const document = {
         number: values.number,
         date: values.date ? (typeof values.date === 'string' ? values.date : values.date.format('YYYY-MM-DD')) : undefined,
@@ -102,7 +101,6 @@ export function InvoiceFromSupplierPage({ documentId }: InvoiceFromSupplierPageP
         portalStatus: 'Draft'
       };
 
-      console.log('📤 Sending document:', document);
       if (isEditMode && id) {
         await api.documents.update(id, document);
         message.success('Документ обновлён');

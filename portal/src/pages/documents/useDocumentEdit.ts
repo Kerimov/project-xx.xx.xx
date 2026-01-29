@@ -21,8 +21,9 @@ interface UseDocumentEditOptions {
 }
 
 function mapDocumentToFormValues(doc: any) {
+  const { files, checks, history, ...rest } = doc;
   return {
-    ...doc,
+    ...rest,
     date: parseDateSafe(doc.date),
     dueDate: parseDateSafe(doc.dueDate),
     startDate: parseDateSafe(doc.startDate),
@@ -33,7 +34,9 @@ function mapDocumentToFormValues(doc: any) {
     serviceStartDate: parseDateSafe(doc.serviceStartDate),
     serviceEndDate: parseDateSafe(doc.serviceEndDate),
     adjustmentDate: parseDateSafe(doc.adjustmentDate),
-    validUntil: parseDateSafe(doc.validUntil)
+    validUntil: parseDateSafe(doc.validUntil),
+    invoiceRequired: doc.invoiceRequired === true ? 'required' : 'notRequired',
+    isUPD: !!doc.isUPD
   };
 }
 
