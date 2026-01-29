@@ -93,6 +93,16 @@ export async function createDocument(data: {
   counterpartyInn?: string;
   amount?: number;
   currency?: string;
+  contractId?: string;
+  paymentAccountId?: string;
+  warehouseId?: string;
+  hasDiscrepancies?: boolean;
+  originalReceived?: boolean;
+  isUPD?: boolean;
+  invoiceRequired?: boolean;
+  items?: any[]; // табличная часть (товары/услуги)
+  totalAmount?: number;
+  totalVAT?: number;
   createdBy?: string;
 }) {
   const result = await pool.query(
@@ -110,7 +120,7 @@ export async function createDocument(data: {
       data.organizationId,
       data.counterpartyName || null,
       data.counterpartyInn || null,
-      data.amount || null,
+      data.amount || data.totalAmount || null,
       data.currency || 'RUB',
       'Draft',
       1,
@@ -118,8 +128,27 @@ export async function createDocument(data: {
     ]
   );
 
-  // Создаём первую версию документа
+  // Создаём первую версию документа с полными данными в JSONB
   const document = result.rows[0];
+  const versionData = {
+    number: data.number,
+    date: data.date,
+    type: data.type,
+    counterpartyName: data.counterpartyName,
+    counterpartyInn: data.counterpartyInn,
+    contractId: data.contractId,
+    paymentAccountId: data.paymentAccountId,
+    warehouseId: data.warehouseId,
+    hasDiscrepancies: data.hasDiscrepancies,
+    originalReceived: data.originalReceived,
+    isUPD: data.isUPD,
+    invoiceRequired: data.invoiceRequired,
+    items: data.items || [],
+    totalAmount: data.totalAmount || data.amount || 0,
+    totalVAT: data.totalVAT || 0,
+    amount: data.amount || data.totalAmount || 0
+  };
+
   await pool.query(
     `INSERT INTO document_versions (document_id, version, status, data, created_by)
      VALUES ($1, $2, $3, $4, $5)`,
@@ -127,13 +156,7 @@ export async function createDocument(data: {
       document.id,
       1,
       'Draft',
-      JSON.stringify({
-        number: data.number,
-        date: data.date,
-        type: data.type,
-        counterpartyName: data.counterpartyName,
-        amount: data.amount
-      }),
+      JSON.stringify(versionData),
       data.createdBy || null
     ]
   );

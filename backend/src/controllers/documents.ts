@@ -109,6 +109,16 @@ export async function createDocument(req: Request, res: Response, next: NextFunc
       counterpartyInn: documentData.counterpartyInn,
       amount: documentData.amount,
       currency: documentData.currency || 'RUB',
+      contractId: documentData.contractId,
+      paymentAccountId: documentData.paymentAccountId,
+      warehouseId: documentData.warehouseId,
+      hasDiscrepancies: documentData.hasDiscrepancies,
+      originalReceived: documentData.originalReceived,
+      isUPD: documentData.isUPD,
+      invoiceRequired: documentData.invoiceRequired,
+      items: documentData.items,
+      totalAmount: documentData.totalAmount,
+      totalVAT: documentData.totalVAT,
       createdBy: (req as any).user?.username
     });
     

@@ -9,6 +9,8 @@ import { DocumentsPage } from './pages/DocumentsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { IntegrationMonitorPage } from './pages/IntegrationMonitorPage';
 import { DocumentDetailsPage } from './pages/DocumentDetailsPage';
+import { CreateDocumentPage } from './pages/CreateDocumentPage';
+import { SelectDocumentTypePage } from './pages/SelectDocumentTypePage';
 
 const { Sider } = Layout;
 
@@ -31,6 +33,8 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/packages" element={<PackagesPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
+            <Route path="/documents/new" element={<SelectDocumentTypePage />} />
+            <Route path="/documents/new/:type" element={<CreateDocumentPage />} />
             <Route path="/documents/:id" element={<DocumentDetailsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/integration" element={<IntegrationMonitorPage />} />

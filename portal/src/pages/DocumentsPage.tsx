@@ -1,4 +1,5 @@
-import { Table, Tag, Typography } from 'antd';
+import { Table, Tag, Typography, Button, Space } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 
 const columns = [
@@ -80,7 +81,18 @@ export function DocumentsPage() {
 
   return (
     <div className="page">
-      <Typography.Title level={3}>Документы</Typography.Title>
+      <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
+        <Typography.Title level={3} style={{ margin: 0 }}>
+          Документы
+        </Typography.Title>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => navigate('/documents/new')}
+        >
+          Создать документ
+        </Button>
+      </Space>
       <Table
         columns={columns}
         dataSource={data}
