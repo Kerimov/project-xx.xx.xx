@@ -1,0 +1,72 @@
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif;
+  background-color: #f5f6f8;
+}
+
+.app-logo {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.app-header-title {
+  margin: 0;
+}
+
+.app-header-icon {
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.app-header-username {
+  font-size: 14px;
+}
+
+.app-content {
+  padding: 24px;
+}
+
+.page {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.link-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.link-list li {
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.link-list li:hover {
+  text-decoration: underline;
+}
+
