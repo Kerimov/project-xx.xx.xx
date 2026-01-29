@@ -1,9 +1,10 @@
-import { Card, Col, Descriptions, Row, Space, Tabs, Tag, Typography, Button, message, Dropdown, Modal } from 'antd';
+import { Card, Col, Descriptions, Row, Space, Tabs, Tag, Typography, Button, message, Dropdown, Modal, Upload, List, Popconfirm } from 'antd';
 import type { TabsProps } from 'antd';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { StopOutlined, CheckCircleOutlined, LockOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { StopOutlined, CheckCircleOutlined, LockOutlined, EditOutlined, DeleteOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
+import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
@@ -47,6 +48,9 @@ export function DocumentDetailsPage() {
     availableTransitions: string[];
   } | null>(null);
   const [changingStatus, setChangingStatus] = useState(false);
+  const [files, setFiles] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -54,11 +58,13 @@ export function DocumentDetailsPage() {
       try {
         setLoading(true);
         setError(null);
-        const [docResponse, transitionsResponse] = await Promise.all([
+        const [docResponse, transitionsResponse, filesResponse] = await Promise.all([
           api.documents.getById(id),
-          api.documents.getStatusTransitions(id).catch(() => null)
+          api.documents.getStatusTransitions(id).catch(() => null),
+          api.files.list(id).catch(() => ({ data: [] }))
         ]);
         setDoc(docResponse.data);
+        setFiles(filesResponse.data || []);
         if (transitionsResponse) {
           setStatusTransitions(transitionsResponse.data);
         }
@@ -72,6 +78,58 @@ export function DocumentDetailsPage() {
     };
     loadDocument();
   }, [id]);
+
+  const handleFileUpload = async (file: File) => {
+    if (!id) return;
+    
+    try {
+      setUploading(true);
+      await api.files.upload(id, file);
+      message.success('Файл успешно загружен');
+      
+      // Обновляем список файлов
+      const filesResponse = await api.files.list(id);
+      setFiles(filesResponse.data || []);
+      
+      // Обновляем документ для обновления счетчика файлов
+      const docResponse = await api.documents.getById(id);
+      setDoc(docResponse.data);
+    } catch (error: any) {
+      message.error('Ошибка при загрузке файла: ' + (error.message || 'Неизвестная ошибка'));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileDelete = async (fileId: string) => {
+    if (!id) return;
+    
+    try {
+      setDeletingFileId(fileId);
+      await api.files.delete(fileId);
+      message.success('Файл успешно удален');
+      
+      // Обновляем список файлов
+      const filesResponse = await api.files.list(id);
+      setFiles(filesResponse.data || []);
+      
+      // Обновляем документ
+      const docResponse = await api.documents.getById(id);
+      setDoc(docResponse.data);
+    } catch (error: any) {
+      message.error('Ошибка при удалении файла: ' + (error.message || 'Неизвестная ошибка'));
+    } finally {
+      setDeletingFileId(null);
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
 
   const handleCancel = async () => {
     if (!id || !doc) return;
@@ -170,9 +228,10 @@ export function DocumentDetailsPage() {
     color: 'default'
   };
 
-  const files = doc.files ?? [];
   const checks = doc.checks ?? [];
   const history = doc.history ?? [];
+  
+  const canUploadFiles = canEdit; // Можно загружать файлы только если документ редактируемый
 
   const formatAmount = (amount: number | null | undefined, currency: string | null | undefined) => {
     if (amount === null || amount === undefined) return '—';
@@ -217,21 +276,102 @@ export function DocumentDetailsPage() {
     },
     {
       key: 'files',
-      label: 'Файлы',
+      label: `Файлы (${files.length})`,
       children: (
         <Card size="small">
-          {files.map((f) => (
-            <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <Space direction="vertical" size={0}>
-                <Text>{f.name}</Text>
-                <Text type="secondary">
-                  Загружен {f.uploadedAt} пользователем {f.uploadedBy}
-                </Text>
-                <Text type="secondary">Хэш: {f.hash}</Text>
-              </Space>
-              <a>Скачать</a>
-            </div>
-          ))}
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            {canUploadFiles && (
+              <Upload
+                beforeUpload={(file) => {
+                  // Проверка размера файла (максимум 50 МБ)
+                  const maxSize = 50 * 1024 * 1024; // 50 МБ
+                  if (file.size > maxSize) {
+                    message.error('Размер файла не должен превышать 50 МБ');
+                    return false;
+                  }
+                  handleFileUpload(file);
+                  return false; // Предотвращаем автоматическую загрузку
+                }}
+                showUploadList={false}
+                maxCount={1}
+                accept="*/*"
+              >
+                <Button 
+                  icon={<UploadOutlined />} 
+                  loading={uploading}
+                  type="primary"
+                >
+                  Загрузить файл
+                </Button>
+              </Upload>
+            )}
+            {files.length === 0 ? (
+              <Text type="secondary">Файлы не загружены</Text>
+            ) : (
+              <List
+                dataSource={files}
+                renderItem={(file) => (
+                  <List.Item
+                    actions={[
+                      <Button
+                        key="download"
+                        type="link"
+                        icon={<DownloadOutlined />}
+                        onClick={async () => {
+                          try {
+                            await api.files.download(file.id);
+                          } catch (error: any) {
+                            message.error('Ошибка при скачивании файла: ' + (error.message || 'Неизвестная ошибка'));
+                          }
+                        }}
+                      >
+                        Скачать
+                      </Button>,
+                      canUploadFiles && (
+                        <Popconfirm
+                          key="delete"
+                          title="Удаление файла"
+                          description={`Удалить файл "${file.name}"?`}
+                          onConfirm={() => handleFileDelete(file.id)}
+                          okText="Удалить"
+                          okType="danger"
+                          cancelText="Отмена"
+                        >
+                          <Button
+                            type="link"
+                            danger
+                            icon={<DeleteOutlined />}
+                            loading={deletingFileId === file.id}
+                          >
+                            Удалить
+                          </Button>
+                        </Popconfirm>
+                      )
+                    ].filter(Boolean)}
+                  >
+                    <List.Item.Meta
+                      title={<Text>{file.name}</Text>}
+                      description={
+                        <Space direction="vertical" size={0}>
+                          <Text type="secondary">
+                            Размер: {formatFileSize(file.size || 0)}
+                          </Text>
+                          <Text type="secondary">
+                            Загружен {dayjs(file.uploadedAt).format('DD.MM.YYYY HH:mm')} пользователем {file.uploadedBy || 'система'}
+                          </Text>
+                          {file.hash && (
+                            <Text type="secondary" style={{ fontSize: '12px', fontFamily: 'monospace' }}>
+                              Хэш: {file.hash.substring(0, 16)}...
+                            </Text>
+                          )}
+                        </Space>
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+            )}
+          </Space>
         </Card>
       )
     },

@@ -36,23 +36,36 @@ const storage = multer.diskStorage({
 
 // Фильтр типов файлов
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  // Разрешенные типы файлов
+  // Разрешенные типы файлов (расширенный список)
   const allowedMimes = [
     'application/pdf',
     'image/jpeg',
     'image/png',
     'image/jpg',
+    'image/gif',
+    'image/webp',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
     'application/vnd.ms-excel', // .xls
     'application/msword', // .doc
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // .docx
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    'text/plain',
+    'text/csv',
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/x-rar-compressed',
+    'application/octet-stream' // Для других типов файлов
   ];
 
-  if (allowedMimes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error(`File type ${file.mimetype} is not allowed. Allowed types: PDF, images, Excel, Word`));
-  }
+  // Разрешаем все файлы, но можно ограничить по необходимости
+  // Для более строгой проверки раскомментируйте следующее:
+  // if (allowedMimes.includes(file.mimetype)) {
+  //   cb(null, true);
+  // } else {
+  //   cb(new Error(`File type ${file.mimetype} is not allowed. Allowed types: PDF, images, Excel, Word, text files`));
+  // }
+  
+  // Пока разрешаем все файлы
+  cb(null, true);
 };
 
 // Настройка multer
@@ -60,7 +73,7 @@ export const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760'), // 10MB по умолчанию
+    fileSize: parseInt(process.env.MAX_FILE_SIZE || '52428800'), // 50MB по умолчанию (соответствует фронтенду)
     files: parseInt(process.env.MAX_FILES_PER_REQUEST || '10') // максимум 10 файлов за раз
   }
 });

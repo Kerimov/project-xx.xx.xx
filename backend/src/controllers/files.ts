@@ -5,6 +5,7 @@ import { pool } from '../db/connection.js';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { logger } from '../utils/logger.js';
 
 const uploadDir = process.env.UPLOAD_DIR || './uploads';
 
@@ -14,15 +15,27 @@ export async function uploadFile(req: Request, res: Response, next: NextFunction
     const { documentId } = req.params;
     const file = req.file;
 
+    logger.info('File upload attempt', { documentId, fileName: file?.originalname, fileSize: file?.size, mimeType: file?.mimetype });
+
     if (!file) {
+      logger.warn('No file uploaded', { documentId });
       return res.status(400).json({ error: { message: 'No file uploaded' } });
+    }
+
+    // Проверяем ошибки multer
+    if ((req as any).fileValidationError) {
+      logger.warn('File validation error', { documentId, error: (req as any).fileValidationError });
+      return res.status(400).json({ error: { message: (req as any).fileValidationError } });
     }
 
     // Проверяем существование документа
     const docResult = await pool.query('SELECT id FROM documents WHERE id = $1', [documentId]);
     if (docResult.rows.length === 0) {
+      logger.warn('Document not found', { documentId });
       // Удаляем загруженный файл, если документ не найден
-      fs.unlinkSync(file.path);
+      if (file.path && fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
       return res.status(404).json({ error: { message: 'Document not found' } });
     }
 
@@ -47,6 +60,8 @@ export async function uploadFile(req: Request, res: Response, next: NextFunction
       ]
     );
 
+    logger.info('File uploaded successfully', { documentId, fileId: result.rows[0].id, fileName: result.rows[0].file_name });
+
     res.status(201).json({
       data: {
         id: result.rows[0].id,
@@ -58,12 +73,13 @@ export async function uploadFile(req: Request, res: Response, next: NextFunction
       }
     });
   } catch (error: any) {
+    logger.error('Error uploading file', { documentId, error: error.message, stack: error.stack });
     // Удаляем файл при ошибке
-    if (req.file) {
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
       try {
         fs.unlinkSync(req.file.path);
       } catch (e) {
-        // Игнорируем ошибки удаления
+        logger.warn('Failed to delete file after error', { path: req.file.path });
       }
     }
     next(error);

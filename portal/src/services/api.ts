@@ -157,9 +157,39 @@ export const api = {
 
     list: (documentId: string) => request<{ data: any[] }>(`/documents/${documentId}/files`),
 
-    download: (fileId: string) => {
+    download: async (fileId: string) => {
       const token = localStorage.getItem('auth_token');
-      window.open(`${API_BASE_URL}/files/${fileId}${token ? `?token=${token}` : ''}`, '_blank');
+      const url = `${API_BASE_URL}/files/${fileId}`;
+      
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            ...(token && { Authorization: `Bearer ${token}` })
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to download file');
+        }
+
+        const blob = await response.blob();
+        const contentDisposition = response.headers.get('Content-Disposition');
+        const fileName = contentDisposition 
+          ? contentDisposition.split('filename=')[1]?.replace(/"/g, '') || 'file'
+          : 'file';
+
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+      } catch (error: any) {
+        throw new Error(error.message || 'Failed to download file');
+      }
     },
 
     delete: (fileId: string) => request<{ data: { success: boolean } }>(`/files/${fileId}`, {

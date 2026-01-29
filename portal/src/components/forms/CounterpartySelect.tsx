@@ -72,7 +72,7 @@ export function CounterpartySelect({ value, onChange, onNameChange, ...props }: 
       onSearch={handleSearch}
       notFoundContent={loading ? <Spin size="small" /> : null}
       optionLabelProp="label"
-      dropdownRender={(menu) => (
+      popupRender={(menu) => (
         <>
           {menu}
           <div style={{ padding: '8px', borderTop: '1px solid #f0f0f0' }}>
