@@ -12,7 +12,11 @@ const portalStatusLabel: Record<string, { text: string; color: string }> = {
   Validated: { text: 'Проверен', color: 'processing' },
   Frozen: { text: 'Заморожен', color: 'geekblue' },
   QueuedToUH: { text: 'В очереди в УХ', color: 'processing' },
-  SentToUH: { text: 'Отправлен в УХ', color: 'processing' }
+  SentToUH: { text: 'Отправлен в УХ', color: 'processing' },
+  AcceptedByUH: { text: 'Принят УХ', color: 'success' },
+  PostedInUH: { text: 'Проведен в УХ', color: 'success' },
+  RejectedByUH: { text: 'Отклонен УХ', color: 'warning' },
+  Cancelled: { text: 'Отменен', color: 'error' }
 };
 
 const uhStatusLabel: Record<string, { text: string; color: string }> = {
@@ -20,6 +24,13 @@ const uhStatusLabel: Record<string, { text: string; color: string }> = {
   Accepted: { text: 'Принят', color: 'processing' },
   Posted: { text: 'Проведён', color: 'success' },
   Error: { text: 'Ошибка', color: 'error' }
+};
+
+const statusTransitionLabels: Record<string, string> = {
+  Draft: 'Вернуть в черновик',
+  Validated: 'Пометить как проверенный',
+  Frozen: 'Заморозить',
+  Cancelled: 'Отменить'
 };
 
 export function DocumentDetailsPage() {

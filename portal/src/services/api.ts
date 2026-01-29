@@ -8,6 +8,15 @@ async function request<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const token = localStorage.getItem('auth_token');
+  
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...(options.headers as HeadersInit)
+  };
+  
+  if (token && !headers['Authorization']) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
   const response = await fetch(url, {
     ...options,
@@ -104,7 +113,20 @@ export const api = {
       request<{ data: { token: string; user: any } }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ username, password })
-      })
+      }),
+    register: (data: {
+      username: string;
+      email?: string;
+      password: string;
+      passwordConfirm: string;
+      organizationId?: string;
+      role?: string;
+    }) =>
+      request<{ data: { token: string; user: any } }>('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+    me: () => request<{ data: any }>('/auth/me')
   },
 
   // Файлы

@@ -1,8 +1,12 @@
 import { Layout, theme } from 'antd';
 import { Content } from 'antd/es/layout/layout';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppSidebar } from './components/layout/AppSidebar';
 import { AppHeader } from './components/layout/AppHeader';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { PackagesPage } from './pages/PackagesPage';
 import { DocumentsPage } from './pages/DocumentsPage';
@@ -20,7 +24,7 @@ import { WarehouseDetailsPage } from './pages/nsi/WarehouseDetailsPage';
 
 const { Sider } = Layout;
 
-export default function App() {
+function AppLayout() {
   const {
     token: { colorBgLayout }
   } = theme.useToken();
@@ -55,6 +59,40 @@ export default function App() {
         </Content>
       </Layout>
     </Layout>
+  );
+}
+
+export default function App() {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh'
+        }}
+      >
+        <div>Загрузка...</div>
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
   );
 }
 

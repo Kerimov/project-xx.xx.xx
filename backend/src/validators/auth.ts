@@ -8,3 +8,17 @@ export const loginSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+
+export const registerSchema = z.object({
+  username: z.string().min(3, 'Username must be at least 3 characters').max(100, 'Username too long'),
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  passwordConfirm: z.string().min(1, 'Password confirmation is required'),
+  organizationId: z.string().uuid('Invalid organization ID').optional().nullable(),
+  role: z.enum(['user', 'ecof_user', 'company_user']).default('user')
+}).refine((data) => data.password === data.passwordConfirm, {
+  message: "Passwords don't match",
+  path: ["passwordConfirm"]
+});
+
+export type RegisterInput = z.infer<typeof registerSchema>;
