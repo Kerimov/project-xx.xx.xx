@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
-import { Card, Form, Button, Space } from 'antd';
+import { Card, Form, Button, Space, Divider } from 'antd';
 import { SaveOutlined, CheckOutlined } from '@ant-design/icons';
+import { FileUploadSection } from './FileUploadSection';
 
 interface BaseDocumentFormProps {
   title: string;
@@ -9,6 +10,9 @@ interface BaseDocumentFormProps {
   onFreeze?: () => void;
   loading?: boolean;
   showFreeze?: boolean;
+  files?: File[];
+  onFilesChange?: (files: File[]) => void;
+  showFileUpload?: boolean;
 }
 
 export function BaseDocumentForm({
@@ -17,7 +21,10 @@ export function BaseDocumentForm({
   onSave,
   onFreeze,
   loading = false,
-  showFreeze = true
+  showFreeze = true,
+  files = [],
+  onFilesChange,
+  showFileUpload = true
 }: BaseDocumentFormProps) {
   return (
     <Card
@@ -46,6 +53,18 @@ export function BaseDocumentForm({
       }
     >
       {children}
+      {showFileUpload && onFilesChange && (
+        <>
+          <Divider />
+          <div>
+            <h4>Прикрепленные файлы</h4>
+            <FileUploadSection 
+              files={files} 
+              onChange={onFilesChange}
+            />
+          </div>
+        </>
+      )}
     </Card>
   );
 }

@@ -33,6 +33,8 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
   const isEditMode = !!documentId;
   const [loading, setLoading] = useState(isEditMode);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | undefined>();
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<Set<string>>(new Set());
 
   // Загружаем документ при редактировании
   useEffect(() => {
@@ -82,17 +84,42 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
         totalAmount: items.reduce((sum, item) => sum + item.amount, 0)
       };
 
+      let documentIdToUse = documentId;
+
       if (isEditMode && documentId) {
         await api.documents.update(documentId, document);
+        documentIdToUse = documentId;
         message.success('Документ обновлён');
-        navigate(`/documents/${documentId}`);
       } else {
         const response = await api.documents.create(document);
+        documentIdToUse = response.data.id;
         message.success('Документ сохранён');
-        navigate(`/documents/${response.data.id}`);
       }
-    } catch (error) {
-      message.error('Ошибка при сохранении документа');
+
+      // Загружаем файлы после создания/обновления документа
+      if (files.length > 0 && documentIdToUse) {
+        try {
+          const filesToUpload = files.filter(file => {
+            const fileKey = `${file.name}-${file.size}`;
+            return !uploadedFiles.has(fileKey);
+          });
+
+          if (filesToUpload.length > 0) {
+            for (const file of filesToUpload) {
+              await api.files.upload(documentIdToUse, file);
+              const fileKey = `${file.name}-${file.size}`;
+              setUploadedFiles(prev => new Set(prev).add(fileKey));
+            }
+            message.success(`Загружено файлов: ${filesToUpload.length}`);
+          }
+        } catch (error: any) {
+          message.warning('Документ сохранён, но некоторые файлы не удалось загрузить: ' + (error.message || 'Неизвестная ошибка'));
+        }
+      }
+
+      navigate(`/documents/${documentIdToUse}`);
+    } catch (error: any) {
+      message.error('Ошибка при сохранении документа: ' + (error.message || 'Неизвестная ошибка'));
     }
   };
 
@@ -108,19 +135,44 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
         totalAmount: items.reduce((sum, item) => sum + item.amount, 0)
       };
 
+      let documentIdToUse = documentId;
+
       if (isEditMode && documentId) {
         await api.documents.update(documentId, document);
         await api.documents.freeze(documentId);
+        documentIdToUse = documentId;
         message.success('Документ заморожен');
-        navigate(`/documents/${documentId}`);
       } else {
         const response = await api.documents.create(document);
-        await api.documents.freeze(response.data.id);
+        documentIdToUse = response.data.id;
+        await api.documents.freeze(documentIdToUse);
         message.success('Документ заморожен');
-        navigate(`/documents/${response.data.id}`);
       }
-    } catch (error) {
-      message.error('Ошибка при заморозке документа');
+
+      // Загружаем файлы после создания/обновления документа
+      if (files.length > 0 && documentIdToUse) {
+        try {
+          const filesToUpload = files.filter(file => {
+            const fileKey = `${file.name}-${file.size}`;
+            return !uploadedFiles.has(fileKey);
+          });
+
+          if (filesToUpload.length > 0) {
+            for (const file of filesToUpload) {
+              await api.files.upload(documentIdToUse, file);
+              const fileKey = `${file.name}-${file.size}`;
+              setUploadedFiles(prev => new Set(prev).add(fileKey));
+            }
+            message.success(`Загружено файлов: ${filesToUpload.length}`);
+          }
+        } catch (error: any) {
+          message.warning('Документ заморожен, но некоторые файлы не удалось загрузить: ' + (error.message || 'Неизвестная ошибка'));
+        }
+      }
+
+      navigate(`/documents/${documentIdToUse}`);
+    } catch (error: any) {
+      message.error('Ошибка при заморозке документа: ' + (error.message || 'Неизвестная ошибка'));
     }
   };
 
@@ -277,6 +329,9 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
             onSave={handleSave}
             onFreeze={handleFreeze}
             loading={loading}
+            files={files}
+            onFilesChange={setFiles}
+            showFileUpload={true}
           >
             <Form.Item
               label="Документ оприходования №"
