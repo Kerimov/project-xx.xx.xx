@@ -7,6 +7,7 @@ import { authRouter } from './routes/auth.js';
 import { filesRouter } from './routes/files.js';
 import { nsiRouter } from './routes/nsi.js';
 import { adminRouter } from './routes/admin.js';
+import { uhDbRouter } from './routes/uh-db.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { testConnection } from './db/connection.js';
 import { waitForDb } from './db/waitForDb.js';
@@ -16,6 +17,11 @@ import { nsiSyncService } from './services/nsi-sync.js';
 import { logger } from './utils/logger.js';
 
 dotenv.config();
+
+// Чтобы сервер не падал при необработанном rejection (например, ошибка подключения к УХ)
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection', { reason, promise });
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -62,6 +68,7 @@ app.use('/api/packages', packagesRouter);
 app.use('/api', filesRouter);
 app.use('/api/nsi', nsiRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/uh/db', uhDbRouter);
 
 // Error handling
 app.use(errorHandler);

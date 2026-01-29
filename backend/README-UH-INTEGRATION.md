@@ -39,13 +39,48 @@ UH_RETRY_DELAY=5000
 Если все же требуется прямое подключение:
 
 ```env
-# Подключение к БД 1С УХ (PostgreSQL)
-UH_DB_HOST=your-uh-db-server
-UH_DB_PORT=5432
-UH_DB_NAME=uh_database
-UH_DB_USER=uh_user
-UH_DB_PASSWORD=uh_password
-UH_DB_SSL=true
+# Тип БД УХ: postgres | mssql
+UH_DB_TYPE=mssql
+
+# --- MS SQL Server (поддерживается) ---
+UH_MSSQL_SERVER=1csql-srv.prima.pra.ru
+UH_MSSQL_PORT=1433
+UH_MSSQL_DATABASE=kk_test
+
+# Аутентификация:
+# 1) Integrated (домен) — текущий пользователь Windows. Backend должен запускаться под доменной учётной записью (ПК в домене):
+# UH_MSSQL_AUTH=integrated
+# Логин/пароль не указывать — используется учётная запись процесса.
+# На ПК должен быть установлен Microsoft ODBC Driver 17 (или 18) for SQL Server:
+# https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server
+# При необходимости укажите драйвер: UH_MSSQL_ODBC_DRIVER=ODBC Driver 18 for SQL Server
+
+# 2) NTLM (домен\пользователь + пароль). Часто даёт "untrusted domain" при подключении с другого ПК:
+# UH_MSSQL_USER=DOMAIN\\user
+# UH_MSSQL_PASSWORD=change-me
+# UH_MSSQL_AUTH=ntlm
+
+# 3) Либо SQL auth (рекомендуется при ошибке "untrusted domain"):
+# UH_MSSQL_AUTH=sql
+# UH_MSSQL_USERNAME=sql_user
+# UH_MSSQL_PASSWORD=change-me
+
+# Если при NTLM появляется "Login from an untrusted domain..." — используйте один из вариантов:
+# - UH_MSSQL_AUTH=integrated: запускайте backend под доменной учётной записью (вход в Windows как prima\v.kerimov, затем npm run dev).
+# - Либо UH_MSSQL_AUTH=sql и SQL-логин в SQL Server.
+
+# TLS/сертификаты (часто для внутреннего контура удобнее trustServerCertificate=true)
+UH_MSSQL_ENCRYPT=false
+UH_MSSQL_TRUST_SERVER_CERTIFICATE=true
+
+# --- PostgreSQL (старый вариант) ---
+# UH_DB_TYPE=postgres
+# UH_DB_HOST=your-uh-db-server
+# UH_DB_PORT=5432
+# UH_DB_NAME=uh_database
+# UH_DB_USER=uh_user
+# UH_DB_PASSWORD=uh_password
+# UH_DB_SSL=true
 ```
 
 ## Использование

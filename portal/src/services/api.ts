@@ -241,5 +241,19 @@ export const api = {
       return request<{ data: any[] }>(`/nsi/warehouses${params.toString() ? `?${params.toString()}` : ''}`);
     },
     getWarehouse: (id: string) => request<{ data: any }>(`/nsi/warehouses/${id}`)
+  },
+
+  // Подключение к БД 1С:УХ (проверка)
+  uh: {
+    db: {
+      config: () =>
+        request<{
+          data: { type: string; server: string; database: string; port: number; authType?: string } | null;
+          message?: string;
+        }>('/uh/db/config'),
+      health: () => request<{ ok: boolean; error?: string }>('/uh/db/health'),
+      sample: () =>
+        request<{ data: { rows: Record<string, unknown>[]; columns: string[]; source: string } }>('/uh/db/sample')
+    }
   }
 };

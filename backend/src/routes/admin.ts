@@ -3,6 +3,7 @@
 import { Router, Request, Response } from 'express';
 import { uhQueueService } from '../services/uh-queue.js';
 import { nsiSyncService } from '../services/nsi-sync.js';
+import { testUHConnection } from '../db/uh-connection.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
 
@@ -27,6 +28,16 @@ adminRouter.post('/nsi/sync', async (req: Request, res: Response) => {
   try {
     await nsiSyncService.manualSync();
     res.json({ data: { success: true, message: 'NSI sync started' } });
+  } catch (error: any) {
+    res.status(500).json({ error: { message: error.message } });
+  }
+});
+
+// Проверка прямого подключения к БД 1С:УХ (если настроено)
+adminRouter.get('/uh/db/health', async (_req: Request, res: Response) => {
+  try {
+    const ok = await testUHConnection();
+    res.status(ok ? 200 : 503).json({ data: { ok } });
   } catch (error: any) {
     res.status(500).json({ error: { message: error.message } });
   }
