@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS uh_integration_queue (
     document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
     operation_type VARCHAR(50) NOT NULL, -- UpsertDocument, PostDocument
     payload JSONB NOT NULL, -- данные для отправки в УХ
-    status VARCHAR(50) NOT NULL DEFAULT 'Pending', -- Pending, Processing, Succeeded, Failed
+    status VARCHAR(50) NOT NULL DEFAULT 'Pending', -- Pending, Processing, Completed, Failed
     idempotency_key VARCHAR(255) UNIQUE, -- ключ идемпотентности
     error_message TEXT,
     retry_count INTEGER DEFAULT 0,

@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as documentsRepo from '../repositories/documents.js';
+import { uhQueueService } from '../services/uh-queue.js';
+import { logger } from '../utils/logger.js';
 
 export async function getDocuments(req: Request, res: Response, next: NextFunction) {
   try {
@@ -97,7 +99,7 @@ export async function createDocument(req: Request, res: Response, next: NextFunc
   try {
     // Данные уже валидированы через middleware validate()
     const documentData = req.body;
-    console.log('📝 Creating document:', JSON.stringify(documentData, null, 2));
+    logger.info('Creating document', { documentId: 'new', type: documentData.type, number: documentData.number });
     
     const document = await documentsRepo.createDocument({
       packageId: documentData.packageId,
@@ -122,10 +124,10 @@ export async function createDocument(req: Request, res: Response, next: NextFunc
       createdBy: (req as any).user?.username || 'system'
     });
     
-    console.log('✅ Document created successfully:', document.id);
+    logger.info('Document created successfully', { documentId: document.id });
     res.status(201).json({ data: document });
   } catch (error: any) {
-    console.error('Error creating document:', error);
+    logger.error('Error creating document', error, { documentType: documentData.type });
     // Более детальная информация об ошибке
     if (error.code === '23503') {
       return res.status(400).json({ 
@@ -178,7 +180,11 @@ export async function freezeDocumentVersion(req: Request, res: Response, next: N
       return res.status(404).json({ error: { message: 'Document not found' } });
     }
 
+    // Замораживаем документ
     const frozen = await documentsRepo.freezeDocumentVersion(id, document.current_version);
+    
+    // Добавляем задачу в очередь для отправки в УХ
+    await uhQueueService.enqueue(id, 'UpsertDocument');
     
     res.json({
       data: {

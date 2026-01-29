@@ -11,6 +11,12 @@ import { IntegrationMonitorPage } from './pages/IntegrationMonitorPage';
 import { DocumentDetailsPage } from './pages/DocumentDetailsPage';
 import { CreateDocumentPage } from './pages/CreateDocumentPage';
 import { SelectDocumentTypePage } from './pages/SelectDocumentTypePage';
+import { NSIPage } from './pages/NSIPage';
+import { OrganizationDetailsPage } from './pages/nsi/OrganizationDetailsPage';
+import { CounterpartyDetailsPage } from './pages/nsi/CounterpartyDetailsPage';
+import { ContractDetailsPage } from './pages/nsi/ContractDetailsPage';
+import { AccountDetailsPage } from './pages/nsi/AccountDetailsPage';
+import { WarehouseDetailsPage } from './pages/nsi/WarehouseDetailsPage';
 
 const { Sider } = Layout;
 
@@ -38,6 +44,12 @@ export default function App() {
             <Route path="/documents/:id" element={<DocumentDetailsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/integration" element={<IntegrationMonitorPage />} />
+            <Route path="/nsi" element={<NSIPage />} />
+            <Route path="/nsi/organizations/:id" element={<OrganizationDetailsPage />} />
+            <Route path="/nsi/counterparties/:id" element={<CounterpartyDetailsPage />} />
+            <Route path="/nsi/contracts/:id" element={<ContractDetailsPage />} />
+            <Route path="/nsi/accounts/:id" element={<AccountDetailsPage />} />
+            <Route path="/nsi/warehouses/:id" element={<WarehouseDetailsPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Content>

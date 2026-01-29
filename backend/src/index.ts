@@ -6,10 +6,14 @@ import { packagesRouter } from './routes/packages.js';
 import { authRouter } from './routes/auth.js';
 import { filesRouter } from './routes/files.js';
 import { nsiRouter } from './routes/nsi.js';
+import { adminRouter } from './routes/admin.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { testConnection } from './db/connection.js';
 import { waitForDb } from './db/waitForDb.js';
 import { runMigrations } from './db/migrate.js';
+import { uhQueueService } from './services/uh-queue.js';
+import { nsiSyncService } from './services/nsi-sync.js';
+import { logger } from './utils/logger.js';
 
 dotenv.config();
 
@@ -22,9 +26,19 @@ const PORT = process.env.PORT || 3000;
     await waitForDb({ retries: 60, delayMs: 1000 });
     await testConnection();
     await runMigrations();
-    console.log('✅ Migrations applied');
-  } catch (e) {
-    console.error('❌ Failed to initialize database:', e);
+    logger.info('Migrations applied');
+    
+    // Запускаем обработчик очереди УХ
+    const queueInterval = parseInt(process.env.UH_QUEUE_INTERVAL || '5000');
+    uhQueueService.startProcessing(queueInterval);
+    logger.info('UH queue processor started');
+    
+    // Запускаем синхронизацию НСИ
+    const nsiSyncInterval = parseInt(process.env.UH_SYNC_INTERVAL || '60000');
+    nsiSyncService.startSync(nsiSyncInterval);
+    logger.info('NSI sync service started');
+  } catch (e: any) {
+    logger.error('Failed to initialize database', e);
   }
 })();
 
@@ -47,10 +61,11 @@ app.use('/api/documents', documentsRouter);
 app.use('/api/packages', packagesRouter);
 app.use('/api', filesRouter);
 app.use('/api/nsi', nsiRouter);
+app.use('/api/admin', adminRouter);
 
 // Error handling
 app.use(errorHandler);
 
 app.listen(PORT, () => {
-  console.log(`🚀 Backend API running on http://localhost:${PORT}`);
+  logger.info('Backend API started', { port: PORT, env: process.env.NODE_ENV || 'development' });
 });
