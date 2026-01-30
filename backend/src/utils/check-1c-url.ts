@@ -91,8 +91,11 @@ export async function check1CServices(
   const paths = [
     { path: '/', label: 'Корень публикации' },
     { path: '/odata/standard.odata/', label: 'OData' },
-    { path: '/ecof/health', label: 'ПорталЕЦОФ /health' },
-    { path: '/ecof/', label: 'ПорталЕЦОФ (корень)' }
+    { path: '/hs/', label: 'HTTP-сервисы (корень)' },
+    { path: '/hs/ecof/health', label: 'ПорталЕЦОФ /health (GET)' },
+    { path: '/hs/ecof/nsi/delta', label: 'ПорталЕЦОФ /nsi/delta (GET)' },
+    { path: '/hs/ecof/documents', label: 'ПорталЕЦОФ /documents (POST, проверим доступность)' },
+    { path: '/hs/ecof/documents/test/status', label: 'ПорталЕЦОФ /documents/{ref}/status (GET, тестовый ref)' }
   ];
   const results: UrlCheckResult[] = [];
   for (const { path } of paths) {
