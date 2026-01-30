@@ -51,6 +51,11 @@ export class UHIntegrationService {
     attempt = 1
   ): Promise<T> {
     try {
+      // Логируем полный URL для отладки
+      if (attempt === 1) {
+        console.log(`🌐 UH API request: ${options.method || 'GET'} ${url}`);
+      }
+      
       // Базовая аутентификация
       const authHeader = this.username && this.password
         ? `Basic ${Buffer.from(`${this.username}:${this.password}`).toString('base64')}`
@@ -79,16 +84,30 @@ export class UHIntegrationService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`UH API error ${response.status}: ${errorText}`);
+        const fullError = `UH API error ${response.status}: ${errorText}`;
+        console.error(`❌ ${fullError}`);
+        throw new Error(fullError);
       }
 
       return await response.json();
     } catch (error: any) {
+      const errorMessage = error?.message || String(error);
+      const errorDetails = this.formatError(error);
+      const fullErrorMsg = errorMessage !== errorDetails ? `${errorMessage} | ${errorDetails}` : errorMessage;
+      
       if (attempt < this.retryAttempts && this.shouldRetry(error)) {
-        console.warn(`⚠️ UH API request failed (attempt ${attempt}/${this.retryAttempts}), retrying...`, error.message);
+        console.warn(`⚠️ UH API request failed (attempt ${attempt}/${this.retryAttempts}), retrying...`);
+        console.warn(`   URL: ${url}`);
+        console.warn(`   Error: ${fullErrorMsg}`);
         await this.sleep(this.retryDelay * attempt); // Exponential backoff
         return this.requestWithRetry<T>(url, options, attempt + 1);
       }
+      
+      // При финальной ошибке выводим полную информацию
+      console.error(`❌ UH API request failed (final attempt ${attempt}/${this.retryAttempts})`);
+      console.error(`   URL: ${url}`);
+      console.error(`   Method: ${options.method || 'GET'}`);
+      console.error(`   Full error: ${fullErrorMsg}`);
       throw error;
     }
   }
@@ -154,11 +173,13 @@ export class UHIntegrationService {
       console.log(`✅ Document sent to UH successfully: ${response.uhDocumentRef}`);
       return response;
     } catch (error: any) {
-      console.error(`❌ Failed to send document to UH: ${request.documentId}`, error);
+      const errorDetails = this.formatError(error);
+      console.error(`❌ Failed to send document to UH: ${request.documentId}`);
+      console.error(`   Full error details: ${errorDetails}`);
       return {
         success: false,
         errorCode: 'UH_API_ERROR',
-        errorMessage: this.formatError(error),
+        errorMessage: errorDetails,
         status: 'Error'
       };
     }
@@ -181,12 +202,14 @@ export class UHIntegrationService {
       console.log(`✅ Document posted in UH: ${uhDocumentRef}`);
       return response;
     } catch (error: any) {
-      console.error(`❌ Failed to post document in UH: ${uhDocumentRef}`, error);
+      const errorDetails = this.formatError(error);
+      console.error(`❌ Failed to post document in UH: ${uhDocumentRef}`);
+      console.error(`   Full error details: ${errorDetails}`);
       return {
         success: false,
         uhDocumentRef,
         errorCode: 'UH_API_ERROR',
-        errorMessage: this.formatError(error),
+        errorMessage: errorDetails,
         status: 'Error'
       };
     }
@@ -214,7 +237,9 @@ export class UHIntegrationService {
       console.log(`✅ NSI delta received: ${response.items.length} items`);
       return response;
     } catch (error: any) {
-      console.error(`❌ Failed to fetch NSI delta from UH`, error);
+      const errorDetails = this.formatError(error);
+      console.error(`❌ Failed to fetch NSI delta from UH`);
+      console.error(`   Full error details: ${errorDetails}`);
       // Возвращаем пустой ответ при ошибке, чтобы не ломать синхронизацию
       return {
         items: [],
@@ -238,12 +263,14 @@ export class UHIntegrationService {
 
       return response;
     } catch (error: any) {
-      console.error(`❌ Failed to get document status from UH: ${uhDocumentRef}`, error);
+      const errorDetails = this.formatError(error);
+      console.error(`❌ Failed to get document status from UH: ${uhDocumentRef}`);
+      console.error(`   Full error details: ${errorDetails}`);
       return {
         success: false,
         uhDocumentRef,
         errorCode: 'UH_API_ERROR',
-        errorMessage: this.formatError(error),
+        errorMessage: errorDetails,
         status: 'Error'
       };
     }
