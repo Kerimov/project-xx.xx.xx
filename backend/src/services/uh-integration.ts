@@ -6,6 +6,7 @@ import {
   NSIDeltaRequest,
   NSIDeltaResponse
 } from '../types/uh-integration.js';
+import { Agent } from 'undici';
 
 export class UHIntegrationService {
   private baseUrl: string;
@@ -14,6 +15,8 @@ export class UHIntegrationService {
   private timeout: number;
   private retryAttempts: number;
   private retryDelay: number;
+  private insecureTls: boolean;
+  private dispatcher?: Agent;
 
   constructor(config?: {
     baseUrl?: string;
@@ -22,6 +25,7 @@ export class UHIntegrationService {
     timeout?: number;
     retryAttempts?: number;
     retryDelay?: number;
+    insecureTls?: boolean;
   }) {
     // UH_API_URL должен быть базовым URL без /api (например: http://server:8080/ecof)
     const envUrl = process.env.UH_API_URL || 'http://localhost:8080/ecof';
@@ -31,6 +35,11 @@ export class UHIntegrationService {
     this.timeout = config?.timeout || parseInt(process.env.UH_API_TIMEOUT || '30000');
     this.retryAttempts = config?.retryAttempts || parseInt(process.env.UH_RETRY_ATTEMPTS || '3');
     this.retryDelay = config?.retryDelay || parseInt(process.env.UH_RETRY_DELAY || '5000');
+    this.insecureTls =
+      config?.insecureTls ?? (process.env.UH_API_INSECURE || '').toLowerCase() === 'true';
+    if (this.insecureTls) {
+      this.dispatcher = new Agent({ connect: { rejectUnauthorized: false } });
+    }
   }
 
   /**
@@ -50,7 +59,7 @@ export class UHIntegrationService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-      const response = await fetch(url, {
+      const fetchOptions: RequestInit & { dispatcher?: Agent } = {
         ...options,
         headers: {
           'Content-Type': 'application/json',
@@ -58,7 +67,13 @@ export class UHIntegrationService {
           ...options.headers
         },
         signal: controller.signal
-      });
+      };
+
+      if (this.insecureTls && url.startsWith('https://') && this.dispatcher) {
+        fetchOptions.dispatcher = this.dispatcher;
+      }
+
+      const response = await fetch(url, fetchOptions);
 
       clearTimeout(timeoutId);
 
@@ -80,14 +95,34 @@ export class UHIntegrationService {
 
   private shouldRetry(error: any): boolean {
     // Retry при сетевых ошибках и временных ошибках сервера
+    const code = error?.cause?.code || error?.code;
     return (
       error.name === 'AbortError' ||
+      error.message?.includes('fetch failed') ||
       error.message?.includes('ECONNREFUSED') ||
       error.message?.includes('ETIMEDOUT') ||
+      code === 'ECONNREFUSED' ||
+      code === 'ETIMEDOUT' ||
+      code === 'ENOTFOUND' ||
       error.message?.includes('500') ||
       error.message?.includes('502') ||
       error.message?.includes('503')
     );
+  }
+
+  private formatError(error: any): string {
+    const parts: string[] = [];
+    const message = error?.message || String(error);
+    if (message) parts.push(message);
+    const code = error?.cause?.code || error?.code;
+    if (code) parts.push(`code=${code}`);
+    const errno = error?.cause?.errno || error?.errno;
+    if (errno) parts.push(`errno=${errno}`);
+    const address = error?.cause?.address || error?.address;
+    if (address) parts.push(`address=${address}`);
+    const port = error?.cause?.port || error?.port;
+    if (port) parts.push(`port=${port}`);
+    return parts.join(' | ');
   }
 
   private sleep(ms: number): Promise<void> {
@@ -123,7 +158,7 @@ export class UHIntegrationService {
       return {
         success: false,
         errorCode: 'UH_API_ERROR',
-        errorMessage: error.message || 'Unknown error',
+        errorMessage: this.formatError(error),
         status: 'Error'
       };
     }
@@ -151,7 +186,7 @@ export class UHIntegrationService {
         success: false,
         uhDocumentRef,
         errorCode: 'UH_API_ERROR',
-        errorMessage: error.message || 'Unknown error',
+        errorMessage: this.formatError(error),
         status: 'Error'
       };
     }
@@ -208,7 +243,7 @@ export class UHIntegrationService {
         success: false,
         uhDocumentRef,
         errorCode: 'UH_API_ERROR',
-        errorMessage: error.message || 'Unknown error',
+        errorMessage: this.formatError(error),
         status: 'Error'
       };
     }
