@@ -7,12 +7,13 @@
 1. **Настройка переменных окружения** в `backend/.env`:
 
 ```env
-# URL API 1С УХ
-UH_API_URL=http://your-uh-server:8080/api
+# Адрес HTTP-сервиса 1С: https://localhost:8035/kk_test/hs/
+# URL API сервиса ПорталЕЦОФ (ecof): публикация + /hs/ecof
+UH_API_URL=https://localhost:8035/kk_test/hs/ecof
 
 # Аутентификация
-UH_API_USER=api_user
-UH_API_PASSWORD=api_password
+UH_API_USER=Администратор
+UH_API_PASSWORD=your-password
 
 # Таймауты и retry
 UH_API_TIMEOUT=30000
@@ -92,7 +93,7 @@ UH_1C_USER=Администратор
 UH_1C_PASSWORD=your-password
 ```
 
-Запросы к `/odata/`, `/ecof/` и т.д. будут отправляться с заголовком `Authorization: Basic ...`.
+Запросы к `/odata/`, `/hs/ecof/` и т.д. будут отправляться с заголовком `Authorization: Basic ...`. URL публикации по умолчанию: `https://localhost:8035/kk_test` (HTTP-сервисы под `/hs/`).
 
 ## Использование
 

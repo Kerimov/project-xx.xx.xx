@@ -24,7 +24,7 @@ export function UHDbConnectionPage() {
   } | null>(null);
   const [loadingSample, setLoadingSample] = useState(false);
   const [sampleError, setSampleError] = useState<string | null>(null);
-  const [servicesBaseUrl, setServicesBaseUrl] = useState('https://web1c.pra.ru:8035/kk_test');
+  const [servicesBaseUrl, setServicesBaseUrl] = useState('https://localhost:8035/kk_test');
   const [servicesLogin, setServicesLogin] = useState('Администратор');
   const [servicesPassword, setServicesPassword] = useState('test123!@#');
   const [servicesResult, setServicesResult] = useState<
@@ -243,7 +243,7 @@ export function UHDbConnectionPage() {
             <Input
               value={servicesBaseUrl}
               onChange={(e) => setServicesBaseUrl(e.target.value)}
-              placeholder="https://web1c.pra.ru:8035/kk_test"
+              placeholder="https://localhost:8035/kk_test"
               style={{ width: 320 }}
             />
           </span>

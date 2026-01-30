@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Table, Tag, Typography, Statistic, Row, Col, Button, Space, message, Spin } from 'antd';
+import { Card, Table, Tag, Typography, Statistic, Row, Col, Button, Space, message, Spin, Alert, Tooltip } from 'antd';
 import { ReloadOutlined, SyncOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
 import dayjs from 'dayjs';
@@ -111,7 +111,25 @@ export function IntegrationMonitorPage() {
       title: 'Ошибка',
       dataIndex: 'lastError',
       key: 'lastError',
-      render: (error: string | null) => error ? <Tag color="red">{error.substring(0, 50)}...</Tag> : '-'
+      render: (error: string | null) => {
+        if (!error) return '—';
+        const isConnRefused = error.includes('ECONNREFUSED') || error.includes('fetch failed');
+        const shortMsg = isConnRefused
+          ? 'Сервер 1С недоступен (ECONNREFUSED)'
+          : error.length > 60 ? `${error.substring(0, 60)}…` : error;
+        return (
+          <Tooltip title={error}>
+            <span>
+              <Tag color="red">{shortMsg}</Tag>
+              {isConnRefused && (
+                <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                  UH_API_URL — базовый URL (без /documents). Backend вызывает .../ecof/documents, .../ecof/health. Проверьте, что 1С запущена.
+                </Typography.Text>
+              )}
+            </span>
+          </Tooltip>
+        );
+      }
     }
   ];
 
@@ -151,6 +169,15 @@ export function IntegrationMonitorPage() {
           </Col>
         </Row>
 
+        {items.some((i: any) => i.lastError && (i.lastError.includes('ECONNREFUSED') || i.lastError.includes('fetch failed'))) && (
+          <Alert
+            type="warning"
+            showIcon
+            message="Сервер 1С недоступен"
+            description="Backend не может подключиться к HTTP API 1С (ECONNREFUSED). UH_API_URL в backend/.env — базовый URL сервиса ecof (без /documents), например https://localhost:8035/kk_test/hs/ecof. Backend сам обращается к .../documents, .../health. Проверьте, что HTTP-сервис 1С запущен; при HTTPS с самоподписанным сертификатом задайте UH_API_INSECURE=true."
+            style={{ marginBottom: 16 }}
+          />
+        )}
         <Card title="Задачи очереди">
           <Spin spinning={loading}>
             <Table
