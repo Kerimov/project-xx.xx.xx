@@ -266,5 +266,33 @@ export const api = {
               data: Array<{ url: string; statusCode?: number; ok: boolean; error?: string; hint?: string }>;
             }>(`/uh/db/services-check?baseUrl=${encodeURIComponent(baseUrl)}`)
     }
+  },
+
+  // Административные функции
+  admin: {
+    queue: {
+      stats: () => request<{ data: { pending: number; processing: number; completed: number; failed: number } }>('/admin/queue/stats'),
+      items: (status?: string, limit?: number) => {
+        const params = new URLSearchParams();
+        if (status) params.append('status', status);
+        if (limit) params.append('limit', limit.toString());
+        return request<{ data: Array<{
+          id: string;
+          documentId: string;
+          documentNumber: string;
+          documentType: string;
+          operationType: string;
+          status: string;
+          attempts: number;
+          lastError?: string;
+          createdAt: string;
+          processedAt?: string;
+          completedAt?: string;
+        }> }>(`/admin/queue/items${params.toString() ? `?${params.toString()}` : ''}`);
+      }
+    },
+    nsi: {
+      sync: () => request<{ data: { success: boolean; message: string } }>('/admin/nsi/sync', { method: 'POST' })
+    }
   }
 };

@@ -53,7 +53,8 @@ export class UHQueueService {
       ? versionResult.rows[0].data 
       : {};
 
-    // Формируем payload
+    // Формируем payload для 1С
+    // Все поля должны быть на верхнем уровне, т.к. 1С обращается к Данные.counterpartyName, Данные.items и т.д.
     const payload = {
       portalDocId: document.id,
       portalVersion: document.current_version,
@@ -64,9 +65,13 @@ export class UHQueueService {
       date: document.date.toISOString().split('T')[0],
       counterpartyName: document.counterparty_name,
       counterpartyInn: document.counterparty_inn,
-      amount: document.amount,
-      currency: document.currency,
-      data: versionData
+      amount: document.amount || versionData.totalAmount || versionData.amount || 0,
+      totalAmount: versionData.totalAmount || document.amount || versionData.amount || 0,
+      currency: document.currency || versionData.currency || 'RUB',
+      // Табличная часть должна быть на верхнем уровне
+      items: versionData.items || [],
+      // Остальные поля из versionData (warehouseId, contractId, dueDate и т.д.)
+      ...versionData
     };
 
     const result = await pool.query(

@@ -226,7 +226,11 @@ export function getUHDbSafeConfig(): {
           : auth === 'ntlm'
             ? 'NTLM'
             : 'SQL';
-    if (!server && !database) return null;
+    // Если хотя бы один из обязательных параметров заполнен, возвращаем конфигурацию
+    if (!server || !database) {
+      console.warn('[getUHDbSafeConfig] MSSQL config incomplete:', { server, database, type });
+      return null;
+    }
     return { type: 'MS SQL Server', server, database, port, authType };
   }
   const host = process.env.UH_DB_HOST || '';

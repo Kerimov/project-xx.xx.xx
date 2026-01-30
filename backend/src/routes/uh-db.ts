@@ -10,6 +10,10 @@ export const uhDbRouter = Router();
 uhDbRouter.get('/config', (_req: Request, res: Response) => {
   try {
     const config = getUHDbSafeConfig();
+    console.log('[UH DB Config] UH_DB_TYPE:', process.env.UH_DB_TYPE);
+    console.log('[UH DB Config] UH_MSSQL_SERVER:', process.env.UH_MSSQL_SERVER);
+    console.log('[UH DB Config] UH_MSSQL_DATABASE:', process.env.UH_MSSQL_DATABASE);
+    console.log('[UH DB Config] Result:', config);
     if (!config) {
       return res.json({ data: null, message: 'Подключение к БД УХ не настроено (UH_DB_TYPE / UH_MSSQL_* / UH_DB_*)' });
     }

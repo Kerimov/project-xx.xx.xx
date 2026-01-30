@@ -23,7 +23,9 @@ export class UHIntegrationService {
     retryAttempts?: number;
     retryDelay?: number;
   }) {
-    this.baseUrl = config?.baseUrl || process.env.UH_API_URL || 'http://localhost:8080/api';
+    // UH_API_URL должен быть базовым URL без /api (например: http://server:8080/ecof)
+    const envUrl = process.env.UH_API_URL || 'http://localhost:8080/ecof';
+    this.baseUrl = config?.baseUrl || envUrl.replace(/\/api$/, ''); // Убираем /api если есть
     this.username = config?.username || process.env.UH_API_USER || '';
     this.password = config?.password || process.env.UH_API_PASSWORD || '';
     this.timeout = config?.timeout || parseInt(process.env.UH_API_TIMEOUT || '30000');
@@ -103,13 +105,12 @@ export class UHIntegrationService {
         number: request.payload.number
       });
 
+      // 1С ожидает структуру { payload: {...} }, без operationType и documentId
       const response = await this.requestWithRetry<UHOperationResponse>(
         `${this.baseUrl}/documents`,
         {
           method: 'POST',
           body: JSON.stringify({
-            operationType: request.operationType,
-            documentId: request.documentId,
             payload: request.payload
           })
         }
