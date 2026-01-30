@@ -8,6 +8,7 @@ import {
   NSIDeltaRequest,
   NSIDeltaResponse
 } from '../types/uh-integration.js';
+import { logger } from '../utils/logger.js';
 
 export class UHIntegrationService {
   private baseUrl: string;
@@ -17,6 +18,8 @@ export class UHIntegrationService {
   private retryAttempts: number;
   private retryDelay: number;
   private insecureTls: boolean;
+  private debug: boolean;
+  private lastResponse: { url: string; method: string; statusCode: number; headers: Record<string, unknown>; bodyPreview: string; bodyLength: number; at: string } | null = null;
 
   constructor(config?: {
     baseUrl?: string;
@@ -35,13 +38,40 @@ export class UHIntegrationService {
       envUrl = envUrl.replace(/localhost/g, '127.0.0.1');
     }
     this.baseUrl = config?.baseUrl || envUrl;
-    this.username = config?.username || process.env.UH_API_USER || '';
-    this.password = config?.password || process.env.UH_API_PASSWORD || '';
+    this.username = config?.username ?? process.env.UH_API_USER ?? '';
+    this.password = config?.password ?? process.env.UH_API_PASSWORD ?? '';
+    if (!this.username || !this.password) {
+      console.warn(
+        '⚠️ UH API: UH_API_USER или UH_API_PASSWORD не заданы в .env. Запросы к 1С будут без Basic Auth — возможна ошибка 401. Задайте переменные в backend/.env и перезапустите backend.'
+      );
+    }
     this.timeout = config?.timeout || parseInt(process.env.UH_API_TIMEOUT || '30000');
     this.retryAttempts = config?.retryAttempts || parseInt(process.env.UH_RETRY_ATTEMPTS || '3');
     this.retryDelay = config?.retryDelay || parseInt(process.env.UH_RETRY_DELAY || '5000');
     this.insecureTls =
       config?.insecureTls ?? (process.env.UH_API_INSECURE || '').toLowerCase() === 'true';
+    this.debug = (process.env.UH_API_DEBUG || '').toLowerCase() === 'true';
+  }
+
+  /** Обновить учётные данные в рантайме (без перезапуска backend) */
+  setCredentials(username: string, password: string) {
+    this.username = username || '';
+    this.password = password || '';
+  }
+
+  /** Получить текущие параметры авторизации (без пароля) */
+  getAuthInfo() {
+    return {
+      baseUrl: this.baseUrl,
+      username: this.username ? `${this.username.slice(0, 3)}…` : '',
+      passwordSet: Boolean(this.password),
+      insecureTls: this.insecureTls
+    };
+  }
+
+  /** Последний ответ 1С (для диагностики) */
+  getLastResponse() {
+    return this.lastResponse;
   }
 
   /**
@@ -78,11 +108,15 @@ export class UHIntegrationService {
         ...(isHttps && this.insecureTls && { rejectUnauthorized: false })
       };
 
-      const result = await new Promise<{ statusCode: number; body: string }>((resolve, reject) => {
+      const result = await new Promise<{ statusCode: number; body: string; headers: Record<string, unknown> }>((resolve, reject) => {
         const req = (isHttps ? https : http).request(requestOptions, (res) => {
           const chunks: Buffer[] = [];
           res.on('data', (chunk: Buffer) => chunks.push(chunk));
-          res.on('end', () => resolve({ statusCode: res.statusCode!, body: Buffer.concat(chunks).toString('utf8') }));
+          res.on('end', () => resolve({
+            statusCode: res.statusCode!,
+            body: Buffer.concat(chunks).toString('utf8'),
+            headers: res.headers as Record<string, unknown>
+          }));
         });
         req.on('error', reject);
         req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
@@ -91,11 +125,35 @@ export class UHIntegrationService {
         req.end();
       });
 
+      if (this.debug) {
+        const bodyPreview = (result.body || '').slice(0, 1000);
+        const info = {
+          url,
+          method: options.method || 'GET',
+          statusCode: result.statusCode,
+          headers: result.headers,
+          bodyLength: (result.body || '').length,
+          bodyPreview,
+          at: new Date().toISOString()
+        };
+        this.lastResponse = info;
+        logger.info('UH API response', info);
+      }
+
       if (result.statusCode < 200 || result.statusCode >= 400) {
         throw new Error(`UH API error ${result.statusCode}: ${result.body}`);
       }
 
-      return JSON.parse(result.body) as T;
+      const trimmed = (result.body || '').trim();
+      if (!trimmed) {
+        // Пустой ответ при 200 — ошибка протокола обмена
+        throw new Error('UH API empty response');
+      }
+      try {
+        return JSON.parse(trimmed) as T;
+      } catch (parseError: any) {
+        throw new Error(`UH API invalid JSON: ${trimmed}`);
+      }
     } catch (error: any) {
       if (attempt < this.retryAttempts && this.shouldRetry(error)) {
         console.warn(`⚠️ UH API request failed (attempt ${attempt}/${this.retryAttempts}), retrying...`, error.message);

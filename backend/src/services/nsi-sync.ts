@@ -118,6 +118,12 @@ export class NSISyncService {
       case 'Contract':
         await this.syncContract(item);
         break;
+      case 'Warehouse':
+        await this.syncWarehouse(item);
+        break;
+      case 'Account':
+        await this.syncAccount(item);
+        break;
       default:
         logger.warn('Unknown NSI item type', { itemType: item.type, itemId: item.id });
     }
@@ -199,6 +205,49 @@ export class NSISyncService {
        ON CONFLICT (id) DO UPDATE
        SET name = $2, organization_id = $3, counterparty_id = $4, data = $5, updated_at = NOW()`,
       [item.id, name, organizationId, counterpartyId, JSON.stringify(item.data)]
+    );
+  }
+
+  /**
+   * Синхронизация склада
+   */
+  private async syncWarehouse(item: any) {
+    const code = item.code || item.data?.code || null;
+    const name = item.name || item.data?.name || '';
+    const organizationId = item.data?.organizationId || null;
+
+    if (!name) {
+      throw new Error('Warehouse name is required');
+    }
+
+    await pool.query(
+      `INSERT INTO warehouses (id, code, name, organization_id, data)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (id) DO UPDATE
+       SET code = COALESCE(EXCLUDED.code, warehouses.code), name = EXCLUDED.name, organization_id = EXCLUDED.organization_id, data = EXCLUDED.data, updated_at = NOW()`,
+      [item.id, code, name, organizationId, JSON.stringify(item.data ?? {})]
+    );
+  }
+
+  /**
+   * Синхронизация счёта (банк/касса)
+   */
+  private async syncAccount(item: any) {
+    const code = item.code || item.data?.code || null;
+    const name = item.name || item.data?.name || '';
+    const organizationId = item.data?.organizationId || null;
+    const type = item.data?.type || null;
+
+    if (!name) {
+      throw new Error('Account name is required');
+    }
+
+    await pool.query(
+      `INSERT INTO accounts (id, code, name, organization_id, type, data)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (id) DO UPDATE
+       SET code = COALESCE(EXCLUDED.code, accounts.code), name = EXCLUDED.name, organization_id = EXCLUDED.organization_id, type = COALESCE(EXCLUDED.type, accounts.type), data = EXCLUDED.data, updated_at = NOW()`,
+      [item.id, code, name, organizationId, type, JSON.stringify(item.data ?? {})]
     );
   }
 

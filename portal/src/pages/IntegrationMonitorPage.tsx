@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Table, Tag, Typography, Statistic, Row, Col, Button, Space, message, Spin, Alert, Tooltip } from 'antd';
+import { Card, Table, Tag, Typography, Statistic, Row, Col, Button, Space, message, Spin, Alert, Tooltip, Input } from 'antd';
 import { ReloadOutlined, SyncOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
 import dayjs from 'dayjs';
@@ -30,6 +30,14 @@ export function IntegrationMonitorPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ pending: 0, processing: 0, completed: 0, failed: 0 });
   const [items, setItems] = useState<any[]>([]);
+  const [authDebugLoading, setAuthDebugLoading] = useState(false);
+  const [authDebugResult, setAuthDebugResult] = useState<any | null>(null);
+  const [authDebugError, setAuthDebugError] = useState<string | null>(null);
+  const [authDebugBaseUrl, setAuthDebugBaseUrl] = useState('');
+  const [authDebugUsername, setAuthDebugUsername] = useState('');
+  const [authDebugPassword, setAuthDebugPassword] = useState('');
+  const [authInfo, setAuthInfo] = useState<{ baseUrl: string; username: string; passwordSet: boolean; insecureTls: boolean } | null>(null);
+  const [lastResponse, setLastResponse] = useState<any | null>(null);
 
   const loadData = async () => {
     try {
@@ -56,8 +64,67 @@ export function IntegrationMonitorPage() {
     }
   };
 
+  const runAuthDebug = async (endpoint: string, method: string, payload?: Record<string, unknown>) => {
+    try {
+      setAuthDebugLoading(true);
+      setAuthDebugError(null);
+      const res = await api.uh.db.authDebug({
+        baseUrl: authDebugBaseUrl || undefined,
+        username: authDebugUsername || undefined,
+        password: authDebugPassword || undefined,
+        endpoint,
+        method,
+        payload
+      });
+      setAuthDebugResult(res.data);
+      message.success(`Проверка авторизации выполнена (${res.data.statusCode})`);
+    } catch (error: any) {
+      setAuthDebugResult(null);
+      setAuthDebugError(error.message || 'Ошибка проверки авторизации');
+      message.error(error.message || 'Ошибка проверки авторизации');
+    } finally {
+      setAuthDebugLoading(false);
+    }
+  };
+
+  const loadAuthInfo = async () => {
+    try {
+      const res = await api.uh.db.authInfo();
+      setAuthInfo(res.data);
+    } catch {
+      setAuthInfo(null);
+    }
+  };
+
+  const applyAuthOverride = async () => {
+    if (!authDebugUsername || !authDebugPassword) {
+      message.error('Укажите логин и пароль 1С');
+      return;
+    }
+    try {
+      setAuthDebugLoading(true);
+      const res = await api.uh.db.authOverride({ username: authDebugUsername, password: authDebugPassword });
+      setAuthInfo(res.data.auth);
+      message.success('Учётные данные применены в backend (без перезапуска)');
+    } catch (error: any) {
+      message.error(error.message || 'Не удалось применить учётные данные');
+    } finally {
+      setAuthDebugLoading(false);
+    }
+  };
+
+  const loadLastResponse = async () => {
+    try {
+      const res = await api.uh.db.lastResponse();
+      setLastResponse(res.data);
+    } catch {
+      setLastResponse(null);
+    }
+  };
+
   useEffect(() => {
     loadData();
+    loadAuthInfo();
     const interval = setInterval(loadData, 10000); // Обновление каждые 10 секунд
     return () => clearInterval(interval);
   }, []);
@@ -114,16 +181,28 @@ export function IntegrationMonitorPage() {
       render: (error: string | null) => {
         if (!error) return '—';
         const isConnRefused = error.includes('ECONNREFUSED') || error.includes('fetch failed');
+        const is401 = error.includes('401');
+        const is500 = error.includes('500');
         const shortMsg = isConnRefused
           ? 'Сервер 1С недоступен (ECONNREFUSED)'
-          : error.length > 60 ? `${error.substring(0, 60)}…` : error;
+          : error.length > 200 ? `${error.substring(0, 200)}…` : error;
         return (
-          <Tooltip title={error}>
+          <Tooltip title={<span style={{ whiteSpace: 'pre-wrap', maxWidth: 400, display: 'block' }}>{error}</span>}>
             <span>
               <Tag color="red">{shortMsg}</Tag>
               {isConnRefused && (
                 <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
                   UH_API_URL — базовый URL (без /documents). Backend вызывает .../ecof/documents, .../ecof/health. Проверьте, что 1С запущена.
+                </Typography.Text>
+              )}
+              {is401 && (
+                <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                  401 Unauthorized — 1С отклонила авторизацию. Задайте UH_API_USER и UH_API_PASSWORD в backend/.env (логин/пароль пользователя 1С), затем перезапустите backend.
+                </Typography.Text>
+              )}
+              {is500 && (
+                <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                  Код 500 от 1С — ошибка при обработке документа в УХ (данные, проведение), авторизация при этом прошла успешно.
                 </Typography.Text>
               )}
             </span>
@@ -178,6 +257,104 @@ export function IntegrationMonitorPage() {
             style={{ marginBottom: 16 }}
           />
         )}
+        {items.some((i: any) => i.lastError && i.lastError.includes('401')) && (
+          <Alert
+            type="error"
+            showIcon
+            message="Ошибка 401 — 1С отклонила авторизацию"
+            description="При передаче документа 1С вернула 401 Unauthorized. Задайте в backend/.env переменные UH_API_USER и UH_API_PASSWORD (логин и пароль пользователя 1С УХ), затем перезапустите backend. Учётные данные должны совпадать с теми, с которыми вы успешно входите в 1С из браузера."
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        {items.some((i: any) => i.lastError && i.lastError.includes('500')) && (
+          <Alert
+            type="info"
+            showIcon
+            message="Ошибка 500 от 1С при передаче документа"
+            description="Авторизация (логин/пароль) прошла успешно — иначе 1С вернула бы 401. Код 500 означает, что 1С приняла запрос, но упала при обработке документа: проверьте полный текст ошибки в колонке «Ошибка» (подсказка при наведении). Часто это «Превышено допустимое количество ошибок проведения» — исправьте данные документа в 1С или в портале (обязательные реквизиты, НСИ, правила проведения)."
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
+        <Card title="Диагностика авторизации 1С">
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Space wrap>
+              <Input
+                style={{ minWidth: 320 }}
+                placeholder="Base URL 1С (например https://127.0.0.1:8035/kk_test/hs/ecof)"
+                value={authDebugBaseUrl}
+                onChange={(e) => setAuthDebugBaseUrl(e.target.value)}
+              />
+              <Input
+                style={{ minWidth: 200 }}
+                placeholder="Логин 1С"
+                value={authDebugUsername}
+                onChange={(e) => setAuthDebugUsername(e.target.value)}
+              />
+              <Input.Password
+                style={{ minWidth: 200 }}
+                placeholder="Пароль 1С"
+                value={authDebugPassword}
+                onChange={(e) => setAuthDebugPassword(e.target.value)}
+              />
+            </Space>
+            <Button
+              onClick={() => runAuthDebug('/health', 'GET')}
+              loading={authDebugLoading}
+            >
+              Проверить /health
+            </Button>
+            <Button
+              onClick={() => runAuthDebug('/documents', 'POST', { payload: { type: 'GoodsReceipt', number: 'TEST', date: dayjs().format('YYYY-MM-DD') } })}
+              loading={authDebugLoading}
+            >
+              Проверить /documents
+            </Button>
+            <Button
+              onClick={applyAuthOverride}
+              loading={authDebugLoading}
+            >
+              Применить логин/пароль в backend
+            </Button>
+            <Button
+              onClick={() => { setAuthDebugResult(null); setAuthDebugError(null); }}
+              disabled={!authDebugResult && !authDebugError}
+            >
+              Очистить
+            </Button>
+          </Space>
+          {authInfo && (
+            <Alert
+              type="info"
+              showIcon
+              message="Текущие учётные данные backend"
+              description={`URL: ${authInfo.baseUrl} | user: ${authInfo.username} | passwordSet: ${authInfo.passwordSet ? 'yes' : 'no'} | insecureTLS: ${authInfo.insecureTls ? 'true' : 'false'}`}
+              style={{ marginTop: 12 }}
+            />
+          )}
+          {authDebugError && (
+            <Alert type="error" showIcon message="Ошибка проверки авторизации" description={authDebugError} style={{ marginTop: 12 }} />
+          )}
+          {authDebugResult && (
+            <pre style={{ marginTop: 12, whiteSpace: 'pre-wrap' }}>
+              {JSON.stringify(authDebugResult, null, 2)}
+            </pre>
+          )}
+        </Card>
+        <Card title="Последний ответ 1С">
+          <Space wrap>
+            <Button onClick={loadLastResponse}>Обновить</Button>
+          </Space>
+          {lastResponse ? (
+            <pre style={{ marginTop: 12, whiteSpace: 'pre-wrap' }}>
+              {JSON.stringify(lastResponse, null, 2)}
+            </pre>
+          ) : (
+            <Typography.Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
+              Пока нет данных. Нажмите «Обновить» после попытки отправки документа.
+            </Typography.Text>
+          )}
+        </Card>
         <Card title="Задачи очереди">
           <Spin spinning={loading}>
             <Table

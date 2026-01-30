@@ -265,6 +265,39 @@ export const api = {
           : request<{
               data: Array<{ url: string; statusCode?: number; ok: boolean; error?: string; hint?: string }>;
             }>(`/uh/db/services-check?baseUrl=${encodeURIComponent(baseUrl)}`)
+      ,
+      authDebug: (payload: {
+        baseUrl?: string;
+        endpoint?: string;
+        method?: string;
+        username?: string;
+        password?: string;
+        payload?: Record<string, unknown>;
+      }) =>
+        request<{
+          data: {
+            url: string;
+            method: string;
+            statusCode: number;
+            wwwAuthenticate?: string | null;
+            responseBody?: string;
+            authUsed: { username: string; passwordSet: boolean };
+            insecureTls: boolean;
+          };
+        }>('/uh/db/auth-debug', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        })
+      ,
+      authInfo: () =>
+        request<{ data: { baseUrl: string; username: string; passwordSet: boolean; insecureTls: boolean } }>('/uh/db/auth-info'),
+      authOverride: (payload: { username: string; password: string }) =>
+        request<{ data: { ok: boolean; auth: { baseUrl: string; username: string; passwordSet: boolean; insecureTls: boolean } } }>('/uh/db/auth-override', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        }),
+      lastResponse: () =>
+        request<{ data: { url: string; method: string; statusCode: number; headers: Record<string, unknown>; bodyPreview: string; bodyLength: number; at: string } | null }>('/uh/db/uh-last-response')
     }
   },
 
