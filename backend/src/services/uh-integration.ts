@@ -1,12 +1,13 @@
 // Сервис для интеграции с 1С УХ через HTTP API
 
+import https from 'https';
+import http from 'http';
 import {
   UHOperationRequest,
   UHOperationResponse,
   NSIDeltaRequest,
   NSIDeltaResponse
 } from '../types/uh-integration.js';
-import { Agent } from 'undici';
 
 export class UHIntegrationService {
   private baseUrl: string;
@@ -16,7 +17,6 @@ export class UHIntegrationService {
   private retryAttempts: number;
   private retryDelay: number;
   private insecureTls: boolean;
-  private dispatcher?: Agent;
 
   constructor(config?: {
     baseUrl?: string;
@@ -27,9 +27,14 @@ export class UHIntegrationService {
     retryDelay?: number;
     insecureTls?: boolean;
   }) {
-    // UH_API_URL должен быть базовым URL без /api (например: http://server:8080/ecof)
-    const envUrl = process.env.UH_API_URL || 'http://localhost:8080/ecof';
-    this.baseUrl = config?.baseUrl || envUrl.replace(/\/api$/, ''); // Убираем /api если есть
+    // UH_API_URL должен быть базовым URL без /api (например: https://127.0.0.1:8035/kk_test/hs/ecof)
+    let envUrl = process.env.UH_API_URL || 'https://127.0.0.1:8035/kk_test/hs/ecof';
+    envUrl = envUrl.replace(/\/api$/, ''); // Убираем /api если есть
+    // localhost в Node часто резолвится в IPv6 (::1); если 1С слушает только 127.0.0.1 — будет ECONNREFUSED. Подставляем 127.0.0.1.
+    if (envUrl.includes('localhost')) {
+      envUrl = envUrl.replace(/localhost/g, '127.0.0.1');
+    }
+    this.baseUrl = config?.baseUrl || envUrl;
     this.username = config?.username || process.env.UH_API_USER || '';
     this.password = config?.password || process.env.UH_API_PASSWORD || '';
     this.timeout = config?.timeout || parseInt(process.env.UH_API_TIMEOUT || '30000');
@@ -37,13 +42,10 @@ export class UHIntegrationService {
     this.retryDelay = config?.retryDelay || parseInt(process.env.UH_RETRY_DELAY || '5000');
     this.insecureTls =
       config?.insecureTls ?? (process.env.UH_API_INSECURE || '').toLowerCase() === 'true';
-    if (this.insecureTls) {
-      this.dispatcher = new Agent({ connect: { rejectUnauthorized: false } });
-    }
   }
 
   /**
-   * Выполняет HTTP запрос с retry логикой
+   * Выполняет HTTP запрос через https/http с поддержкой rejectUnauthorized: false для самоподписанных сертификатов
    */
   private async requestWithRetry<T>(
     url: string,
@@ -51,38 +53,49 @@ export class UHIntegrationService {
     attempt = 1
   ): Promise<T> {
     try {
-      // Базовая аутентификация
+      const u = new URL(url);
+      const isHttps = u.protocol === 'https:';
+      const body = options.body as string | undefined;
+
       const authHeader = this.username && this.password
         ? `Basic ${Buffer.from(`${this.username}:${this.password}`).toString('base64')}`
-        : undefined;
+        : '';
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(authHeader && { Authorization: authHeader }),
+        ...(options.headers as Record<string, string>)
+      };
+      if (body) headers['Content-Length'] = String(Buffer.byteLength(body, 'utf8'));
 
-      const fetchOptions: RequestInit & { dispatcher?: Agent } = {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authHeader && { Authorization: authHeader }),
-          ...options.headers
-        },
-        signal: controller.signal
+      const requestOptions: https.RequestOptions = {
+        hostname: u.hostname,
+        port: u.port || (isHttps ? 443 : 80),
+        path: u.pathname + u.search,
+        method: options.method || 'GET',
+        headers,
+        timeout: this.timeout,
+        ...(isHttps && this.insecureTls && { rejectUnauthorized: false })
       };
 
-      if (this.insecureTls && url.startsWith('https://') && this.dispatcher) {
-        fetchOptions.dispatcher = this.dispatcher;
+      const result = await new Promise<{ statusCode: number; body: string }>((resolve, reject) => {
+        const req = (isHttps ? https : http).request(requestOptions, (res) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (chunk: Buffer) => chunks.push(chunk));
+          res.on('end', () => resolve({ statusCode: res.statusCode!, body: Buffer.concat(chunks).toString('utf8') }));
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+        req.setTimeout(this.timeout);
+        if (body) req.write(body, 'utf8');
+        req.end();
+      });
+
+      if (result.statusCode < 200 || result.statusCode >= 400) {
+        throw new Error(`UH API error ${result.statusCode}: ${result.body}`);
       }
 
-      const response = await fetch(url, fetchOptions);
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`UH API error ${response.status}: ${errorText}`);
-      }
-
-      return await response.json();
+      return JSON.parse(result.body) as T;
     } catch (error: any) {
       if (attempt < this.retryAttempts && this.shouldRetry(error)) {
         console.warn(`⚠️ UH API request failed (attempt ${attempt}/${this.retryAttempts}), retrying...`, error.message);
@@ -101,9 +114,11 @@ export class UHIntegrationService {
       error.message?.includes('fetch failed') ||
       error.message?.includes('ECONNREFUSED') ||
       error.message?.includes('ETIMEDOUT') ||
+      error.message?.includes('UNABLE_TO_VERIFY_LEAF_SIGNATURE') ||
       code === 'ECONNREFUSED' ||
       code === 'ETIMEDOUT' ||
       code === 'ENOTFOUND' ||
+      code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' ||
       error.message?.includes('500') ||
       error.message?.includes('502') ||
       error.message?.includes('503')

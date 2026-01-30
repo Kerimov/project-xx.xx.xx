@@ -1,4 +1,7 @@
-// Структурированное логирование
+// Структурированное логирование (консоль + файл в папке logs)
+
+import fs from 'fs';
+import path from 'path';
 
 export enum LogLevel {
   DEBUG = 'debug',
@@ -21,10 +24,30 @@ interface LogEntry {
 
 class Logger {
   private logLevel: LogLevel;
+  private logDir: string | null = null;
+  private logFilePath: string | null = null;
 
   constructor() {
     const envLevel = process.env.LOG_LEVEL || 'info';
     this.logLevel = LogLevel[envLevel.toUpperCase() as keyof typeof LogLevel] || LogLevel.INFO;
+    const dir = process.env.LOG_DIR || 'logs';
+    if (path.isAbsolute(dir)) {
+      this.logDir = dir;
+    } else {
+      this.logDir = path.join(process.cwd(), dir);
+    }
+    this.logFilePath = path.join(this.logDir, 'app.log');
+  }
+
+  private writeToFile(line: string): void {
+    try {
+      if (!fs.existsSync(this.logDir!)) {
+        fs.mkdirSync(this.logDir!, { recursive: true });
+      }
+      fs.appendFileSync(this.logFilePath!, line + '\n', 'utf8');
+    } catch (_e) {
+      // игнорируем ошибки записи в файл
+    }
   }
 
   private shouldLog(level: LogLevel): boolean {
@@ -64,6 +87,8 @@ class Logger {
     };
 
     const formatted = this.formatLog(entry);
+
+    this.writeToFile(formatted);
 
     switch (level) {
       case LogLevel.DEBUG:
