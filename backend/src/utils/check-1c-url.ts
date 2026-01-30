@@ -60,10 +60,14 @@ export function checkUrl(
           ? 'Требуется аутентификация. Задайте UH_1C_USER и UH_1C_PASSWORD в backend/.env'
           : 'Проверьте логин и пароль (UH_1C_USER, UH_1C_PASSWORD)')
         : undefined;
+      // 405 Method Not Allowed означает, что эндпоинт существует, но метод не подходит (например, POST вместо GET)
+      // 400 Bad Request может означать, что эндпоинт есть, но параметры неверны (например, неверный ref)
+      // Оба случая лучше чем 404 (эндпоинт не найден)
+      const isOk = res.statusCode >= 200 && res.statusCode < 400 || res.statusCode === 405 || res.statusCode === 400;
       resolve({
         url,
         statusCode: res.statusCode,
-        ok: res.statusCode >= 200 && res.statusCode < 400,
+        ok: isOk,
         hint
       });
     });
