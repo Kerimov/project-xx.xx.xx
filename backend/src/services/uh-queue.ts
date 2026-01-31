@@ -293,6 +293,33 @@ export class UHQueueService {
       failed: parseInt(result.rows.find(r => r.status === 'Failed')?.count || '0')
     };
   }
+
+  /**
+   * Повтор задачи в очереди: сброс в Pending, retry_count = 0, очистка ошибки.
+   * Для теста — не нужно создавать новый документ.
+   */
+  async retryQueueItem(queueItemId: string): Promise<void> {
+    const result = await pool.query(
+      `UPDATE uh_integration_queue
+       SET status = 'Pending', retry_count = 0, error_message = NULL,
+           processed_at = NULL, completed_at = NULL
+       WHERE id = $1
+       RETURNING id`,
+      [queueItemId]
+    );
+    if (result.rows.length === 0) {
+      throw new Error(`Queue item ${queueItemId} not found`);
+    }
+    logger.info('Queue item retry', { queueItemId });
+  }
+
+  /**
+   * Переотправить документ: добавить в очередь новую задачу (Создание/обновление).
+   * Для теста — один и тот же документ можно отправлять многократно.
+   */
+  async resendDocument(documentId: string): Promise<string> {
+    return this.enqueue(documentId, 'UpsertDocument');
+  }
 }
 
 export const uhQueueService = new UHQueueService();

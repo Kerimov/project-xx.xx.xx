@@ -77,6 +77,31 @@ adminRouter.get('/queue/items', async (req: Request, res: Response) => {
   }
 });
 
+// Повтор задачи в очереди (сброс в Pending, 0 попыток)
+adminRouter.post('/queue/items/:id/retry', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await uhQueueService.retryQueueItem(id);
+    res.json({ data: { success: true, message: 'Задача поставлена в очередь повторно' } });
+  } catch (error: any) {
+    res.status(error.message?.includes('not found') ? 404 : 500).json({ error: { message: error.message } });
+  }
+});
+
+// Переотправить документ в 1С (новая задача в очереди)
+adminRouter.post('/queue/resend', async (req: Request, res: Response) => {
+  try {
+    const { documentId } = req.body || {};
+    if (!documentId) {
+      return res.status(400).json({ error: { message: 'Укажите documentId в теле запроса' } });
+    }
+    const queueId = await uhQueueService.resendDocument(documentId);
+    res.json({ data: { success: true, queueId, message: 'Документ добавлен в очередь' } });
+  } catch (error: any) {
+    res.status(500).json({ error: { message: error.message } });
+  }
+});
+
 // Ручной запуск синхронизации НСИ (доступен всем авторизованным пользователям)
 adminRouter.post('/nsi/sync', async (req: Request, res: Response) => {
   try {

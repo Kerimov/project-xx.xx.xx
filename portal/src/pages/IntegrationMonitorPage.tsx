@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, Table, Tag, Typography, Statistic, Row, Col, Button, Space, message, Spin, Alert, Tooltip, Input } from 'antd';
-import { ReloadOutlined, SyncOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SyncOutlined, RedoOutlined, SendOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
 import dayjs from 'dayjs';
 
@@ -38,6 +38,7 @@ export function IntegrationMonitorPage() {
   const [authDebugPassword, setAuthDebugPassword] = useState('');
   const [authInfo, setAuthInfo] = useState<{ baseUrl: string; username: string; passwordSet: boolean; insecureTls: boolean } | null>(null);
   const [lastResponse, setLastResponse] = useState<any | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -122,6 +123,59 @@ export function IntegrationMonitorPage() {
     }
   };
 
+  const copyErrorText = () => {
+    if (!lastResponse) {
+      message.warning('Нет данных для копирования. Нажмите «Обновить».');
+      return;
+    }
+    let textToCopy: string;
+    const body = lastResponse.bodyPreview ?? lastResponse.body;
+    if (body) {
+      try {
+        const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+        if (parsed && typeof parsed.errorMessage === 'string') {
+          textToCopy = parsed.errorMessage;
+        } else {
+          textToCopy = typeof body === 'string' ? body : JSON.stringify(parsed, null, 2);
+        }
+      } catch {
+        textToCopy = typeof body === 'string' ? body : JSON.stringify(lastResponse, null, 2);
+      }
+    } else {
+      textToCopy = JSON.stringify(lastResponse, null, 2);
+    }
+    navigator.clipboard.writeText(textToCopy).then(
+      () => message.success('Текст ошибки скопирован'),
+      () => message.error('Не удалось скопировать')
+    );
+  };
+
+  const handleRetry = async (queueItemId: string) => {
+    try {
+      setActionLoadingId(queueItemId);
+      await api.admin.queue.retryItem(queueItemId);
+      message.success('Задача поставлена в очередь повторно');
+      await loadData();
+    } catch (error: any) {
+      message.error(error.message || 'Ошибка повтора');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleResend = async (documentId: string, queueItemId: string) => {
+    try {
+      setActionLoadingId(queueItemId);
+      await api.admin.queue.resendDocument(documentId);
+      message.success('Документ добавлен в очередь');
+      await loadData();
+    } catch (error: any) {
+      message.error(error.message || 'Ошибка переотправки');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   useEffect(() => {
     loadData();
     loadAuthInfo();
@@ -173,6 +227,35 @@ export function IntegrationMonitorPage() {
       dataIndex: 'completedAt',
       key: 'completedAt',
       render: (date: string | null) => date ? dayjs(date).format('DD.MM.YYYY HH:mm:ss') : '-'
+    },
+    {
+      title: 'Действия',
+      key: 'actions',
+      width: 180,
+      render: (_: unknown, record: any) => (
+        <Space size="small">
+          {(record.status === 'Failed' || record.status === 'Completed') && (
+            <Button
+              type="link"
+              size="small"
+              icon={<RedoOutlined />}
+              loading={actionLoadingId === record.id}
+              onClick={() => handleRetry(record.id)}
+            >
+              Повторить
+            </Button>
+          )}
+          <Button
+            type="link"
+            size="small"
+            icon={<SendOutlined />}
+            loading={actionLoadingId === record.id}
+            onClick={() => handleResend(record.documentId, record.id)}
+          >
+            Переотправить
+          </Button>
+        </Space>
+      )
     },
     {
       title: 'Ошибка',
@@ -344,6 +427,9 @@ export function IntegrationMonitorPage() {
         <Card title="Последний ответ 1С">
           <Space wrap>
             <Button onClick={loadLastResponse}>Обновить</Button>
+            <Button onClick={copyErrorText} disabled={!lastResponse}>
+              Копировать текст ошибки
+            </Button>
           </Space>
           {lastResponse ? (
             <pre style={{ marginTop: 12, whiteSpace: 'pre-wrap' }}>

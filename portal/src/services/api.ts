@@ -322,7 +322,16 @@ export const api = {
           processedAt?: string;
           completedAt?: string;
         }> }>(`/admin/queue/items${params.toString() ? `?${params.toString()}` : ''}`);
-      }
+      },
+      retryItem: (queueItemId: string) =>
+        request<{ data: { success: boolean; message: string } }>(`/admin/queue/items/${queueItemId}/retry`, {
+          method: 'POST'
+        }),
+      resendDocument: (documentId: string) =>
+        request<{ data: { success: boolean; queueId: string; message: string } }>('/admin/queue/resend', {
+          method: 'POST',
+          body: JSON.stringify({ documentId })
+        })
     },
     nsi: {
       sync: () => request<{ data: { success: boolean; message: string } }>('/admin/nsi/sync', { method: 'POST' })
