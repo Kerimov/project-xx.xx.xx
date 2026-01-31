@@ -102,13 +102,18 @@ adminRouter.post('/queue/resend', async (req: Request, res: Response) => {
   }
 });
 
-// Ручной запуск синхронизации НСИ (доступен всем авторизованным пользователям)
+// Ручной запуск синхронизации НСИ (доступен всем авторизованным пользователям). Возвращает результат и ошибки.
 adminRouter.post('/nsi/sync', async (req: Request, res: Response) => {
   try {
-    await nsiSyncService.manualSync();
-    res.json({ data: { success: true, message: 'NSI sync started' } });
+    const result = await nsiSyncService.manualSync();
+    res.json({ data: result });
   } catch (error: any) {
-    res.status(500).json({ error: { message: error.message } });
+    res.status(500).json({
+      error: {
+        message: error.message,
+        data: { success: false, synced: 0, total: 0, failed: 0, errors: [{ type: 'System', id: '', message: error.message }] }
+      }
+    });
   }
 });
 

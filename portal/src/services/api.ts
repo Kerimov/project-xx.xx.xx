@@ -334,7 +334,18 @@ export const api = {
         })
     },
     nsi: {
-      sync: () => request<{ data: { success: boolean; message: string } }>('/admin/nsi/sync', { method: 'POST' })
+      sync: () =>
+        request<{
+          data: {
+            success: boolean;
+            synced: number;
+            total: number;
+            failed: number;
+            errors: Array<{ type: string; id: string; name?: string; message: string }>;
+            version?: number;
+            message?: string;
+          };
+        }>('/admin/nsi/sync', { method: 'POST' })
     }
   }
 };

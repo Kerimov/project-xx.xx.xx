@@ -4,6 +4,23 @@ import { pool } from '../db/connection.js';
 import { uhIntegrationService } from './uh-integration.js';
 import { logger } from '../utils/logger.js';
 
+export interface NSISyncError {
+  type: string;
+  id: string;
+  name?: string;
+  message: string;
+}
+
+export interface NSISyncResult {
+  success: boolean;
+  synced: number;
+  total: number;
+  failed: number;
+  errors: NSISyncError[];
+  version?: number;
+  message?: string;
+}
+
 export class NSISyncService {
   private syncing = false;
   private intervalId: NodeJS.Timeout | null = null;
@@ -42,15 +59,16 @@ export class NSISyncService {
   }
 
   /**
-   * Синхронизация НСИ из УХ
+   * Синхронизация НСИ из УХ. Возвращает результат с количеством успешных/ошибочных и списком ошибок.
    */
-  async syncNSI() {
+  async syncNSI(): Promise<NSISyncResult> {
+    const emptyResult: NSISyncResult = { success: true, synced: 0, total: 0, failed: 0, errors: [] };
+
     if (this.syncing === false) {
-      return;
+      return emptyResult;
     }
 
     try {
-      // Получаем последнюю версию синхронизации
       const versionResult = await pool.query(
         'SELECT version FROM nsi_sync_state ORDER BY synced_at DESC LIMIT 1'
       );
@@ -64,30 +82,36 @@ export class NSISyncService {
 
       logger.info('Syncing NSI from UH', { version: sinceVersion });
 
-      // Запрашиваем дельту НСИ из УХ
       const delta = await uhIntegrationService.getNSIDelta({
         version: sinceVersion
       });
 
       if (delta.items.length === 0) {
         logger.info('NSI is up to date');
-        return;
+        return { ...emptyResult, message: 'НСИ актуальна' };
       }
 
       logger.info('Received NSI items from UH', { count: delta.items.length });
 
-      // Обрабатываем элементы НСИ
       let synced = 0;
+      const errors: NSISyncError[] = [];
+
       for (const item of delta.items) {
         try {
           await this.processNSIItem(item);
           synced++;
         } catch (error: any) {
+          const msg = error?.message || String(error);
           logger.error(`Failed to sync NSI item`, error, { itemId: item.id, itemType: item.type });
+          errors.push({
+            type: item.type || 'Unknown',
+            id: item.id || '',
+            name: item.name || item.data?.name,
+            message: msg
+          });
         }
       }
 
-      // Сохраняем версию синхронизации
       await pool.query(
         `INSERT INTO nsi_sync_state (version, items_synced, synced_at)
          VALUES ($1, $2, NOW())
@@ -98,9 +122,28 @@ export class NSISyncService {
 
       this.lastSyncVersion = delta.version;
 
-      logger.info('NSI sync completed', { synced, total: delta.items.length, version: delta.version });
+      const result: NSISyncResult = {
+        success: errors.length === 0,
+        synced,
+        total: delta.items.length,
+        failed: errors.length,
+        errors,
+        version: delta.version
+      };
+
+      logger.info('NSI sync completed', result);
+      return result;
     } catch (error: any) {
+      const msg = error?.message || String(error);
       logger.error('NSI sync failed', error);
+      return {
+        success: false,
+        synced: 0,
+        total: 0,
+        failed: 0,
+        errors: [{ type: 'System', id: '', message: msg }],
+        message: msg
+      };
     }
   }
 
@@ -252,11 +295,20 @@ export class NSISyncService {
   }
 
   /**
-   * Ручной запуск синхронизации
+   * Ручной запуск синхронизации. Возвращает результат с ошибками для вывода в UI.
+   * Всегда выполняет синхронизацию (не зависит от флага syncing).
    */
-  async manualSync() {
+  async manualSync(): Promise<NSISyncResult> {
     logger.info('Manual NSI sync triggered');
-    await this.syncNSI();
+    const wasSyncing = this.syncing;
+    this.syncing = true;
+    try {
+      return await this.syncNSI();
+    } finally {
+      if (!wasSyncing) {
+        this.syncing = false;
+      }
+    }
   }
 }
 

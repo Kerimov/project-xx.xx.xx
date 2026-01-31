@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, Table, Tag, Typography, Statistic, Row, Col, Button, Space, message, Spin, Alert, Tooltip, Input } from 'antd';
-import { ReloadOutlined, SyncOutlined, RedoOutlined, SendOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SyncOutlined, RedoOutlined, SendOutlined, CopyOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
 import dayjs from 'dayjs';
 
@@ -39,6 +39,16 @@ export function IntegrationMonitorPage() {
   const [authInfo, setAuthInfo] = useState<{ baseUrl: string; username: string; passwordSet: boolean; insecureTls: boolean } | null>(null);
   const [lastResponse, setLastResponse] = useState<any | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [nsiSyncLoading, setNsiSyncLoading] = useState(false);
+  const [nsiSyncResult, setNsiSyncResult] = useState<{
+    success: boolean;
+    synced: number;
+    total: number;
+    failed: number;
+    errors: Array<{ type: string; id: string; name?: string; message: string }>;
+    version?: number;
+    message?: string;
+  } | null>(null);
 
   const loadData = async () => {
     try {
@@ -58,10 +68,46 @@ export function IntegrationMonitorPage() {
 
   const handleSyncNSI = async () => {
     try {
-      await api.admin.nsi.sync();
-      message.success('Синхронизация НСИ запущена');
+      setNsiSyncLoading(true);
+      setNsiSyncResult(null);
+      const res = await api.admin.nsi.sync();
+      const data = res.data;
+      setNsiSyncResult(data);
+      if (data.errors?.length) {
+        message.warning(
+          `Синхронизация НСИ: ${data.synced} из ${data.total} записей; ошибок: ${data.failed}`
+        );
+      } else if (data.total === 0 && data.message) {
+        message.info(data.message);
+      } else {
+        message.success(
+          data.total > 0
+            ? `Синхронизация НСИ завершена: ${data.synced} из ${data.total} записей`
+            : 'Синхронизация НСИ выполнена'
+        );
+      }
     } catch (error: any) {
-      message.error('Ошибка запуска синхронизации: ' + (error.message || 'Неизвестная ошибка'));
+      const errData = (error as any)?.response?.data?.error?.data;
+      if (errData) {
+        setNsiSyncResult({
+          success: false,
+          synced: 0,
+          total: 0,
+          failed: errData.errors?.length ?? 1,
+          errors: errData.errors ?? [{ type: 'System', id: '', message: error.message }]
+        });
+      } else {
+        setNsiSyncResult({
+          success: false,
+          synced: 0,
+          total: 0,
+          failed: 1,
+          errors: [{ type: 'System', id: '', message: error.message || 'Неизвестная ошибка' }]
+        });
+      }
+      message.error('Ошибка синхронизации НСИ: ' + (error.message || 'Неизвестная ошибка'));
+    } finally {
+      setNsiSyncLoading(false);
     }
   };
 
@@ -121,6 +167,22 @@ export function IntegrationMonitorPage() {
     } catch {
       setLastResponse(null);
     }
+  };
+
+  const copyNSIErrors = () => {
+    if (!nsiSyncResult?.errors?.length) {
+      message.warning('Нет ошибок НСИ для копирования.');
+      return;
+    }
+    const lines = nsiSyncResult.errors.map(
+      (e: { type: string; id: string; name?: string; message: string }) =>
+        `[${e.type}] ${e.id}${e.name ? ' "' + e.name + '"' : ''}: ${e.message}`
+    );
+    const textToCopy = lines.join('\n');
+    navigator.clipboard.writeText(textToCopy).then(
+      () => message.success('Ошибки НСИ скопированы'),
+      () => message.error('Не удалось скопировать')
+    );
   };
 
   const copyErrorText = () => {
@@ -303,10 +365,63 @@ export function IntegrationMonitorPage() {
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
             Обновить
           </Button>
-          <Button icon={<SyncOutlined />} onClick={handleSyncNSI}>
+          <Button icon={<SyncOutlined />} onClick={handleSyncNSI} loading={nsiSyncLoading}>
             Синхронизировать НСИ
           </Button>
         </Space>
+
+        {nsiSyncResult && (
+          <Card title="Результат синхронизации НСИ">
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Row gutter={16}>
+                <Col span={6}>
+                  <Statistic title="Всего записей" value={nsiSyncResult.total} />
+                </Col>
+                <Col span={6}>
+                  <Statistic title="Синхронизировано" value={nsiSyncResult.synced} valueStyle={{ color: '#3f8600' }} />
+                </Col>
+                <Col span={6}>
+                  <Statistic title="Ошибок" value={nsiSyncResult.failed} valueStyle={{ color: nsiSyncResult.failed ? '#cf1322' : undefined }} />
+                </Col>
+              </Row>
+            </Space>
+          </Card>
+        )}
+
+        {nsiSyncResult?.errors && nsiSyncResult.errors.length > 0 && (
+          <Card
+            title="Ошибки синхронизации НСИ"
+            extra={
+              <Space>
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={handleSyncNSI}
+                  loading={nsiSyncLoading}
+                >
+                  Обновить
+                </Button>
+                <Button
+                  icon={<CopyOutlined />}
+                  onClick={copyNSIErrors}
+                >
+                  Копировать ошибку
+                </Button>
+              </Space>
+            }
+          >
+            <Table
+              size="small"
+              dataSource={nsiSyncResult.errors.map((e, i) => ({ ...e, key: i }))}
+              columns={[
+                { title: 'Тип', dataIndex: 'type', width: 120 },
+                { title: 'ID', dataIndex: 'id', ellipsis: true, width: 120 },
+                { title: 'Наименование', dataIndex: 'name', ellipsis: true },
+                { title: 'Сообщение', dataIndex: 'message', ellipsis: true }
+              ]}
+              pagination={nsiSyncResult.errors.length > 10 ? { pageSize: 10 } : false}
+            />
+          </Card>
+        )}
 
         <Row gutter={16}>
           <Col span={6}>
