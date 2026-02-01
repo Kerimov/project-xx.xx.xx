@@ -39,6 +39,18 @@ export function OrganizationSelect({ value, onChange, ...props }: OrganizationSe
     loadOrganizations();
   }, []);
 
+  // Если значение задано (например, из сохранённого документа), но организации ещё нет в списке — подгрузить по id, чтобы отображалось наименование, а не GUID
+  useEffect(() => {
+    if (!value) return;
+    if (organizations.some((o) => o.id === value)) return;
+    api.nsi
+      .getOrganization(value)
+      .then((res) => {
+        if (res?.data) setOrganizations((prev) => [res.data, ...prev]);
+      })
+      .catch(() => {});
+  }, [value]);
+
   const handleSearch = (search: string) => {
     setSearchValue(search);
     if (search.length >= 2 || search.length === 0) {

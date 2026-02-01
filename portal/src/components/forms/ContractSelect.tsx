@@ -57,12 +57,8 @@ export function ContractSelect({
   }, [organizationId, counterpartyId]);
 
   const loadItems = async () => {
-    const response = await api.nsi.contracts(organizationId, undefined);
-    let data = (response.data || []) as Contract[];
-    if (counterpartyId) {
-      data = data.filter((c) => c.counterpartyId === counterpartyId);
-    }
-    return data;
+    const response = await api.nsi.contracts(organizationId, undefined, counterpartyId);
+    return (response.data || []) as Contract[];
   };
 
   return (

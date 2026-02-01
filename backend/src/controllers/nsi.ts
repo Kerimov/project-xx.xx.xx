@@ -165,9 +165,11 @@ export async function getContracts(req: Request, res: Response, next: NextFuncti
     const params: any[] = [];
     let paramIndex = 1;
     
+    // Договоры с данной организацией или без организации (organization_id IS NULL после синхронизации из 1С)
     if (organizationId) {
-      query += ` AND c.organization_id = $${paramIndex++}`;
+      query += ` AND (c.organization_id = $${paramIndex} OR c.organization_id IS NULL)`;
       params.push(organizationId);
+      paramIndex++;
     }
     
     if (counterpartyId) {

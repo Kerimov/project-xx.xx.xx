@@ -35,6 +35,10 @@ const DATA_LABELS: Record<string, string> = {
   functionalDirection: 'Функциональное направление',
   responsible: 'Ответственный',
   governmentContract: 'Государственный контракт',
+  priceType: 'Вид цены',
+  comment: 'Комментарий',
+  signedDate: 'Дата заключения',
+  isPrimary: 'Основной договор',
 };
 
 // Порядок полей по секциям — все поля договора выводятся на форму (пустые как «—»).
@@ -60,6 +64,10 @@ const SECTION_OTHER_KEYS: string[] = [
   'functionalDirection',
   'responsible',
   'governmentContract',
+  'priceType',
+  'comment',
+  'signedDate',
+  'isPrimary',
 ];
 
 function formatDataValue(value: unknown): React.ReactNode {

@@ -219,10 +219,11 @@ export const api = {
     },
     getCounterparty: (id: string) => request<{ data: any }>(`/nsi/counterparties/${id}`),
 
-    contracts: (organizationId?: string, counterpartyName?: string) => {
+    contracts: (organizationId?: string, counterpartyName?: string, counterpartyId?: string) => {
       const params = new URLSearchParams();
       if (organizationId) params.append('organizationId', organizationId);
       if (counterpartyName) params.append('counterpartyName', counterpartyName);
+      if (counterpartyId) params.append('counterpartyId', counterpartyId);
       return request<{ data: any[] }>(`/nsi/contracts${params.toString() ? `?${params.toString()}` : ''}`);
     },
     getContract: (id: string) => request<{ data: any }>(`/nsi/contracts/${id}`),
