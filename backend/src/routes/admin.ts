@@ -127,6 +127,16 @@ adminRouter.post('/nsi/clear', async (req: Request, res: Response) => {
   }
 });
 
+// Добавить склады для организаций, у которых ещё нет складов (если 1С не вернула склады в НСИ).
+adminRouter.post('/nsi/seed-warehouses', async (req: Request, res: Response) => {
+  try {
+    const result = await nsiSyncService.seedWarehouses();
+    res.json({ data: result });
+  } catch (error: any) {
+    res.status(500).json({ error: { message: error.message } });
+  }
+});
+
 // Проверка прямого подключения к БД 1С:УХ (если настроено, требует прав администратора)
 adminRouter.get('/uh/db/health', requireAdmin, async (_req: Request, res: Response) => {
   try {

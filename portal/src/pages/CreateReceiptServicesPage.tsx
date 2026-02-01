@@ -19,7 +19,7 @@ import { SaveOutlined, CheckOutlined, ArrowLeftOutlined } from '@ant-design/icon
 import type { ReceiptServicesDocument, ReceiptServicesItem } from '../types/documents';
 import { api } from '../services/api';
 import { useDocumentEdit } from './documents/useDocumentEdit';
-import { AccountSelect } from '../components/forms';
+import { AccountingAccountSelect } from '../components/forms';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
@@ -248,18 +248,14 @@ export function CreateReceiptServicesPage({ documentId }: CreateReceiptServicesP
       dataIndex: 'accountId',
       key: 'accountId',
       width: 150,
-      render: (_: any, record: ReceiptServicesItem, index: number) => {
-        const organizationId = form.getFieldValue('organizationId');
-        return (
-          <AccountSelect
-            value={record.accountId}
-            onChange={(value) => updateItem(index, 'accountId', value)}
-            organizationId={organizationId}
-            placeholder="Выберите счет"
-            style={{ width: '100%' }}
-          />
-        );
-      }
+      render: (_: any, record: ReceiptServicesItem, index: number) => (
+        <AccountingAccountSelect
+          value={record.accountId}
+          onChange={(value) => updateItem(index, 'accountId', value)}
+          placeholder="Выберите счет"
+          style={{ width: '100%' }}
+        />
+      )
     },
     {
       title: 'Действия',

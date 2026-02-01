@@ -41,6 +41,7 @@ export function IntegrationMonitorPage() {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [nsiSyncLoading, setNsiSyncLoading] = useState(false);
   const [nsiClearLoading, setNsiClearLoading] = useState(false);
+  const [nsiSeedWarehousesLoading, setNsiSeedWarehousesLoading] = useState(false);
   const [nsiSyncResult, setNsiSyncResult] = useState<{
     success: boolean;
     synced: number;
@@ -126,7 +127,7 @@ export function IntegrationMonitorPage() {
           const res = await api.admin.nsi.clear();
           const { cleared, keptOrganizations } = res.data;
           message.success(
-            `Очищено: договоров ${cleared.contracts}, счетов ${cleared.accounts}, складов ${cleared.warehouses}, контрагентов ${cleared.counterparties}, организаций ${cleared.organizations}. Оставлено организаций: ${keptOrganizations}. Запустите синхронизацию НСИ.`
+            `Очищено: договоров ${cleared.contracts}, счетов ${cleared.accounts}, складов ${cleared.warehouses}, счетов учета ${cleared.accountingAccounts ?? 0}, контрагентов ${cleared.counterparties}, организаций ${cleared.organizations}. Оставлено организаций: ${keptOrganizations}. Запустите синхронизацию НСИ.`
           );
         } catch (error: any) {
           message.error('Ошибка очистки НСИ: ' + (error.message || 'Неизвестная ошибка'));
@@ -135,6 +136,19 @@ export function IntegrationMonitorPage() {
         }
       }
     });
+  };
+
+  const handleSeedWarehouses = async () => {
+    try {
+      setNsiSeedWarehousesLoading(true);
+      const res = await api.admin.nsi.seedWarehouses();
+      const added = res.data?.added ?? 0;
+      message.success(added > 0 ? `Добавлено складов: ${added}. Обновите страницу «Справочники» → «Склады».` : 'Склады уже есть у всех организаций или организаций нет.');
+    } catch (error: any) {
+      message.error('Ошибка: ' + (error.message || 'Не удалось добавить склады'));
+    } finally {
+      setNsiSeedWarehousesLoading(false);
+    }
   };
 
   const runAuthDebug = async (endpoint: string, method: string, payload?: Record<string, unknown>) => {
@@ -397,6 +411,11 @@ export function IntegrationMonitorPage() {
           <Button danger onClick={handleClearNSI} loading={nsiClearLoading}>
             Очистить НСИ
           </Button>
+          <Tooltip title="Создать склады для организаций, у которых ещё нет складов (если 1С не вернула склады в НСИ)">
+            <Button onClick={handleSeedWarehouses} loading={nsiSeedWarehousesLoading}>
+              Добавить склады для организаций
+            </Button>
+          </Tooltip>
         </Space>
 
         {nsiSyncResult && (

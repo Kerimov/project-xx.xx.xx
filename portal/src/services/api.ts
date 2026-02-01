@@ -240,7 +240,14 @@ export const api = {
       if (organizationId) params.append('organizationId', organizationId);
       return request<{ data: any[] }>(`/nsi/warehouses${params.toString() ? `?${params.toString()}` : ''}`);
     },
-    getWarehouse: (id: string) => request<{ data: any }>(`/nsi/warehouses/${id}`)
+    getWarehouse: (id: string) => request<{ data: any }>(`/nsi/warehouses/${id}`),
+
+    accountingAccounts: (search?: string) => {
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      return request<{ data: any[] }>(`/nsi/accounting-accounts${params.toString() ? `?${params.toString()}` : ''}`);
+    },
+    getAccountingAccount: (id: string) => request<{ data: any }>(`/nsi/accounting-accounts/${id}`)
   },
 
   // Подключение к БД 1С:УХ (проверка)
@@ -349,10 +356,12 @@ export const api = {
       clear: () =>
         request<{
           data: {
-            cleared: { contracts: number; accounts: number; warehouses: number; counterparties: number; organizations: number };
+            cleared: { contracts: number; accounts: number; warehouses: number; accountingAccounts: number; counterparties: number; organizations: number };
             keptOrganizations: number;
           };
-        }>('/admin/nsi/clear', { method: 'POST' })
+        }>('/admin/nsi/clear', { method: 'POST' }),
+      seedWarehouses: () =>
+        request<{ data: { added: number } }>('/admin/nsi/seed-warehouses', { method: 'POST' })
     }
   }
 };

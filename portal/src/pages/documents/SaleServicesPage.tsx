@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, Checkbox, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, CounterpartySelect, ContractSelect, AccountSelect } from '../../components/forms';
+import { OrganizationSelect, CounterpartySelect, ContractSelect, AccountingAccountSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import { useDocumentEdit } from './useDocumentEdit';
 import dayjs from 'dayjs';
@@ -245,18 +245,14 @@ export function SaleServicesPage({ documentId }: SaleServicesPageProps = {}) {
       dataIndex: 'accountId',
       key: 'accountId',
       width: 150,
-      render: (_: any, record: SaleServicesItem, index: number) => {
-        const organizationId = form.getFieldValue('organizationId');
-        return (
-          <AccountSelect
-            value={record.accountId}
-            onChange={(value) => updateItem(index, 'accountId', value)}
-            organizationId={organizationId}
-            placeholder="Выберите счет"
-            style={{ width: '100%' }}
-          />
-        );
-      }
+      render: (_: any, record: SaleServicesItem, index: number) => (
+        <AccountingAccountSelect
+          value={record.accountId}
+          onChange={(value) => updateItem(index, 'accountId', value)}
+          placeholder="Выберите счет"
+          style={{ width: '100%' }}
+        />
+      )
     },
     {
       title: 'Действия',

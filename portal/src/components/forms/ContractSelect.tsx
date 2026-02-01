@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Select, Spin, message } from 'antd';
 import { api } from '../../services/api';
+import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
 
 const { Option } = Select;
@@ -34,17 +35,11 @@ export function ContractSelect({
   const loadContracts = async () => {
     setLoading(true);
     try {
-      const response = await api.nsi.contracts(
-        organizationId,
-        undefined // counterpartyName - можно добавить позже
-      );
+      const response = await api.nsi.contracts(organizationId, undefined);
       let data = response.data || [];
-      
-      // Фильтруем по контрагенту, если указан
       if (counterpartyId) {
         data = data.filter((c: Contract) => c.counterpartyId === counterpartyId);
       }
-      
       setContracts(data);
     } catch (error: any) {
       message.error('Ошибка загрузки договоров: ' + (error.message || 'Неизвестная ошибка'));
@@ -61,38 +56,57 @@ export function ContractSelect({
     }
   }, [organizationId, counterpartyId]);
 
+  const loadItems = async () => {
+    const response = await api.nsi.contracts(organizationId, undefined);
+    let data = (response.data || []) as Contract[];
+    if (counterpartyId) {
+      data = data.filter((c) => c.counterpartyId === counterpartyId);
+    }
+    return data;
+  };
+
   return (
-    <Select
-      {...props}
-      value={value}
-      onChange={onChange}
-      showSearch
-      allowClear
-      placeholder="Выберите договор"
-      loading={loading}
-      filterOption={(input, option) =>
-        (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
-      }
-      notFoundContent={loading ? <Spin size="small" /> : organizationId ? 'Договоры не найдены' : 'Сначала выберите организацию'}
-      optionLabelProp="label"
+    <ReferenceSelectWrapper<Contract>
+      directoryTitle="Справочник договоров"
+      columns={[
+        { title: 'Наименование', dataIndex: 'name', key: 'name', ellipsis: true },
+        { title: 'Организация', dataIndex: 'organizationName', key: 'organizationName', width: 180 },
+        { title: 'Контрагент', dataIndex: 'counterpartyName', key: 'counterpartyName', width: 180 },
+      ]}
+      loadItems={loadItems}
+      onSelect={(id) => onChange?.(id)}
+      disabled={!organizationId}
+      disabledHint="Сначала выберите организацию"
     >
-      {contracts.map(contract => (
-        <Option key={contract.id} value={contract.id} label={contract.name}>
-          <div>
-            <div style={{ fontWeight: 500 }}>{contract.name}</div>
-            {contract.organizationName && (
-              <div style={{ fontSize: '12px', color: '#999' }}>
-                Орг: {contract.organizationName}
-              </div>
-            )}
-            {contract.counterpartyName && (
-              <div style={{ fontSize: '12px', color: '#999' }}>
-                Контрагент: {contract.counterpartyName}
-              </div>
-            )}
-          </div>
-        </Option>
-      ))}
-    </Select>
+      <Select
+        {...props}
+        value={value}
+        onChange={onChange}
+        showSearch
+        allowClear
+        placeholder="Выберите договор"
+        loading={loading}
+        filterOption={(input, option) =>
+          (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+        }
+        notFoundContent={loading ? <Spin size="small" /> : organizationId ? 'Договоры не найдены' : 'Сначала выберите организацию'}
+        optionLabelProp="label"
+        style={{ width: '100%' }}
+      >
+        {contracts.map(contract => (
+          <Option key={contract.id} value={contract.id} label={contract.name}>
+            <div>
+              <div style={{ fontWeight: 500 }}>{contract.name}</div>
+              {contract.organizationName && (
+                <div style={{ fontSize: '12px', color: '#999' }}>Орг: {contract.organizationName}</div>
+              )}
+              {contract.counterpartyName && (
+                <div style={{ fontSize: '12px', color: '#999' }}>Контрагент: {contract.counterpartyName}</div>
+              )}
+            </div>
+          </Option>
+        ))}
+      </Select>
+    </ReferenceSelectWrapper>
   );
 }

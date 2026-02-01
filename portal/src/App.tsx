@@ -14,7 +14,7 @@ import { ReportsPage } from './pages/ReportsPage';
 import { IntegrationMonitorPage } from './pages/IntegrationMonitorPage';
 import { UHDbConnectionPage } from './pages/UHDbConnectionPage';
 import { DocumentDetailsPage } from './pages/DocumentDetailsPage';
-import { CreateDocumentPage } from './pages/CreateDocumentPage';
+import CreateDocumentPage from './pages/CreateDocumentPage';
 import { SelectDocumentTypePage } from './pages/SelectDocumentTypePage';
 import { NSIPage } from './pages/NSIPage';
 import { OrganizationDetailsPage } from './pages/nsi/OrganizationDetailsPage';
@@ -22,6 +22,7 @@ import { CounterpartyDetailsPage } from './pages/nsi/CounterpartyDetailsPage';
 import { ContractDetailsPage } from './pages/nsi/ContractDetailsPage';
 import { AccountDetailsPage } from './pages/nsi/AccountDetailsPage';
 import { WarehouseDetailsPage } from './pages/nsi/WarehouseDetailsPage';
+import { AccountingAccountDetailsPage } from './pages/nsi/AccountingAccountDetailsPage';
 
 const { Sider } = Layout;
 
@@ -59,6 +60,7 @@ function AppLayout() {
             <Route path="/nsi/contracts/:id" element={<ContractDetailsPage />} />
             <Route path="/nsi/accounts/:id" element={<AccountDetailsPage />} />
             <Route path="/nsi/warehouses/:id" element={<WarehouseDetailsPage />} />
+            <Route path="/nsi/accounting-accounts/:id" element={<AccountingAccountDetailsPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Content>

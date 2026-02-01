@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, WarehouseSelect, AccountSelect } from '../../components/forms';
+import { OrganizationSelect, WarehouseSelect, AccountingAccountSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import { useDocumentEdit } from './useDocumentEdit';
 import dayjs from 'dayjs';
@@ -216,18 +216,14 @@ export function GoodsWriteOffPage({ documentId }: GoodsWriteOffPageProps = {}) {
       dataIndex: 'accountId',
       key: 'accountId',
       width: 150,
-      render: (_: any, record: WriteOffItem, index: number) => {
-        const organizationId = form.getFieldValue('organizationId');
-        return (
-          <AccountSelect
-            value={record.accountId}
-            onChange={(value) => updateItem(index, 'accountId', value)}
-            organizationId={organizationId}
-            placeholder="Выберите счет"
-            style={{ width: '100%' }}
-          />
-        );
-      }
+      render: (_: any, record: WriteOffItem, index: number) => (
+        <AccountingAccountSelect
+          value={record.accountId}
+          onChange={(value) => updateItem(index, 'accountId', value)}
+          placeholder="Выберите счет"
+          style={{ width: '100%' }}
+        />
+      )
     },
     {
       title: 'Действия',

@@ -1,18 +1,48 @@
 import { useState } from 'react';
-import { Tabs, Card } from 'antd';
+import { Tabs, Card, Row, Col, Button } from 'antd';
 import type { TabsProps } from 'antd';
 import {
   BankOutlined,
   TeamOutlined,
   FileTextOutlined,
   CreditCardOutlined,
-  ShopOutlined
+  ShopOutlined,
+  ApartmentOutlined,
+  UnorderedListOutlined
 } from '@ant-design/icons';
 import { OrganizationsList } from './nsi/OrganizationsList';
 import { CounterpartiesList } from './nsi/CounterpartiesList';
 import { ContractsList } from './nsi/ContractsList';
 import { AccountsList } from './nsi/AccountsList';
 import { WarehousesList } from './nsi/WarehousesList';
+import { AccountingAccountsList } from './nsi/AccountingAccountsList';
+
+function AnalyticsTabContent({ onSelectTab }: { onSelectTab: (key: string) => void }) {
+  return (
+    <div style={{ padding: '16px 0' }}>
+      <p style={{ marginBottom: 24, color: '#666' }}>
+        Аналитики для документов: договоры, склады, банковские счета. Выберите справочник для просмотра.
+      </p>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={12} lg={8}>
+          <Card size="small" title={<><FileTextOutlined /> Договоры</>} extra={<Button type="link" onClick={() => onSelectTab('contracts')}>Открыть</Button>}>
+            Договоры с контрагентами по организациям.
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={8}>
+          <Card size="small" title={<><ShopOutlined /> Склады</>} extra={<Button type="link" onClick={() => onSelectTab('warehouses')}>Открыть</Button>}>
+            Склады организаций.
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={8}>
+          <Card size="small" title={<><CreditCardOutlined /> Банковские счета</>} extra={<Button type="link" onClick={() => onSelectTab('accounts')}>Открыть</Button>}>
+            Банковские счета организаций.
+          </Card>
+        </Col>
+      </Row>
+    </div>
+  );
+}
 
 export function NSIPage() {
   const [activeTab, setActiveTab] = useState('organizations');
@@ -37,6 +67,16 @@ export function NSIPage() {
         </span>
       ),
       children: <CounterpartiesList />,
+    },
+    {
+      key: 'analytics',
+      label: (
+        <span>
+          <ApartmentOutlined />
+          Аналитики
+        </span>
+      ),
+      children: <AnalyticsTabContent onSelectTab={setActiveTab} />,
     },
     {
       key: 'contracts',
@@ -67,6 +107,16 @@ export function NSIPage() {
         </span>
       ),
       children: <WarehousesList />,
+    },
+    {
+      key: 'accounting-accounts',
+      label: (
+        <span>
+          <UnorderedListOutlined />
+          План счетов
+        </span>
+      ),
+      children: <AccountingAccountsList />,
     },
   ];
 

@@ -30,9 +30,10 @@ import { GoodsTransferPage } from './documents/GoodsTransferPage';
 import { InventoryPage } from './documents/InventoryPage';
 import { GoodsWriteOffPage } from './documents/GoodsWriteOffPage';
 import { GoodsReceiptPage } from './documents/GoodsReceiptPage';
+import { ReceiptGoodsPage } from './documents/ReceiptGoodsPage';
 import { api } from '../services/api';
 
-export function CreateDocumentPage() {
+export default function CreateDocumentPage() {
   const navigate = useNavigate();
   const { type, id } = useParams<{ type?: string; id?: string }>();
   
@@ -126,8 +127,8 @@ export function CreateDocumentPage() {
     case 'GoodsReceipt':
       return <GoodsReceiptPage documentId={id} />;
     case 'ReceiptGoods':
+      return <ReceiptGoodsPage documentId={id} />;
     default:
-      // По умолчанию показываем форму "Поступление товаров"
       return <GoodsReceiptPage documentId={id} />;
   }
 }

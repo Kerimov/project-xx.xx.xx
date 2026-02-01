@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Select, Spin, message } from 'antd';
 import { api } from '../../services/api';
+import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
 
 const { Option } = Select;
@@ -48,36 +49,53 @@ export function WarehouseSelect({
     }
   }, [organizationId]);
 
+  const loadItems = async () => {
+    const response = await api.nsi.warehouses(organizationId);
+    return (response.data || []) as Warehouse[];
+  };
+
   return (
-    <Select
-      {...props}
-      value={value}
-      onChange={onChange}
-      showSearch
-      allowClear
-      placeholder="Выберите склад"
-      loading={loading}
-      filterOption={(input, option) =>
-        (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
-      }
-      notFoundContent={loading ? <Spin size="small" /> : organizationId ? 'Склады не найдены' : 'Сначала выберите организацию'}
-      optionLabelProp="label"
+    <ReferenceSelectWrapper<Warehouse>
+      directoryTitle="Справочник складов"
+      columns={[
+        { title: 'Наименование', dataIndex: 'name', key: 'name', ellipsis: true },
+        { title: 'Код', dataIndex: 'code', key: 'code', width: 120 },
+        { title: 'Организация', dataIndex: 'organizationName', key: 'organizationName', width: 180 },
+      ]}
+      loadItems={loadItems}
+      onSelect={(id) => onChange?.(id)}
+      disabled={!organizationId}
+      disabledHint="Сначала выберите организацию"
     >
-      {warehouses.map(warehouse => (
-        <Option key={warehouse.id} value={warehouse.id} label={warehouse.name}>
-          <div>
-            <div style={{ fontWeight: 500 }}>{warehouse.name}</div>
-            {warehouse.code && (
-              <div style={{ fontSize: '12px', color: '#999' }}>Код: {warehouse.code}</div>
-            )}
-            {warehouse.organizationName && (
-              <div style={{ fontSize: '12px', color: '#999' }}>
-                Орг: {warehouse.organizationName}
-              </div>
-            )}
-          </div>
-        </Option>
-      ))}
-    </Select>
+      <Select
+        {...props}
+        value={value}
+        onChange={onChange}
+        showSearch
+        allowClear
+        placeholder="Выберите склад"
+        loading={loading}
+        filterOption={(input, option) =>
+          (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+        }
+        notFoundContent={loading ? <Spin size="small" /> : organizationId ? 'Склады не найдены' : 'Сначала выберите организацию'}
+        optionLabelProp="label"
+        style={{ width: '100%' }}
+      >
+        {warehouses.map(warehouse => (
+          <Option key={warehouse.id} value={warehouse.id} label={warehouse.name}>
+            <div>
+              <div style={{ fontWeight: 500 }}>{warehouse.name}</div>
+              {warehouse.code && (
+                <div style={{ fontSize: '12px', color: '#999' }}>Код: {warehouse.code}</div>
+              )}
+              {warehouse.organizationName && (
+                <div style={{ fontSize: '12px', color: '#999' }}>Орг: {warehouse.organizationName}</div>
+              )}
+            </div>
+          </Option>
+        ))}
+      </Select>
+    </ReferenceSelectWrapper>
   );
 }

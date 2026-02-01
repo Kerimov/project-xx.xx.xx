@@ -93,8 +93,8 @@ export class NSISyncService {
 
       logger.info('Received NSI items from UH', { count: delta.items.length });
 
-      // Порядок обработки по зависимостям: Organization → Counterparty → Contract, Warehouse, Account
-      const order: string[] = ['Organization', 'Counterparty', 'Contract', 'Warehouse', 'Account'];
+      // Порядок обработки по зависимостям: Organization → Counterparty → Contract, Warehouse, Account, AccountingAccount
+      const order: string[] = ['Organization', 'Counterparty', 'Contract', 'Warehouse', 'Account', 'AccountingAccount'];
       const byType = new Map<string, typeof delta.items>();
       for (const t of order) byType.set(t, []);
       for (const item of delta.items) {
@@ -178,6 +178,9 @@ export class NSISyncService {
       case 'Account':
         await this.syncAccount(item);
         break;
+      case 'AccountingAccount':
+        await this.syncAccountingAccount(item);
+        break;
       default:
         logger.warn('Unknown NSI item type', { itemType: item.type, itemId: item.id });
     }
@@ -227,7 +230,7 @@ export class NSISyncService {
    */
   private async syncOrganization(item: any) {
     const code = item.code || item.data?.code || '';
-    const name = this.fallbackName(item);
+    const name = (this.fallbackName(item) || 'Организация без наименования').trim();
     const inn = item.data?.inn || null;
 
     await pool.query(
@@ -276,6 +279,10 @@ export class NSISyncService {
     const name = this.fallbackName(item);
     const organizationId = item.data?.organizationId || null;
     const counterpartyId = item.data?.counterpartyId || null;
+    const dataToStore = {
+      ...(item.data && typeof item.data === 'object' ? item.data : {}),
+      code: item.code ?? item.data?.code ?? null,
+    };
 
     if (counterpartyId) {
       await this.ensureCounterpartyExists(counterpartyId);
@@ -286,7 +293,7 @@ export class NSISyncService {
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (id) DO UPDATE
        SET name = $2, organization_id = $3, counterparty_id = $4, data = $5, updated_at = NOW()`,
-      [item.id, name, organizationId, counterpartyId, JSON.stringify(item.data)]
+      [item.id, name, organizationId, counterpartyId, JSON.stringify(dataToStore)]
     );
   }
 
@@ -330,16 +337,33 @@ export class NSISyncService {
   }
 
   /**
+   * Синхронизация счёта учета (план счетов из 1С УХ).
+   */
+  private async syncAccountingAccount(item: any) {
+    const code = item.code ?? item.data?.code ?? null;
+    const name = this.fallbackName(item);
+
+    await pool.query(
+      `INSERT INTO accounting_accounts (id, code, name, data)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (id) DO UPDATE
+       SET code = COALESCE(EXCLUDED.code, accounting_accounts.code), name = EXCLUDED.name, data = EXCLUDED.data, updated_at = NOW()`,
+      [item.id, code, name, JSON.stringify(item.data ?? {})]
+    );
+  }
+
+  /**
    * Очистка синхронизированных данных НСИ. Удаляются договоры, счета, склады, контрагенты,
    * организации (кроме тех, на которые ссылаются документы/пакеты/пользователи), состояние синхронизации.
    * После вызова следующая синхронизация запросит данные с version 0 (полная выгрузка).
    */
-  async clearNSIData(): Promise<{ cleared: { contracts: number; accounts: number; warehouses: number; counterparties: number; organizations: number }; keptOrganizations: number }> {
+  async clearNSIData(): Promise<{ cleared: { contracts: number; accounts: number; warehouses: number; accountingAccounts: number; counterparties: number; organizations: number }; keptOrganizations: number }> {
     const client = await pool.connect();
     try {
       const rContracts = await client.query('DELETE FROM contracts');
       const rAccounts = await client.query('DELETE FROM accounts');
       const rWarehouses = await client.query('DELETE FROM warehouses');
+      const rAccountingAccounts = await client.query('DELETE FROM accounting_accounts');
       const rCounterparties = await client.query('DELETE FROM counterparties');
       const rOrgBefore = await client.query('SELECT COUNT(*) AS c FROM organizations');
       await client.query(`
@@ -360,6 +384,7 @@ export class NSISyncService {
         contracts: rContracts.rowCount ?? 0,
         accounts: rAccounts.rowCount ?? 0,
         warehouses: rWarehouses.rowCount ?? 0,
+        accountingAccounts: rAccountingAccounts.rowCount ?? 0,
         counterparties: rCounterparties.rowCount ?? 0,
         organizations: (rOrgBefore.rows[0]?.c ?? 0) - (rOrgAfter.rows[0]?.c ?? 0)
       };
@@ -369,6 +394,34 @@ export class NSISyncService {
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * Создать склады для организаций, у которых ещё нет ни одного склада (если 1С не вернула склады в НСИ).
+   * Возвращает количество добавленных складов.
+   */
+  async seedWarehouses(): Promise<{ added: number }> {
+    const r1 = await pool.query(`
+      INSERT INTO warehouses (id, code, name, organization_id, data)
+      SELECT gen_random_uuid(), o.code || '-WH-01', 'Основной склад (' || o.name || ')', o.id, '{}'
+      FROM organizations o
+      WHERE NOT EXISTS (SELECT 1 FROM warehouses w WHERE w.organization_id = o.id)
+    `);
+    const r2 = await pool.query(`
+      INSERT INTO warehouses (id, code, name, organization_id, data)
+      SELECT gen_random_uuid(), o.code || '-WH-02', 'Склад материалов (' || o.name || ')', o.id, '{}'
+      FROM organizations o
+      WHERE NOT EXISTS (SELECT 1 FROM warehouses w WHERE w.organization_id = o.id AND w.code = o.code || '-WH-02')
+    `);
+    const r3 = await pool.query(`
+      INSERT INTO warehouses (id, code, name, organization_id, data)
+      SELECT gen_random_uuid(), o.code || '-WH-03', 'Торговый склад (' || o.name || ')', o.id, '{}'
+      FROM organizations o
+      WHERE NOT EXISTS (SELECT 1 FROM warehouses w WHERE w.organization_id = o.id AND w.code = o.code || '-WH-03')
+    `);
+    const added = (r1.rowCount ?? 0) + (r2.rowCount ?? 0) + (r3.rowCount ?? 0);
+    logger.info('Warehouses seeded for organizations', { added });
+    return { added };
   }
 
   /**

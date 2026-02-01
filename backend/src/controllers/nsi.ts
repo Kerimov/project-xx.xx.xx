@@ -24,7 +24,7 @@ export async function getOrganizations(req: Request, res: Response, next: NextFu
       data: result.rows.map(row => ({
         id: row.id,
         code: row.code,
-        name: row.name,
+        name: row.name ?? 'Без наименования',
         inn: row.inn
       }))
     });
@@ -60,7 +60,7 @@ export async function getOrganizationById(req: Request, res: Response, next: Nex
       data: {
         id: org.id,
         code: org.code,
-        name: org.name,
+        name: org.name ?? 'Без наименования',
         inn: org.inn,
         contractsCount: parseInt(contractsResult.rows[0].count),
         accountsCount: parseInt(accountsResult.rows[0].count),
@@ -370,7 +370,7 @@ export async function getWarehouses(req: Request, res: Response, next: NextFunct
 export async function getWarehouseById(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    
+
     const result = await pool.query(`
       SELECT w.id, w.code, w.name, w.organization_id, w.data,
              o.name as organization_name
@@ -378,13 +378,13 @@ export async function getWarehouseById(req: Request, res: Response, next: NextFu
       LEFT JOIN organizations o ON w.organization_id = o.id
       WHERE w.id = $1
     `, [id]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Warehouse not found' });
     }
-    
+
     const warehouse = result.rows[0];
-    
+
     res.json({
       data: {
         id: warehouse.id,
@@ -393,6 +393,70 @@ export async function getWarehouseById(req: Request, res: Response, next: NextFu
         organizationId: warehouse.organization_id,
         organizationName: warehouse.organization_name,
         data: warehouse.data
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Получение списка счетов учета (план счетов из 1С УХ)
+export async function getAccountingAccounts(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { search } = req.query;
+
+    let query = `
+      SELECT id, code, name, data
+      FROM accounting_accounts
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (search) {
+      query += ` AND (name ILIKE $${paramIndex++} OR code ILIKE $${paramIndex - 1})`;
+      params.push(`%${search}%`);
+    }
+
+    query += ' ORDER BY code NULLS LAST, name LIMIT 200';
+
+    const result = await pool.query(query, params);
+
+    res.json({
+      data: result.rows.map(row => ({
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        data: row.data
+      }))
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Получение счёта учета по ID
+export async function getAccountingAccountById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      'SELECT id, code, name, data FROM accounting_accounts WHERE id = $1',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Accounting account not found' });
+    }
+
+    const row = result.rows[0];
+
+    res.json({
+      data: {
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        data: row.data
       }
     });
   } catch (error) {
