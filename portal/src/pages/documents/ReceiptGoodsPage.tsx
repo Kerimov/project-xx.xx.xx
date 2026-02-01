@@ -72,7 +72,8 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
             hasDiscrepancies: doc.hasDiscrepancies ?? false,
             currency: doc.currency || 'RUB',
             isUPD: doc.isUPD ?? false,
-            invoiceRequired: doc.invoiceRequired || 'notRequired'
+            invoiceRequired: doc.invoiceRequired || 'notRequired',
+            receiptOperationType: doc.receiptOperationType || 'Товары'
           });
           setSelectedOrganizationId(doc.organizationId);
           setSelectedCounterpartyId(doc.counterpartyId);
@@ -120,7 +121,7 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
         vatIncluded: values.vatIncluded ?? false,
         hasDiscrepancies: values.hasDiscrepancies ?? false,
         currency: values.currency || 'RUB',
-        receiptOperationType: 'Товары (накладная, УПД)',
+        receiptOperationType: values.receiptOperationType || 'Товары',
         items: items.map((item, idx) => ({
           rowNumber: idx + 1,
           nomenclatureName: item.nomenclatureName || '',
@@ -169,7 +170,7 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
         type: 'ReceiptGoods',
         items,
         portalStatus: 'Frozen',
-        receiptOperationType: 'Товары (накладная, УПД)',
+        receiptOperationType: values.receiptOperationType || 'Товары',
         totalAmount: items.reduce((sum, item) => sum + item.totalAmount, 0),
         totalVAT: items.reduce((sum, item) => sum + item.vatAmount, 0)
       };
@@ -394,7 +395,8 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
               hasDiscrepancies: false,
               isUPD: false,
               invoiceRequired: 'notRequired',
-              currency: 'RUB'
+              currency: 'RUB',
+              receiptOperationType: 'Товары'
             }}
           >
             <BaseDocumentForm title="Основное" onSave={handleSave} onFreeze={handleFreeze} loading={loading}>
@@ -406,6 +408,23 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
               </Form.Item>
               <Form.Item label="Номер:" name="documentNumber">
                 <Input placeholder="Внутренний номер документа" />
+              </Form.Item>
+              <Form.Item label="Вид операции" name="receiptOperationType" rules={[{ required: true, message: 'Выберите вид операции' }]}>
+                <Select>
+                  <Option value="Товары">Товары</Option>
+                  <Option value="Услуги">Услуги</Option>
+                  <Option value="ОсновныеСредства">Основные средства</Option>
+                  <Option value="ПриобретениеЗемельныхУчастков">Приобретение земельных участков</Option>
+                  <Option value="ПокупкаКомиссия">Покупка комиссия</Option>
+                  <Option value="ВПереработку">В переработку</Option>
+                  <Option value="Оборудование">Оборудование</Option>
+                  <Option value="ОбъектыСтроительства">Объекты строительства</Option>
+                  <Option value="УслугиАренды">Услуги аренды</Option>
+                  <Option value="УслугиЛизинга">Услуги лизинга</Option>
+                  <Option value="УслугиФакторинга">Услуги факторинга</Option>
+                  <Option value="Топливо">Топливо</Option>
+                  <Option value="Права">Права</Option>
+                </Select>
               </Form.Item>
               <Form.Item label="от:" name="date" rules={[{ required: true, message: 'Укажите дату документа' }]}>
                 <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" showTime />

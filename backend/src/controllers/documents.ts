@@ -95,6 +95,7 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
       returnBasis: versionData?.data?.returnBasis || null,
       documentNumber: versionData?.data?.documentNumber || null,
       paymentTerms: versionData?.data?.paymentTerms || null,
+      receiptOperationType: versionData?.data?.receiptOperationType || null,
       items: versionData?.data?.items || [],
       totalAmount: row.amount || versionData?.data?.totalAmount || versionData?.data?.amount || 0,
       totalVAT: versionData?.data?.totalVAT || 0,

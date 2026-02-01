@@ -56,7 +56,7 @@ function normalizeDocumentPayload(payload: any) {
   }
 
   if (normalized.type === 'ReceiptGoods' && !normalized.receiptOperationType) {
-    normalized.receiptOperationType = 'Товары (накладная, УПД)';
+    normalized.receiptOperationType = 'Товары';
   }
 
   if (typeof amount === 'string') {

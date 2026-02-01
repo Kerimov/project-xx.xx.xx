@@ -196,6 +196,14 @@ export async function buildUHPayload(
     }
   }
 
+  // Совместимость: пробросить вид операции под альтернативными ключами
+  const receiptOperationType = (payload.receiptOperationType ?? versionData.receiptOperationType) as string | undefined;
+  if (typeof receiptOperationType === 'string' && receiptOperationType.trim()) {
+    if (payload.receiptOperationType === undefined) payload.receiptOperationType = receiptOperationType;
+    if (payload.operationType === undefined) payload.operationType = receiptOperationType;
+    if (payload.receiptOperation === undefined) payload.receiptOperation = receiptOperationType;
+  }
+
   // Табличная часть
   const rawItems = (versionData.items ?? versionData.goods ?? []) as Record<string, unknown>[];
   if (Array.isArray(rawItems) && rawItems.length > 0 && config?.hasItems) {
