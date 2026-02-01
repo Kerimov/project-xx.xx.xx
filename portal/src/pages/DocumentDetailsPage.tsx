@@ -2,7 +2,7 @@ import { Card, Col, Descriptions, Row, Space, Tabs, Tag, Typography, Button, mes
 import type { TabsProps } from 'antd';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { StopOutlined, CheckCircleOutlined, LockOutlined, EditOutlined, DeleteOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { StopOutlined, CheckCircleOutlined, LockOutlined, EditOutlined, DeleteOutlined, UploadOutlined, DownloadOutlined, CopyOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
 import dayjs from 'dayjs';
 
@@ -51,6 +51,7 @@ export function DocumentDetailsPage() {
   const [files, setFiles] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [copying, setCopying] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -201,6 +202,49 @@ export function DocumentDetailsPage() {
         }
       }
     });
+  };
+
+  const buildCopyPayload = () => {
+    return {
+      packageId: doc.packageId || null,
+      number: `${doc.number}-COPY`,
+      date: doc.date,
+      type: doc.type,
+      organizationId: doc.organizationId,
+      counterpartyName: doc.counterpartyName || null,
+      counterpartyInn: doc.counterpartyInn || null,
+      amount: doc.amount ?? doc.totalAmount ?? 0,
+      currency: doc.currency || 'RUB',
+      contractId: doc.contractId || null,
+      paymentAccountId: doc.paymentAccountId || null,
+      warehouseId: doc.warehouseId || null,
+      hasDiscrepancies: doc.hasDiscrepancies ?? false,
+      originalReceived: doc.originalReceived ?? false,
+      isUPD: doc.isUPD ?? false,
+      invoiceRequired: doc.invoiceRequired ?? false,
+      items: doc.items || [],
+      totalAmount: doc.totalAmount ?? doc.amount ?? 0,
+      totalVAT: doc.totalVAT ?? 0,
+      dueDate: doc.dueDate || null,
+      receiptBasis: doc.receiptBasis || null,
+      returnBasis: doc.returnBasis || null,
+      documentNumber: doc.documentNumber || null,
+      paymentTerms: doc.paymentTerms || null
+    };
+  };
+
+  const handleCopy = async () => {
+    if (!doc) return;
+    try {
+      setCopying(true);
+      const response = await api.documents.create(buildCopyPayload());
+      message.success('Документ скопирован');
+      navigate(`/documents/${response.data.id}/edit`);
+    } catch (error: any) {
+      message.error('Ошибка при копировании: ' + (error.message || 'Неизвестная ошибка'));
+    } finally {
+      setCopying(false);
+    }
   };
 
   if (loading) {
@@ -673,6 +717,13 @@ export function DocumentDetailsPage() {
             )}
           </Space>
           <Space style={{ flexWrap: 'nowrap' }}>
+            <Button
+              icon={<CopyOutlined />}
+              onClick={handleCopy}
+              loading={copying}
+            >
+              Копировать
+            </Button>
             {canEdit && (
               <Button 
                 type="primary"

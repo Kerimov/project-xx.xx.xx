@@ -186,7 +186,7 @@ export async function buildUHPayload(
 
   // Копируем опциональные поля из versionData, не перезатирая уже выставленные
   const optionalTopLevel = [
-    'contractId', 'dueDate', 'vatOnTop', 'vatIncluded', 'purpose',
+    'contractId', 'dueDate', 'vatOnTop', 'vatIncluded', 'purpose', 'receiptOperationType',
     'servicePeriod', 'serviceStartDate', 'serviceEndDate',
     'warehouseIdFrom', 'warehouseNameFrom', 'warehouseIdTo', 'warehouseNameTo'
   ];

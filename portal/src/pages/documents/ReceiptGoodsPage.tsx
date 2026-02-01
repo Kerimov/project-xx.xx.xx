@@ -120,6 +120,7 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
         vatIncluded: values.vatIncluded ?? false,
         hasDiscrepancies: values.hasDiscrepancies ?? false,
         currency: values.currency || 'RUB',
+        receiptOperationType: 'Товары (накладная, УПД)',
         items: items.map((item, idx) => ({
           rowNumber: idx + 1,
           nomenclatureName: item.nomenclatureName || '',
@@ -168,6 +169,7 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
         type: 'ReceiptGoods',
         items,
         portalStatus: 'Frozen',
+        receiptOperationType: 'Товары (накладная, УПД)',
         totalAmount: items.reduce((sum, item) => sum + item.totalAmount, 0),
         totalVAT: items.reduce((sum, item) => sum + item.vatAmount, 0)
       };

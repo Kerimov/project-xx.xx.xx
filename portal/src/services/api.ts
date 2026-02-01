@@ -35,6 +35,48 @@ async function request<T>(
   return response.json();
 }
 
+function normalizeDocumentPayload(payload: any) {
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  const normalized = { ...payload };
+  const amount = normalized.amount;
+  const totalAmount = normalized.totalAmount;
+  const totalVAT = normalized.totalVAT;
+  const invoiceRequired = normalized.invoiceRequired;
+  if (invoiceRequired === 'required') {
+    normalized.invoiceRequired = true;
+  } else if (invoiceRequired === 'notRequired') {
+    normalized.invoiceRequired = false;
+  } else if (invoiceRequired === 'true') {
+    normalized.invoiceRequired = true;
+  } else if (invoiceRequired === 'false') {
+    normalized.invoiceRequired = false;
+  }
+
+  if (normalized.type === 'ReceiptGoods' && !normalized.receiptOperationType) {
+    normalized.receiptOperationType = 'Товары (накладная, УПД)';
+  }
+
+  if (typeof amount === 'string') {
+    const parsed = Number(amount.replace(',', '.'));
+    normalized.amount = Number.isFinite(parsed) ? parsed : amount;
+  }
+
+  if (typeof totalAmount === 'string') {
+    const parsed = Number(totalAmount.replace(',', '.'));
+    normalized.totalAmount = Number.isFinite(parsed) ? parsed : totalAmount;
+  }
+
+  if (typeof totalVAT === 'string') {
+    const parsed = Number(totalVAT.replace(',', '.'));
+    normalized.totalVAT = Number.isFinite(parsed) ? parsed : totalVAT;
+  }
+
+  return normalized;
+}
+
 export const api = {
   // Документы
   documents: {
@@ -59,12 +101,12 @@ export const api = {
 
     create: (document: any) => request<{ data: any }>('/documents', {
       method: 'POST',
-      body: JSON.stringify(document)
+      body: JSON.stringify(normalizeDocumentPayload(document))
     }),
 
     update: (id: string, updates: any) => request<{ data: any }>(`/documents/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(updates)
+      body: JSON.stringify(normalizeDocumentPayload(updates))
     }),
 
     freeze: (id: string) => request<{ data: any }>(`/documents/${id}/freeze`, {

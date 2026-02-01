@@ -106,6 +106,7 @@ export async function createDocument(data: {
   contractId?: string;
   paymentAccountId?: string;
   warehouseId?: string;
+  receiptOperationType?: string;
   hasDiscrepancies?: boolean;
   originalReceived?: boolean;
   isUPD?: boolean;
@@ -163,6 +164,7 @@ export async function createDocument(data: {
     contractId: data.contractId,
     paymentAccountId: data.paymentAccountId,
     warehouseId: data.warehouseId,
+    receiptOperationType: data.receiptOperationType,
     hasDiscrepancies: data.hasDiscrepancies,
     originalReceived: data.originalReceived,
     isUPD: data.isUPD,
