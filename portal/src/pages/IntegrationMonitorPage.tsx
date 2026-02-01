@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Table, Tag, Typography, Statistic, Row, Col, Button, Space, message, Spin, Alert, Tooltip, Input } from 'antd';
+import { Card, Table, Tag, Typography, Statistic, Row, Col, Button, Space, message, Spin, Alert, Tooltip, Input, Modal } from 'antd';
 import { ReloadOutlined, SyncOutlined, RedoOutlined, SendOutlined, CopyOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
 import dayjs from 'dayjs';
@@ -40,6 +40,7 @@ export function IntegrationMonitorPage() {
   const [lastResponse, setLastResponse] = useState<any | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [nsiSyncLoading, setNsiSyncLoading] = useState(false);
+  const [nsiClearLoading, setNsiClearLoading] = useState(false);
   const [nsiSyncResult, setNsiSyncResult] = useState<{
     success: boolean;
     synced: number;
@@ -109,6 +110,31 @@ export function IntegrationMonitorPage() {
     } finally {
       setNsiSyncLoading(false);
     }
+  };
+
+  const handleClearNSI = () => {
+    Modal.confirm({
+      title: 'Очистить данные НСИ?',
+      content: 'Будут удалены все синхронизированные договоры, счета, склады, контрагенты и организации (организации, на которые ссылаются документы, пакеты или пользователи, останутся). После очистки запустите синхронизацию заново.',
+      okText: 'Очистить',
+      okType: 'danger',
+      cancelText: 'Отмена',
+      onOk: async () => {
+        try {
+          setNsiClearLoading(true);
+          setNsiSyncResult(null);
+          const res = await api.admin.nsi.clear();
+          const { cleared, keptOrganizations } = res.data;
+          message.success(
+            `Очищено: договоров ${cleared.contracts}, счетов ${cleared.accounts}, складов ${cleared.warehouses}, контрагентов ${cleared.counterparties}, организаций ${cleared.organizations}. Оставлено организаций: ${keptOrganizations}. Запустите синхронизацию НСИ.`
+          );
+        } catch (error: any) {
+          message.error('Ошибка очистки НСИ: ' + (error.message || 'Неизвестная ошибка'));
+        } finally {
+          setNsiClearLoading(false);
+        }
+      }
+    });
   };
 
   const runAuthDebug = async (endpoint: string, method: string, payload?: Record<string, unknown>) => {
@@ -367,6 +393,9 @@ export function IntegrationMonitorPage() {
           </Button>
           <Button icon={<SyncOutlined />} onClick={handleSyncNSI} loading={nsiSyncLoading}>
             Синхронизировать НСИ
+          </Button>
+          <Button danger onClick={handleClearNSI} loading={nsiClearLoading}>
+            Очистить НСИ
           </Button>
         </Space>
 

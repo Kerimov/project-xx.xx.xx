@@ -58,6 +58,8 @@ export interface UHPayload {
   warehouseCode?: string;
   accountName?: string;
   accountCode?: string;
+  /** Аналитика «Договор» — наименование для 1С */
+  contractName?: string;
   [key: string]: unknown;
 }
 
@@ -93,7 +95,17 @@ function normalizeItem(row: Record<string, unknown>, _config: { itemRequiredFiel
 }
 
 /**
- * Получить название и код склада по ID из НСИ портала.
+ * Получить название договора по ID из НСИ портала (аналитика «Договор»).
+ */
+async function getContractName(contractId: string | null): Promise<string | null> {
+  if (!contractId) return null;
+  const res = await pool.query('SELECT name FROM contracts WHERE id = $1', [contractId]);
+  if (res.rows.length === 0) return null;
+  return res.rows[0].name ?? null;
+}
+
+/**
+ * Получить название и код склада по ID из НСИ портала (аналитика «Склад»).
  */
 async function getWarehouseNames(warehouseId: string | null): Promise<{ name: string | null; code: string | null }> {
   if (!warehouseId) return { name: null, code: null };
@@ -140,8 +152,10 @@ export async function buildUHPayload(
 
   const warehouseId = (versionData.warehouseId ?? versionData.warehouse) as string | undefined;
   const accountId = (versionData.accountId ?? versionData.paymentAccountId) as string | undefined;
+  const contractId = (versionData.contractId ?? versionData.contract) as string | undefined;
 
-  const [warehouse, account] = await Promise.all([
+  const [contractName, warehouse, account] = await Promise.all([
+    getContractName(contractId ?? null),
     getWarehouseNames(warehouseId ?? null),
     getAccountNames(accountId ?? null)
   ]);
@@ -161,8 +175,12 @@ export async function buildUHPayload(
 
   if (document.counterparty_name) payload.counterpartyName = document.counterparty_name;
   if (document.counterparty_inn) payload.counterpartyInn = document.counterparty_inn;
+  if (contractId) payload.contractId = contractId;
+  if (contractName) payload.contractName = contractName;
+  if (warehouseId) payload.warehouseId = warehouseId;
   if (warehouse.name) payload.warehouseName = warehouse.name;
   if (warehouse.code) payload.warehouseCode = warehouse.code;
+  if (accountId) payload.accountId = accountId;
   if (account.name) payload.accountName = account.name;
   if (account.code) payload.accountCode = account.code;
 

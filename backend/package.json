@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint \"src/**/*.ts\"",
+    "migrate": "tsx scripts/run-migrate.ts",
     "create-db": "tsx scripts/create-db.ts",
     "seed-nsi": "tsx scripts/seed-nsi.ts"
   },

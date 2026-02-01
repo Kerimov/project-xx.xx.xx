@@ -93,10 +93,21 @@ export class NSISyncService {
 
       logger.info('Received NSI items from UH', { count: delta.items.length });
 
+      // Порядок обработки по зависимостям: Organization → Counterparty → Contract, Warehouse, Account
+      const order: string[] = ['Organization', 'Counterparty', 'Contract', 'Warehouse', 'Account'];
+      const byType = new Map<string, typeof delta.items>();
+      for (const t of order) byType.set(t, []);
+      for (const item of delta.items) {
+        const list = byType.get(item.type);
+        if (list) list.push(item);
+      }
+      const orderedItems: typeof delta.items = [];
+      for (const t of order) orderedItems.push(...(byType.get(t) ?? []));
+
       let synced = 0;
       const errors: NSISyncError[] = [];
 
-      for (const item of delta.items) {
+      for (const item of orderedItems) {
         try {
           await this.processNSIItem(item);
           synced++;
@@ -172,16 +183,18 @@ export class NSISyncService {
     }
   }
 
+  /** Fallback для пустого наименования (чтобы не ломать FK у договоров/счетов) */
+  private fallbackName(item: any): string {
+    const raw = (item.name || item.data?.name || item.code || item.id || 'Без наименования').toString().trim();
+    return raw || 'Без наименования';
+  }
+
   /**
    * Синхронизация контрагента
    */
   private async syncCounterparty(item: any) {
     const inn = item.data?.inn || null;
-    const name = item.name || item.data?.name || '';
-
-    if (!name) {
-      throw new Error('Counterparty name is required');
-    }
+    const name = this.fallbackName(item);
 
     // Проверяем существование контрагента
     const existing = await pool.query(
@@ -214,12 +227,8 @@ export class NSISyncService {
    */
   private async syncOrganization(item: any) {
     const code = item.code || item.data?.code || '';
-    const name = item.name || item.data?.name || '';
+    const name = this.fallbackName(item);
     const inn = item.data?.inn || null;
-
-    if (!name) {
-      throw new Error('Organization name is required');
-    }
 
     await pool.query(
       `INSERT INTO organizations (id, code, name, inn)
@@ -231,15 +240,45 @@ export class NSISyncService {
   }
 
   /**
-   * Синхронизация договора
+   * Создать контрагента-заглушку, если в 1С он не пришёл в delta (договор ссылается на него).
+   */
+  private async ensureCounterpartyExists(id: string) {
+    const existing = await pool.query('SELECT id FROM counterparties WHERE id = $1', [id]);
+    if (existing.rows.length > 0) return;
+    const stubName = `Контрагент ${id.substring(0, 8)}…`;
+    await pool.query(
+      `INSERT INTO counterparties (id, name, inn, data) VALUES ($1, $2, NULL, '{}')
+       ON CONFLICT (id) DO NOTHING`,
+      [id, stubName]
+    );
+  }
+
+  /**
+   * Создать организацию-заглушку, если в 1С она не пришла в delta (счёт ссылается на неё).
+   */
+  private async ensureOrganizationExists(id: string) {
+    const existing = await pool.query('SELECT id FROM organizations WHERE id = $1', [id]);
+    if (existing.rows.length > 0) return;
+    const stubName = `Организация ${id.substring(0, 8)}…`;
+    // code в organizations UNIQUE NOT NULL — используем id как уникальный код для заглушки
+    const stubCode = `stub-${id}`.substring(0, 50);
+    await pool.query(
+      `INSERT INTO organizations (id, code, name, inn) VALUES ($1, $2, $3, NULL)
+       ON CONFLICT (id) DO NOTHING`,
+      [id, stubCode, stubName]
+    );
+  }
+
+  /**
+   * Синхронизация договора. При отсутствии контрагента в портале создаётся заглушка.
    */
   private async syncContract(item: any) {
-    const name = item.name || item.data?.name || '';
+    const name = this.fallbackName(item);
     const organizationId = item.data?.organizationId || null;
     const counterpartyId = item.data?.counterpartyId || null;
 
-    if (!name) {
-      throw new Error('Contract name is required');
+    if (counterpartyId) {
+      await this.ensureCounterpartyExists(counterpartyId);
     }
 
     await pool.query(
@@ -256,12 +295,8 @@ export class NSISyncService {
    */
   private async syncWarehouse(item: any) {
     const code = item.code || item.data?.code || null;
-    const name = item.name || item.data?.name || '';
+    const name = this.fallbackName(item);
     const organizationId = item.data?.organizationId || null;
-
-    if (!name) {
-      throw new Error('Warehouse name is required');
-    }
 
     await pool.query(
       `INSERT INTO warehouses (id, code, name, organization_id, data)
@@ -273,16 +308,16 @@ export class NSISyncService {
   }
 
   /**
-   * Синхронизация счёта (банк/касса)
+   * Синхронизация счёта (банк/касса). При отсутствии организации в портале создаётся заглушка.
    */
   private async syncAccount(item: any) {
     const code = item.code || item.data?.code || null;
-    const name = item.name || item.data?.name || '';
+    const name = this.fallbackName(item);
     const organizationId = item.data?.organizationId || null;
     const type = item.data?.type || null;
 
-    if (!name) {
-      throw new Error('Account name is required');
+    if (organizationId) {
+      await this.ensureOrganizationExists(organizationId);
     }
 
     await pool.query(
@@ -292,6 +327,48 @@ export class NSISyncService {
        SET code = COALESCE(EXCLUDED.code, accounts.code), name = EXCLUDED.name, organization_id = EXCLUDED.organization_id, type = COALESCE(EXCLUDED.type, accounts.type), data = EXCLUDED.data, updated_at = NOW()`,
       [item.id, code, name, organizationId, type, JSON.stringify(item.data ?? {})]
     );
+  }
+
+  /**
+   * Очистка синхронизированных данных НСИ. Удаляются договоры, счета, склады, контрагенты,
+   * организации (кроме тех, на которые ссылаются документы/пакеты/пользователи), состояние синхронизации.
+   * После вызова следующая синхронизация запросит данные с version 0 (полная выгрузка).
+   */
+  async clearNSIData(): Promise<{ cleared: { contracts: number; accounts: number; warehouses: number; counterparties: number; organizations: number }; keptOrganizations: number }> {
+    const client = await pool.connect();
+    try {
+      const rContracts = await client.query('DELETE FROM contracts');
+      const rAccounts = await client.query('DELETE FROM accounts');
+      const rWarehouses = await client.query('DELETE FROM warehouses');
+      const rCounterparties = await client.query('DELETE FROM counterparties');
+      const rOrgBefore = await client.query('SELECT COUNT(*) AS c FROM organizations');
+      await client.query(`
+        DELETE FROM organizations
+        WHERE id NOT IN (
+          SELECT organization_id FROM documents WHERE organization_id IS NOT NULL
+          UNION
+          SELECT organization_id FROM packages WHERE organization_id IS NOT NULL
+          UNION
+          SELECT organization_id FROM users WHERE organization_id IS NOT NULL
+        )
+      `);
+      const rOrgAfter = await client.query('SELECT COUNT(*) AS c FROM organizations');
+      await client.query('DELETE FROM nsi_sync_state');
+      this.lastSyncVersion = 0;
+
+      const cleared = {
+        contracts: rContracts.rowCount ?? 0,
+        accounts: rAccounts.rowCount ?? 0,
+        warehouses: rWarehouses.rowCount ?? 0,
+        counterparties: rCounterparties.rowCount ?? 0,
+        organizations: (rOrgBefore.rows[0]?.c ?? 0) - (rOrgAfter.rows[0]?.c ?? 0)
+      };
+      const keptOrganizations = parseInt(String(rOrgAfter.rows[0]?.c ?? 0), 10);
+      logger.info('NSI data cleared', { cleared, keptOrganizations });
+      return { cleared, keptOrganizations };
+    } finally {
+      client.release();
+    }
   }
 
   /**

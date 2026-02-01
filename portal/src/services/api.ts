@@ -345,7 +345,14 @@ export const api = {
             version?: number;
             message?: string;
           };
-        }>('/admin/nsi/sync', { method: 'POST' })
+        }>('/admin/nsi/sync', { method: 'POST' }),
+      clear: () =>
+        request<{
+          data: {
+            cleared: { contracts: number; accounts: number; warehouses: number; counterparties: number; organizations: number };
+            keptOrganizations: number;
+          };
+        }>('/admin/nsi/clear', { method: 'POST' })
     }
   }
 };

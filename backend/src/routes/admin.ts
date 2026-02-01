@@ -117,6 +117,16 @@ adminRouter.post('/nsi/sync', async (req: Request, res: Response) => {
   }
 });
 
+// Очистка синхронизированных данных НСИ (договоры, счета, склады, контрагенты, организации). Организации, на которые ссылаются документы/пакеты/пользователи, не удаляются. После очистки можно запустить синхронизацию заново.
+adminRouter.post('/nsi/clear', async (req: Request, res: Response) => {
+  try {
+    const result = await nsiSyncService.clearNSIData();
+    res.json({ data: result });
+  } catch (error: any) {
+    res.status(500).json({ error: { message: error.message } });
+  }
+});
+
 // Проверка прямого подключения к БД 1С:УХ (если настроено, требует прав администратора)
 adminRouter.get('/uh/db/health', requireAdmin, async (_req: Request, res: Response) => {
   try {
