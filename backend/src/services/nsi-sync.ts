@@ -468,6 +468,59 @@ export class NSISyncService {
   }
 
   /**
+   * Полная очистка данных портала: очередь УХ, документы (и связанные версии/файлы/проверки/история),
+   * пакеты, НСИ (договоры, счета, склады, счета учёта, контрагенты), организации (кроме привязанных к пользователям).
+   * Пользователи не удаляются.
+   */
+  async clearPortalData(): Promise<{
+    queue: number;
+    documents: number;
+    packages: number;
+    nsi: { contracts: number; accounts: number; warehouses: number; accountingAccounts: number; counterparties: number; organizations: number };
+    keptOrganizations: number;
+  }> {
+    const client = await pool.connect();
+    try {
+      const rQueue = await client.query('DELETE FROM uh_integration_queue');
+      const rDocs = await client.query('DELETE FROM documents');
+      const rPackages = await client.query('DELETE FROM packages');
+
+      const rContracts = await client.query('DELETE FROM contracts');
+      const rAccounts = await client.query('DELETE FROM accounts');
+      const rWarehouses = await client.query('DELETE FROM warehouses');
+      const rAccountingAccounts = await client.query('DELETE FROM accounting_accounts');
+      const rCounterparties = await client.query('DELETE FROM counterparties');
+      const rOrgBefore = await client.query('SELECT COUNT(*) AS c FROM organizations');
+      await client.query(`
+        DELETE FROM organizations
+        WHERE id NOT IN (SELECT organization_id FROM users WHERE organization_id IS NOT NULL)
+      `);
+      const rOrgAfter = await client.query('SELECT COUNT(*) AS c FROM organizations');
+      await client.query('DELETE FROM nsi_sync_state');
+      this.lastSyncVersion = 0;
+
+      const result = {
+        queue: rQueue.rowCount ?? 0,
+        documents: rDocs.rowCount ?? 0,
+        packages: rPackages.rowCount ?? 0,
+        nsi: {
+          contracts: rContracts.rowCount ?? 0,
+          accounts: rAccounts.rowCount ?? 0,
+          warehouses: rWarehouses.rowCount ?? 0,
+          accountingAccounts: rAccountingAccounts.rowCount ?? 0,
+          counterparties: rCounterparties.rowCount ?? 0,
+          organizations: (rOrgBefore.rows[0]?.c ?? 0) - (rOrgAfter.rows[0]?.c ?? 0)
+        },
+        keptOrganizations: parseInt(String(rOrgAfter.rows[0]?.c ?? 0), 10)
+      };
+      logger.info('Portal data cleared', result);
+      return result;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Очистка синхронизированных данных НСИ. Удаляются договоры, счета, склады, контрагенты,
    * организации (кроме тех, на которые ссылаются документы/пакеты/пользователи), состояние синхронизации.
    * После вызова следующая синхронизация запросит данные с version 0 (полная выгрузка).

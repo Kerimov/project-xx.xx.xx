@@ -41,6 +41,7 @@ export function IntegrationMonitorPage() {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [nsiSyncLoading, setNsiSyncLoading] = useState(false);
   const [nsiClearLoading, setNsiClearLoading] = useState(false);
+  const [clearPortalDataLoading, setClearPortalDataLoading] = useState(false);
   const [nsiSeedWarehousesLoading, setNsiSeedWarehousesLoading] = useState(false);
   const [nsiClearSeededWarehousesLoading, setNsiClearSeededWarehousesLoading] = useState(false);
   const [nsiSyncResult, setNsiSyncResult] = useState<{
@@ -134,6 +135,33 @@ export function IntegrationMonitorPage() {
           message.error('Ошибка очистки НСИ: ' + (error.message || 'Неизвестная ошибка'));
         } finally {
           setNsiClearLoading(false);
+        }
+      }
+    });
+  };
+
+  const handleClearPortalData = () => {
+    Modal.confirm({
+      title: 'Очистить все данные портала?',
+      content: 'Будут удалены: очередь УХ, все документы (и версии, файлы, проверки, история), все пакеты, вся НСИ (договоры, счета, склады, счета учёта, контрагенты). Организации, привязанные к пользователям, останутся. Пользователи не удаляются. Действие необратимо.',
+      okText: 'Очистить всё',
+      okType: 'danger',
+      cancelText: 'Отмена',
+      onOk: async () => {
+        try {
+          setClearPortalDataLoading(true);
+          setNsiSyncResult(null);
+          const res = await api.admin.clearPortalData();
+          const d = res.data;
+          const n = d.nsi;
+          message.success(
+            `Очищено: очередь ${d.queue}, документов ${d.documents}, пакетов ${d.packages}; НСИ: договоров ${n.contracts}, счетов ${n.accounts}, складов ${n.warehouses}, счетов учёта ${n.accountingAccounts}, контрагентов ${n.counterparties}, организаций ${n.organizations}. Оставлено организаций: ${d.keptOrganizations}.`
+          );
+          loadData();
+        } catch (error: any) {
+          message.error('Ошибка очистки: ' + (error.message || 'Неизвестная ошибка'));
+        } finally {
+          setClearPortalDataLoading(false);
         }
       }
     });
@@ -436,6 +464,11 @@ export function IntegrationMonitorPage() {
           <Button danger onClick={handleClearNSI} loading={nsiClearLoading}>
             Очистить НСИ
           </Button>
+          <Tooltip title="Удалить все данные портала: очередь, документы, пакеты, НСИ. Организации пользователей и пользователи остаются. Требуются права администратора.">
+            <Button danger onClick={handleClearPortalData} loading={clearPortalDataLoading}>
+              Очистить данные портала
+            </Button>
+          </Tooltip>
           <Tooltip title="Создать склады для организаций, у которых ещё нет складов (если 1С не вернула склады в НСИ)">
             <Button onClick={handleSeedWarehouses} loading={nsiSeedWarehousesLoading}>
               Добавить склады для организаций

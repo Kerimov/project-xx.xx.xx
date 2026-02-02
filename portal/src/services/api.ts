@@ -428,6 +428,16 @@ export const api = {
         request<{ data: { added: number } }>('/admin/nsi/seed-warehouses', { method: 'POST' }),
       clearSeededWarehouses: () =>
         request<{ data: { cleared: number } }>('/admin/nsi/clear-seeded-warehouses', { method: 'POST' })
-    }
+    },
+    clearPortalData: () =>
+      request<{
+        data: {
+          queue: number;
+          documents: number;
+          packages: number;
+          nsi: { contracts: number; accounts: number; warehouses: number; accountingAccounts: number; counterparties: number; organizations: number };
+          keptOrganizations: number;
+        };
+      }>('/admin/clear-portal-data', { method: 'POST' })
   }
 };

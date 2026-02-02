@@ -144,6 +144,16 @@ adminRouter.post('/nsi/clear', async (req: Request, res: Response) => {
   }
 });
 
+// Полная очистка данных портала: очередь УХ, документы, пакеты, НСИ. Организации, привязанные к пользователям, остаются.
+adminRouter.post('/clear-portal-data', async (_req: Request, res: Response) => {
+  try {
+    const result = await nsiSyncService.clearPortalData();
+    res.json({ data: result });
+  } catch (error: any) {
+    res.status(500).json({ error: { message: error.message } });
+  }
+});
+
 // Добавить склады для организаций, у которых ещё нет складов (если 1С не вернула склады в НСИ).
 adminRouter.post('/nsi/seed-warehouses', async (req: Request, res: Response) => {
   try {
