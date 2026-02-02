@@ -24,8 +24,8 @@ const ALLOWED_TRANSITIONS: Record<PortalStatus, PortalStatus[]> = {
   SentToUH: ['AcceptedByUH', 'PostedInUH', 'UnpostedInUH', 'RejectedByUH'], // Переходы от УХ
   AcceptedByUH: ['PostedInUH'], // Автоматический переход
   PostedInUH: ['UnpostedInUH'], // «Отменить проведение» — проверка через sync с 1С
-  UnpostedInUH: ['Draft', 'PostedInUH'], // Как RejectedByUH: вернуть в черновик или провести повторно
-  RejectedByUH: ['Draft'], // Можно вернуть в черновик для исправления
+  UnpostedInUH: ['Draft', 'Frozen', 'PostedInUH'], // Можно снова отправить в УХ после правок
+  RejectedByUH: ['Draft', 'Frozen'], // Можно вернуть в черновик или сразу отправить в УХ
   Cancelled: [] // Финальный статус
 };
 
