@@ -9,6 +9,7 @@ import {
   NSIDeltaResponse
 } from '../types/uh-integration.js';
 import { logger } from '../utils/logger.js';
+import { normalizeUhDocumentRef } from '../utils/uh-ref.js';
 
 export class UHIntegrationService {
   private baseUrl: string;
@@ -426,12 +427,21 @@ export class UHIntegrationService {
 
   /**
    * Получение статуса документа в УХ.
-   * ref передаётся и в path, и в query: 1С ожидает ref в Запрос.ПараметрыURL (часто заполняется из query).
+   * ref = UUID без дефисов (32 hex), как в веб-клиенте ?ref=...
    */
   async getDocumentStatus(uhDocumentRef: string): Promise<UHOperationResponse> {
     try {
-      const refEncoded = encodeURIComponent(uhDocumentRef.trim());
-      const url = `${this.baseUrl}/documents/${refEncoded}/status?ref=${refEncoded}`;
+      const ref = normalizeUhDocumentRef(uhDocumentRef);
+      if (!ref) {
+        return {
+          success: false,
+          uhDocumentRef: uhDocumentRef,
+          errorCode: 'UH_ERROR',
+          errorMessage: 'Missing or invalid ref',
+          status: 'Error'
+        };
+      }
+      const url = `${this.baseUrl}/documents/${ref}/status?ref=${ref}`;
       const response = await this.requestWithRetry<UHOperationResponse>(url, {
         method: 'GET'
       });

@@ -289,7 +289,7 @@ export async function cancelDocument(documentId: string) {
     `UPDATE documents
      SET portal_status = 'Cancelled', cancelled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
      WHERE id = $1 
-       AND portal_status NOT IN ('Frozen', 'QueuedToUH', 'SentToUH', 'AcceptedByUH', 'PostedInUH')
+       AND portal_status NOT IN ('Frozen', 'QueuedToUH', 'SentToUH', 'AcceptedByUH', 'PostedInUH', 'UnpostedInUH')
      RETURNING *`,
     [documentId]
   );

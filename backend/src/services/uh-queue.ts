@@ -6,6 +6,7 @@ import { buildUHPayload } from './uh-payload.js';
 import { getUHDocumentConfig } from '../config/uh-document-types.js';
 import * as documentsRepo from '../repositories/documents.js';
 import { logger } from '../utils/logger.js';
+import { normalizeUhDocumentRef } from '../utils/uh-ref.js';
 
 export interface QueueItem {
   id: string;
@@ -241,7 +242,9 @@ export class UHQueueService {
     const updates: any = {};
 
     if (operationType === 'UpsertDocument') {
-      updates.uh_document_ref = response.uhDocumentRef;
+      updates.uh_document_ref = response.uhDocumentRef
+        ? normalizeUhDocumentRef(response.uhDocumentRef)
+        : undefined;
       updates.uh_status = response.status || 'Accepted';
       updates.portal_status = 'SentToUH';
       updates.sent_to_uh_at = new Date();

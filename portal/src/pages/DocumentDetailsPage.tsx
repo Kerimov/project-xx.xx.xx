@@ -37,6 +37,7 @@ const statusTransitionLabels: Record<string, string> = {
   SentToUH: 'Отправлен в УХ',
   AcceptedByUH: 'Принят УХ',
   PostedInUH: 'Проведен в УХ',
+  UnpostedInUH: 'Отменено проведение в УХ',
   RejectedByUH: 'Отклонен УХ'
 };
 
@@ -194,7 +195,13 @@ export function DocumentDetailsPage() {
       setSyncingUHStatus(true);
       const res = await api.documents.syncUHStatus(id);
       if (res.data.synced) {
-        message.success(res.data.uhStatus === 'Posted' ? 'Статус УХ: Проведен в УХ' : 'Статус УХ обновлён');
+        const msg =
+          res.data.uhStatus === 'Posted'
+            ? 'Статус УХ: Проведен в УХ'
+            : res.data.portalStatus === 'UnpostedInUH'
+              ? 'Статус УХ: Отменено проведение в УХ'
+              : 'Статус УХ обновлён';
+        message.success(msg);
       } else {
         message.warning(res.data.errorMessage || 'Не удалось получить статус из 1С УХ');
       }
@@ -434,11 +441,24 @@ export function DocumentDetailsPage() {
                 <Descriptions.Item label="Статус УХ">
                   <Tag color={uh.color}>{uh.text}</Tag>
                 </Descriptions.Item>
-                {doc.uhDocumentRef && (
+                {(doc.uhDocumentRef || doc.uhDocumentDisplayUrl) && (
                   <Descriptions.Item label="Ссылка на документ в 1С УХ">
-                    <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: '12px' }} copyable>
-                      {doc.uhDocumentRef}
-                    </Text>
+                    {doc.uhDocumentDisplayUrl ? (
+                      <Space direction="vertical" size={4}>
+                        <a href={doc.uhDocumentDisplayUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', wordBreak: 'break-all' }}>
+                          {doc.uhDocumentDisplayUrl}
+                        </a>
+                        {doc.uhDocumentRef && (
+                          <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: '11px' }} copyable>
+                            ref: {doc.uhDocumentRef}
+                          </Text>
+                        )}
+                      </Space>
+                    ) : (
+                      <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: '12px' }} copyable>
+                        {doc.uhDocumentRef}
+                      </Text>
+                    )}
                   </Descriptions.Item>
                 )}
               </Descriptions>

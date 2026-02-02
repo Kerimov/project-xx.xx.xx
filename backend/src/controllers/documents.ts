@@ -12,6 +12,19 @@ import {
   type PortalStatus
 } from '../services/document-status.js';
 import { validateDocument } from '../services/document-validation.js';
+import { normalizeUhDocumentRef } from '../utils/uh-ref.js';
+
+const DEFAULT_UH_DOCUMENT_TYPE = 'Документ.ПоступлениеТоваровУслуг';
+
+function buildUhDocumentDisplayUrl(uhDocumentRef: string | null | undefined): string | null {
+  const base = process.env.UH_WEB_CLIENT_BASE_URL;
+  if (!base || !uhDocumentRef) return null;
+  const ref = normalizeUhDocumentRef(uhDocumentRef);
+  if (!ref) return null;
+  const type = process.env.UH_DOCUMENT_TYPE || DEFAULT_UH_DOCUMENT_TYPE;
+  const path = base.replace(/\/$/, '') + '/' + type + '?ref=' + ref;
+  return path;
+}
 
 export async function getDocuments(req: Request, res: Response, next: NextFunction) {
   try {
@@ -108,6 +121,7 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
       portalStatus: row.portal_status,
       uhStatus: row.uh_status || 'None',
       uhDocumentRef: row.uh_document_ref || null,
+      uhDocumentDisplayUrl: buildUhDocumentDisplayUrl(row.uh_document_ref),
       version: `v${row.current_version}`,
       packageId: row.package_id,
       // Для обратной совместимости
@@ -542,6 +556,7 @@ export async function changeDocumentStatus(req: Request, res: Response, next: Ne
       'SentToUH': 'Отправлен в УХ',
       'AcceptedByUH': 'Принят УХ',
       'PostedInUH': 'Проведен в УХ',
+      'UnpostedInUH': 'Отменено проведение в УХ',
       'RejectedByUH': 'Отклонен УХ',
       'Cancelled': 'Отменен'
     };
@@ -670,7 +685,7 @@ export async function cancelDocument(req: Request, res: Response, next: NextFunc
     }
 
     // Проверяем, можно ли отменить документ
-    if (['Frozen', 'QueuedToUH', 'SentToUH', 'AcceptedByUH', 'PostedInUH'].includes(document.portal_status)) {
+    if (['Frozen', 'QueuedToUH', 'SentToUH', 'AcceptedByUH', 'PostedInUH', 'UnpostedInUH'].includes(document.portal_status)) {
       return res.status(400).json({ 
         error: { 
           message: `Нельзя отменить документ в статусе «${STATUS_LABELS_RU[document.portal_status as PortalStatus] ?? document.portal_status}»` 
@@ -810,11 +825,14 @@ export async function syncDocumentUHStatus(req: Request, res: Response, next: Ne
     }
 
     const uhStatus = response.status || 'Accepted';
+    const wasPosted = document.uh_status === 'Posted';
     const portalStatus: PortalStatus =
       uhStatus === 'Posted'
         ? 'PostedInUH'
         : uhStatus === 'Accepted'
-          ? 'AcceptedByUH'
+          ? wasPosted
+            ? 'UnpostedInUH' // В 1С отменили проведение — отражаем на портале
+            : 'AcceptedByUH'
           : (document.portal_status as PortalStatus);
 
     await pool.query(
@@ -826,9 +844,17 @@ export async function syncDocumentUHStatus(req: Request, res: Response, next: Ne
 
     const updated = await documentsRepo.getDocumentById(id);
     const user = req.user;
+    const historyLabel =
+      uhStatus === 'Posted'
+        ? 'Проведен в УХ'
+        : uhStatus === 'Accepted' && wasPosted
+          ? 'Отменено проведение в УХ'
+          : uhStatus === 'Accepted'
+            ? 'Принят УХ'
+            : uhStatus;
     await documentsRepo.addDocumentHistory(
       id,
-      `Статус УХ обновлён: ${uhStatus === 'Posted' ? 'Проведен в УХ' : uhStatus === 'Accepted' ? 'Принят УХ' : uhStatus}`,
+      `Статус УХ обновлён: ${historyLabel}`,
       user?.id || user?.username || 'system',
       user?.username || 'Система',
       document.current_version,

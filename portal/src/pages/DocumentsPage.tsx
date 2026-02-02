@@ -66,6 +66,7 @@ export function DocumentsPage() {
           SentToUH: 'processing',
           AcceptedByUH: 'success',
           PostedInUH: 'success',
+          UnpostedInUH: 'warning',
           RejectedByUH: 'warning',
           Cancelled: 'error'
         };
@@ -77,6 +78,7 @@ export function DocumentsPage() {
           SentToUH: 'Отправлен в УХ',
           AcceptedByUH: 'Принят УХ',
           PostedInUH: 'Проведен в УХ',
+          UnpostedInUH: 'Отменено проведение в УХ',
           RejectedByUH: 'Отклонен УХ',
           Cancelled: 'Отменен'
         };

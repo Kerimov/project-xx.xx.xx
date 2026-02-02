@@ -42,6 +42,7 @@ const changeStatusSchema = z.object({
     'SentToUH',
     'AcceptedByUH',
     'PostedInUH',
+    'UnpostedInUH',
     'RejectedByUH',
     'Cancelled'
   ])

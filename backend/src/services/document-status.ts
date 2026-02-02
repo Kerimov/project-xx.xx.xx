@@ -10,6 +10,7 @@ export type PortalStatus =
   | 'SentToUH'         // Отправлен в УХ - нельзя редактировать
   | 'AcceptedByUH'     // Принят УХ - нельзя редактировать
   | 'PostedInUH'       // Проведен в УХ - нельзя редактировать
+  | 'UnpostedInUH'     // Отменено проведение в УХ (был проведён, затем отменили)
   | 'RejectedByUH'     // Отклонен УХ - можно редактировать и исправить
   | 'Cancelled';        // Отменен - нельзя редактировать
 
@@ -20,9 +21,10 @@ const ALLOWED_TRANSITIONS: Record<PortalStatus, PortalStatus[]> = {
   Validated: ['Draft', 'Frozen', 'Cancelled'],
   Frozen: ['QueuedToUH'], // Автоматический переход
   QueuedToUH: ['SentToUH'], // Автоматический переход
-  SentToUH: ['AcceptedByUH', 'PostedInUH', 'RejectedByUH'], // Переходы от УХ
+  SentToUH: ['AcceptedByUH', 'PostedInUH', 'UnpostedInUH', 'RejectedByUH'], // Переходы от УХ (UnpostedInUH — через синхронизацию)
   AcceptedByUH: ['PostedInUH'], // Автоматический переход
-  PostedInUH: [], // Финальный статус
+  PostedInUH: [], // Финальный; UnpostedInUH задаётся только синхронизацией из 1С
+  UnpostedInUH: [], // Задаётся только синхронизацией; обратно в PostedInUH — через синхронизацию
   RejectedByUH: ['Draft'], // Можно вернуть в черновик для исправления
   Cancelled: [] // Финальный статус
 };
@@ -37,6 +39,7 @@ const READ_ONLY_STATUSES: PortalStatus[] = [
   'SentToUH',
   'AcceptedByUH',
   'PostedInUH',
+  'UnpostedInUH',
   'Cancelled'
 ];
 
@@ -49,6 +52,7 @@ export const STATUS_LABELS_RU: Record<PortalStatus, string> = {
   SentToUH: 'Отправлен в УХ',
   AcceptedByUH: 'Принят УХ',
   PostedInUH: 'Проведен в УХ',
+  UnpostedInUH: 'Отменено проведение в УХ',
   RejectedByUH: 'Отклонен УХ',
   Cancelled: 'Отменен'
 };
