@@ -371,7 +371,7 @@ export function ReturnFromBuyerPage({ documentId }: ReturnFromBuyerPageProps = {
             </Form.Item>
 
             <Form.Item label="Склад" name="warehouseId" rules={[{ required: true, message: 'Выберите склад' }]}>
-              <WarehouseSelect />
+              <WarehouseSelect organizationId={selectedOrganizationId} />
             </Form.Item>
 
             <Form.Item label="Основание возврата:" name="returnBasis">
@@ -422,3 +422,5 @@ export function ReturnFromBuyerPage({ documentId }: ReturnFromBuyerPageProps = {
     </div>
   );
 }
+
+export default ReturnFromBuyerPage;

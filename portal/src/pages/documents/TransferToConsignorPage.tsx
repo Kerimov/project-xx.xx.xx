@@ -29,11 +29,15 @@ export function TransferToConsignorPage({ documentId }: TransferToConsignorPageP
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [items, setItems] = useState<ConsignorItem[]>([]);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | undefined>();
+  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string | undefined>();
   const { id, isEditMode, loading, setLoading } = useDocumentEdit({
     documentId,
     form,
     navigate,
-    setItems
+    setItems,
+    setSelectedOrganizationId,
+    setSelectedCounterpartyId
   });
 
   const handleSave = async () => {
@@ -305,7 +309,7 @@ export function TransferToConsignorPage({ documentId }: TransferToConsignorPageP
             </Form.Item>
 
             <Form.Item label="Склад" name="warehouseId" rules={[{ required: true, message: 'Выберите склад' }]}>
-              <WarehouseSelect />
+              <WarehouseSelect organizationId={selectedOrganizationId} />
             </Form.Item>
           </BaseDocumentForm>
 

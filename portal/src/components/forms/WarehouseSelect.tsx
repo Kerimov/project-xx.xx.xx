@@ -17,13 +17,11 @@ interface Warehouse {
 interface WarehouseSelectProps extends Omit<SelectProps, 'options' | 'loading'> {
   value?: string;
   onChange?: (value: string) => void;
-  organizationId?: string;
 }
 
 export function WarehouseSelect({ 
   value, 
-  onChange, 
-  organizationId,
+  onChange,
   ...props 
 }: WarehouseSelectProps) {
   const [loading, setLoading] = useState(false);
@@ -32,7 +30,8 @@ export function WarehouseSelect({
   const loadWarehouses = async () => {
     setLoading(true);
     try {
-      const response = await api.nsi.warehouses(organizationId, undefined);
+      // Всегда загружаем все склады без фильтра по организации
+      const response = await api.nsi.warehouses(undefined, undefined);
       setWarehouses(response.data || []);
     } catch (error: any) {
       message.error('Ошибка загрузки складов: ' + (error.message || 'Неизвестная ошибка'));
@@ -43,17 +42,18 @@ export function WarehouseSelect({
 
   useEffect(() => {
     loadWarehouses();
-  }, [organizationId]);
+  }, []);
 
   const loadItems = useCallback(async (search?: string): Promise<Warehouse[]> => {
     try {
-      const response = await api.nsi.warehouses(organizationId, search);
+      // Всегда загружаем все склады без фильтра по организации
+      const response = await api.nsi.warehouses(undefined, search);
       const list = response?.data;
       return Array.isArray(list) ? list : [];
     } catch {
       return [];
     }
-  }, [organizationId]);
+  }, []);
 
   return (
     <ReferenceSelectWrapper<Warehouse>

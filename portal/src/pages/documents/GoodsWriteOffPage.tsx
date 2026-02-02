@@ -295,7 +295,7 @@ export function GoodsWriteOffPage({ documentId }: GoodsWriteOffPageProps = {}) {
             </Form.Item>
 
             <Form.Item label="Склад" name="warehouseId" rules={[{ required: true, message: 'Выберите склад' }]}>
-              <WarehouseSelect />
+              <WarehouseSelect organizationId={selectedOrganizationId} />
             </Form.Item>
 
             <Form.Item label="Основание списания:" name="writeOffBasis">

@@ -17,7 +17,7 @@ import { ReceivedInvoicePage } from './documents/ReceivedInvoicePage';
 import { SaleGoodsPage } from './documents/SaleGoodsPage';
 import { SaleServicesPage } from './documents/SaleServicesPage';
 import { SaleRightsPage } from './documents/SaleRightsPage';
-import { ReturnFromBuyerPage } from './documents/ReturnFromBuyerPage';
+import ReturnFromBuyerPage from './documents/ReturnFromBuyerPage';
 import { SaleAdjustmentPage } from './documents/SaleAdjustmentPage';
 import { InvoiceToBuyerPage } from './documents/InvoiceToBuyerPage';
 import { IssuedInvoicePage } from './documents/IssuedInvoicePage';

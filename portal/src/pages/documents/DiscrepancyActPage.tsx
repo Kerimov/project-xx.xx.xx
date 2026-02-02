@@ -373,7 +373,7 @@ export function DiscrepancyActPage({ documentId }: DiscrepancyActPageProps = {})
             </Form.Item>
 
             <Form.Item label="Склад" name="warehouseId" rules={[{ required: true, message: 'Выберите склад' }]}>
-              <WarehouseSelect />
+              <WarehouseSelect organizationId={selectedOrganizationId} />
             </Form.Item>
 
             <Form.Item label="Комиссия:" name="commission">

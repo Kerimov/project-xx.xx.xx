@@ -28,11 +28,13 @@ export function GoodsTransferPage({ documentId }: GoodsTransferPageProps = {}) {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [items, setItems] = useState<TransferItem[]>([]);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | undefined>();
   const { id, isEditMode, loading, setLoading } = useDocumentEdit({
     documentId,
     form,
     navigate,
-    setItems
+    setItems,
+    setSelectedOrganizationId
   });
 
   const handleSave = async () => {
@@ -233,11 +235,11 @@ export function GoodsTransferPage({ documentId }: GoodsTransferPageProps = {}) {
             </Form.Item>
 
             <Form.Item label="Склад-отправитель" name="sourceWarehouseId" rules={[{ required: true, message: 'Выберите склад-отправитель' }]}>
-              <WarehouseSelect />
+              <WarehouseSelect organizationId={selectedOrganizationId} />
             </Form.Item>
 
             <Form.Item label="Склад-получатель" name="targetWarehouseId" rules={[{ required: true, message: 'Выберите склад-получатель' }]}>
-              <WarehouseSelect />
+              <WarehouseSelect organizationId={selectedOrganizationId} />
             </Form.Item>
           </BaseDocumentForm>
 

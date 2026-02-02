@@ -70,7 +70,6 @@ export function AnalyticsSection({
                 rules={warehouseRequired ? [{ required: true, message: 'Выберите склад' }] : undefined}
               >
                 <WarehouseSelect
-                  organizationId={organizationId}
                   placeholder="Склад (субконто)"
                 />
               </Form.Item>
