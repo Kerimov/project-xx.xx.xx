@@ -425,18 +425,6 @@ export const api = {
             message?: string;
           };
         }>('/admin/nsi/warehouses/sync', { method: 'POST' }),
-      syncNomenclature: () =>
-        request<{
-          data: {
-            success: boolean;
-            synced: number;
-            total: number;
-            failed: number;
-            errors: Array<{ type: string; id: string; name?: string; message: string }>;
-            version?: number;
-            message?: string;
-          };
-        }>('/admin/nsi/nomenclature/sync', { method: 'POST' }),
       clear: () =>
         request<{
           data: {

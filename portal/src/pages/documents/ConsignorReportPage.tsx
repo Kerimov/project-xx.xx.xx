@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, CounterpartySelect, ContractSelect } from '../../components/forms';
+import { OrganizationSelect, CounterpartySelect, ContractSelect, NomenclatureSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import { useDocumentEdit } from './useDocumentEdit';
 import dayjs from 'dayjs';
@@ -14,6 +14,7 @@ const { Option } = Select;
 interface ReportItem {
   id?: string;
   rowNumber?: number;
+  nomenclatureId?: string;
   nomenclatureName: string;
   quantity: number;
   unit: string;
@@ -107,6 +108,7 @@ export function ConsignorReportPage({ documentId }: ConsignorReportPageProps = {
 
   const addItem = () => {
     const newItem: ReportItem = {
+      nomenclatureId: undefined,
       nomenclatureName: '',
       quantity: 1,
       unit: 'шт',
@@ -131,6 +133,16 @@ export function ConsignorReportPage({ documentId }: ConsignorReportPageProps = {
     setItems(updated);
   };
 
+  const updateItemNomenclature = (index: number, nomenclatureId: string, nomenclatureName: string) => {
+    const updated = [...items];
+    updated[index] = { ...updated[index], nomenclatureId, nomenclatureName };
+    const item = updated[index];
+    item.amount = (item.quantity || 0) * (item.price || 0);
+    item.commissionAmount = (item.amount * (item.commissionPercent || 0)) / 100;
+    item.totalAmount = item.amount - item.commissionAmount;
+    setItems(updated);
+  };
+
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
   };
@@ -146,12 +158,11 @@ export function ConsignorReportPage({ documentId }: ConsignorReportPageProps = {
       title: 'Номенклатура',
       dataIndex: 'nomenclatureName',
       key: 'nomenclatureName',
-      width: 250,
+      width: 280,
       render: (_: any, record: ReportItem, index: number) => (
-        <Input
-          value={record.nomenclatureName}
-          onChange={(e) => updateItem(index, 'nomenclatureName', e.target.value)}
-          placeholder="Введите наименование"
+        <NomenclatureSelect
+          value={record.nomenclatureId}
+          onChange={(id, name) => updateItemNomenclature(index, id, name)}
         />
       )
     },

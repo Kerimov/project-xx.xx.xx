@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, WarehouseSelect } from '../../components/forms';
+import { OrganizationSelect, WarehouseSelect, NomenclatureSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import { useDocumentEdit } from './useDocumentEdit';
 import dayjs from 'dayjs';
@@ -14,6 +14,7 @@ const { Option } = Select;
 interface TransferItem {
   id?: string;
   rowNumber?: number;
+  nomenclatureId?: string;
   nomenclatureName: string;
   quantity: number;
   unit: string;
@@ -94,6 +95,7 @@ export function GoodsTransferPage({ documentId }: GoodsTransferPageProps = {}) {
 
   const addItem = () => {
     const newItem: TransferItem = {
+      nomenclatureId: undefined,
       nomenclatureName: '',
       quantity: 1,
       unit: 'шт'
@@ -104,6 +106,12 @@ export function GoodsTransferPage({ documentId }: GoodsTransferPageProps = {}) {
   const updateItem = (index: number, field: keyof TransferItem, value: any) => {
     const updated = [...items];
     updated[index] = { ...updated[index], [field]: value };
+    setItems(updated);
+  };
+
+  const updateItemNomenclature = (index: number, nomenclatureId: string, nomenclatureName: string) => {
+    const updated = [...items];
+    updated[index] = { ...updated[index], nomenclatureId, nomenclatureName };
     setItems(updated);
   };
 
@@ -124,10 +132,9 @@ export function GoodsTransferPage({ documentId }: GoodsTransferPageProps = {}) {
       key: 'nomenclatureName',
       width: 300,
       render: (_: any, record: TransferItem, index: number) => (
-        <Input
-          value={record.nomenclatureName}
-          onChange={(e) => updateItem(index, 'nomenclatureName', e.target.value)}
-          placeholder="Введите наименование"
+        <NomenclatureSelect
+          value={record.nomenclatureId}
+          onChange={(id, name) => updateItemNomenclature(index, id, name)}
         />
       )
     },

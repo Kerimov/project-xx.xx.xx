@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, Checkbox, message, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, CounterpartySelect, AccountingAccountSelect, AnalyticsSection } from '../../components/forms';
+import { OrganizationSelect, CounterpartySelect, AccountingAccountSelect, AnalyticsSection, NomenclatureSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
 import { parseDateSafe } from '../../utils/dateUtils';
@@ -14,6 +14,7 @@ const { Option } = Select;
 interface SaleGoodsItem {
   id?: string;
   rowNumber?: number;
+  nomenclatureId?: string;
   nomenclatureName: string;
   quantity: number;
   unit: string;
@@ -158,6 +159,7 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
 
   const addItem = () => {
     const newItem: SaleGoodsItem = {
+      nomenclatureId: undefined,
       nomenclatureName: '',
       quantity: 1,
       unit: 'шт',
@@ -182,6 +184,16 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
     setItems(updated);
   };
 
+  const updateItemNomenclature = (index: number, nomenclatureId: string, nomenclatureName: string) => {
+    const updated = [...items];
+    updated[index] = { ...updated[index], nomenclatureId, nomenclatureName };
+    const item = updated[index];
+    item.amount = (item.quantity || 0) * (item.price || 0);
+    item.vatAmount = (item.amount * (item.vatPercent || 0)) / 100;
+    item.totalAmount = item.amount + item.vatAmount;
+    setItems(updated);
+  };
+
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
   };
@@ -197,12 +209,11 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
       title: 'Номенклатура',
       dataIndex: 'nomenclatureName',
       key: 'nomenclatureName',
-      width: 250,
+      width: 280,
       render: (_: any, record: SaleGoodsItem, index: number) => (
-        <Input
-          value={record.nomenclatureName}
-          onChange={(e) => updateItem(index, 'nomenclatureName', e.target.value)}
-          placeholder="Введите наименование"
+        <NomenclatureSelect
+          value={record.nomenclatureId}
+          onChange={(id, name) => updateItemNomenclature(index, id, name)}
         />
       )
     },

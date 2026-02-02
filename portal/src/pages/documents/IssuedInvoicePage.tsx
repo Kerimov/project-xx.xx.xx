@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, CounterpartySelect } from '../../components/forms';
+import { OrganizationSelect, CounterpartySelect, NomenclatureSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import { useDocumentEdit } from './useDocumentEdit';
 import dayjs from 'dayjs';
@@ -14,6 +14,7 @@ const { Option } = Select;
 interface InvoiceItem {
   id?: string;
   rowNumber?: number;
+  nomenclatureId?: string;
   nomenclatureName: string;
   quantity: number;
   unit: string;
@@ -109,6 +110,7 @@ export function IssuedInvoicePage({ documentId }: IssuedInvoicePageProps = {}) {
 
   const addItem = () => {
     const newItem: InvoiceItem = {
+      nomenclatureId: undefined,
       nomenclatureName: '',
       quantity: 1,
       unit: 'шт',
@@ -148,12 +150,11 @@ export function IssuedInvoicePage({ documentId }: IssuedInvoicePageProps = {}) {
       title: 'Наименование',
       dataIndex: 'nomenclatureName',
       key: 'nomenclatureName',
-      width: 250,
+      width: 280,
       render: (_: any, record: InvoiceItem, index: number) => (
-        <Input
-          value={record.nomenclatureName}
-          onChange={(e) => updateItem(index, 'nomenclatureName', e.target.value)}
-          placeholder="Введите наименование"
+        <NomenclatureSelect
+          value={record.nomenclatureId}
+          onChange={(id, name) => updateItemNomenclature(index, id, name)}
         />
       )
     },

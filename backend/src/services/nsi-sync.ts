@@ -107,6 +107,27 @@ export class NSISyncService {
         logger.warn('Could not merge /nsi/warehouses into delta, using delta only', { message: whErr?.message });
       }
 
+      // Дополняем дельту номенклатурой из отдельного сервиса /nsi/nomenclature
+      try {
+        const nomenclatureResp = await uhIntegrationService.getNSINomenclature({ version: sinceVersion });
+        if (nomenclatureResp?.items?.length) {
+          const existingIds = new Set(delta.items.map((i: any) => i.id));
+          let added = 0;
+          for (const item of nomenclatureResp.items) {
+            if (item.type === 'Nomenclature' && item.id && !existingIds.has(item.id)) {
+              delta.items.push(item);
+              existingIds.add(item.id);
+              added++;
+            }
+          }
+          if (added > 0) {
+            logger.info('Merged nomenclature from /nsi/nomenclature into NSI delta', { added });
+          }
+        }
+      } catch (nomErr: any) {
+        logger.warn('Could not merge /nsi/nomenclature into delta, using delta only', { message: nomErr?.message });
+      }
+
       if (delta.items.length === 0) {
         logger.info('NSI is up to date');
         return { ...emptyResult, message: 'НСИ актуальна' };

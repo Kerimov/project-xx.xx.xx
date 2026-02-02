@@ -15,6 +15,7 @@ const { TextArea } = Input;
 interface WriteOffItem {
   id?: string;
   rowNumber?: number;
+  nomenclatureId?: string;
   nomenclatureName: string;
   quantity: number;
   unit: string;
@@ -103,6 +104,7 @@ export function GoodsWriteOffPage({ documentId }: GoodsWriteOffPageProps = {}) {
 
   const addItem = () => {
     const newItem: WriteOffItem = {
+      nomenclatureId: undefined,
       nomenclatureName: '',
       quantity: 1,
       unit: 'шт',
@@ -138,12 +140,11 @@ export function GoodsWriteOffPage({ documentId }: GoodsWriteOffPageProps = {}) {
       title: 'Номенклатура',
       dataIndex: 'nomenclatureName',
       key: 'nomenclatureName',
-      width: 250,
+      width: 280,
       render: (_: any, record: WriteOffItem, index: number) => (
-        <Input
-          value={record.nomenclatureName}
-          onChange={(e) => updateItem(index, 'nomenclatureName', e.target.value)}
-          placeholder="Введите наименование"
+        <NomenclatureSelect
+          value={record.nomenclatureId}
+          onChange={(id, name) => updateItemNomenclature(index, id, name)}
         />
       )
     },

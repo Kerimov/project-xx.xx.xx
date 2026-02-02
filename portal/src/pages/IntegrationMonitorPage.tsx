@@ -53,17 +53,6 @@ export function IntegrationMonitorPage() {
     version?: number;
     message?: string;
   } | null>(null);
-  const [nsiNomenclatureSyncLoading, setNsiNomenclatureSyncLoading] = useState(false);
-  const [nsiNomenclatureSyncResult, setNsiNomenclatureSyncResult] = useState<{
-    success: boolean;
-    synced: number;
-    total: number;
-    failed: number;
-    errors: Array<{ type: string; id: string; name?: string; message: string }>;
-    version?: number;
-    message?: string;
-  } | null>(null);
-
   const loadData = async () => {
     try {
       setLoading(true);
@@ -122,51 +111,6 @@ export function IntegrationMonitorPage() {
       message.error('Ошибка синхронизации НСИ: ' + (error.message || 'Неизвестная ошибка'));
     } finally {
       setNsiSyncLoading(false);
-    }
-  };
-
-  const handleSyncNomenclature = async () => {
-    try {
-      setNsiNomenclatureSyncLoading(true);
-      setNsiNomenclatureSyncResult(null);
-      const res = await api.admin.nsi.syncNomenclature();
-      const data = res.data;
-      setNsiNomenclatureSyncResult(data);
-      if (data.errors?.length) {
-        message.warning(
-          `Синхронизация номенклатуры: ${data.synced} из ${data.total} записей; ошибок: ${data.failed}`
-        );
-      } else if (data.total === 0 && data.message) {
-        message.info(data.message);
-      } else {
-        message.success(
-          data.total > 0
-            ? `Синхронизация номенклатуры завершена: ${data.synced} из ${data.total} записей`
-            : 'Синхронизация номенклатуры выполнена'
-        );
-      }
-    } catch (error: any) {
-      const errData = (error as any)?.response?.data?.error?.data;
-      if (errData) {
-        setNsiNomenclatureSyncResult({
-          success: false,
-          synced: 0,
-          total: 0,
-          failed: errData.errors?.length ?? 1,
-          errors: errData.errors ?? [{ type: 'System', id: '', message: error.message }]
-        });
-      } else {
-        setNsiNomenclatureSyncResult({
-          success: false,
-          synced: 0,
-          total: 0,
-          failed: 1,
-          errors: [{ type: 'System', id: '', message: error.message || 'Неизвестная ошибка' }]
-        });
-      }
-      message.error('Ошибка синхронизации номенклатуры: ' + (error.message || 'Неизвестная ошибка'));
-    } finally {
-      setNsiNomenclatureSyncLoading(false);
     }
   };
 
@@ -327,22 +271,6 @@ export function IntegrationMonitorPage() {
     const textToCopy = lines.join('\n');
     navigator.clipboard.writeText(textToCopy).then(
       () => message.success('Ошибки НСИ скопированы'),
-      () => message.error('Не удалось скопировать')
-    );
-  };
-
-  const copyNomenclatureErrors = () => {
-    if (!nsiNomenclatureSyncResult?.errors?.length) {
-      message.warning('Нет ошибок номенклатуры для копирования.');
-      return;
-    }
-    const lines = nsiNomenclatureSyncResult.errors.map(
-      (e: { type: string; id: string; name?: string; message: string }) =>
-        `[${e.type}] ${e.id}${e.name ? ' "' + e.name + '"' : ''}: ${e.message}`
-    );
-    const textToCopy = lines.join('\n');
-    navigator.clipboard.writeText(textToCopy).then(
-      () => message.success('Ошибки номенклатуры скопированы'),
       () => message.error('Не удалось скопировать')
     );
   };
@@ -527,14 +455,9 @@ export function IntegrationMonitorPage() {
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
             Обновить
           </Button>
-          <Tooltip title="Организации, контрагенты, договоры, счета, склады и счета учёта. Склады подтягиваются из сервиса /nsi/warehouses и объединяются с дельтой НСИ.">
+          <Tooltip title="Организации, контрагенты, договоры, счета, склады, номенклатура и счета учёта. Склады и номенклатура подтягиваются из /nsi/warehouses и /nsi/nomenclature и объединяются с дельтой НСИ.">
             <Button icon={<SyncOutlined />} onClick={handleSyncNSI} loading={nsiSyncLoading}>
               Синхронизировать НСИ
-            </Button>
-          </Tooltip>
-          <Tooltip title="Только номенклатура из 1С (сервис /nsi/nomenclature). Для проверки загрузки номенклатуры отдельно.">
-            <Button icon={<SyncOutlined />} onClick={handleSyncNomenclature} loading={nsiNomenclatureSyncLoading}>
-              Синхронизировать номенклатуру
             </Button>
           </Tooltip>
           <Button danger onClick={handleClearNSI} loading={nsiClearLoading}>
@@ -572,59 +495,6 @@ export function IntegrationMonitorPage() {
                 </Col>
               </Row>
             </Space>
-          </Card>
-        )}
-
-        {nsiNomenclatureSyncResult && (
-          <Card title="Результат синхронизации номенклатуры">
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Row gutter={16}>
-                <Col span={6}>
-                  <Statistic title="Всего записей" value={nsiNomenclatureSyncResult.total} />
-                </Col>
-                <Col span={6}>
-                  <Statistic title="Синхронизировано" value={nsiNomenclatureSyncResult.synced} valueStyle={{ color: '#3f8600' }} />
-                </Col>
-                <Col span={6}>
-                  <Statistic title="Ошибок" value={nsiNomenclatureSyncResult.failed} valueStyle={{ color: nsiNomenclatureSyncResult.failed ? '#cf1322' : undefined }} />
-                </Col>
-              </Row>
-            </Space>
-          </Card>
-        )}
-
-        {nsiNomenclatureSyncResult?.errors && nsiNomenclatureSyncResult.errors.length > 0 && (
-          <Card
-            title="Ошибки синхронизации номенклатуры"
-            extra={
-              <Space>
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={handleSyncNomenclature}
-                  loading={nsiNomenclatureSyncLoading}
-                >
-                  Повторить
-                </Button>
-                <Button
-                  icon={<CopyOutlined />}
-                  onClick={copyNomenclatureErrors}
-                >
-                  Копировать ошибку
-                </Button>
-              </Space>
-            }
-          >
-            <Table
-              size="small"
-              dataSource={nsiNomenclatureSyncResult.errors.map((e, i) => ({ ...e, key: i }))}
-              columns={[
-                { title: 'Тип', dataIndex: 'type', width: 120 },
-                { title: 'ID', dataIndex: 'id', ellipsis: true, width: 120 },
-                { title: 'Наименование', dataIndex: 'name', ellipsis: true },
-                { title: 'Сообщение', dataIndex: 'message', ellipsis: true }
-              ]}
-              pagination={nsiNomenclatureSyncResult.errors.length > 10 ? { pageSize: 10 } : false}
-            />
           </Card>
         )}
 

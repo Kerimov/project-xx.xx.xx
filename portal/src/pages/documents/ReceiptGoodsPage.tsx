@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, Checkbox, message, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, CounterpartySelect, AccountingAccountSelect, AnalyticsSection } from '../../components/forms';
+import { OrganizationSelect, CounterpartySelect, AccountingAccountSelect, AnalyticsSection, NomenclatureSelect } from '../../components/forms';
 import { AccountSelect } from '../../components/forms/AccountSelect';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
@@ -15,6 +15,7 @@ const { Option } = Select;
 interface ReceiptGoodsItem {
   id?: string;
   rowKey?: string;
+  nomenclatureId?: string;
   nomenclatureName: string;
   characteristic?: string;
   supplierNomenclature?: string;
@@ -124,6 +125,7 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
         receiptOperationType: values.receiptOperationType || 'Товары',
         items: items.map((item, idx) => ({
           rowNumber: idx + 1,
+          nomenclatureId: item.nomenclatureId,
           nomenclatureName: item.nomenclatureName || '',
           characteristic: item.characteristic,
           supplierNomenclature: item.supplierNomenclature,
@@ -191,6 +193,7 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
       ...items,
       {
         rowKey: `row-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+        nomenclatureId: undefined,
         nomenclatureName: '',
         quantity: 1,
         unit: 'шт',
@@ -212,6 +215,17 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
     setItems(updated);
   };
 
+  const updateItemNomenclature = (index: number, nomenclatureId: string, nomenclatureName: string) => {
+    const updated = items.map((it, i) =>
+      i === index ? { ...it, nomenclatureId, nomenclatureName } : it
+    );
+    const item = updated[index];
+    item.amount = (item.quantity || 0) * (item.price || 0);
+    item.vatAmount = ((item.amount || 0) * (item.vatPercent ?? 0)) / 100;
+    item.totalAmount = (item.amount || 0) + (item.vatAmount || 0);
+    setItems(updated);
+  };
+
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
   };
@@ -222,12 +236,11 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
       title: 'Номенклатура',
       dataIndex: 'nomenclatureName',
       key: 'nomenclatureName',
-      width: 200,
+      width: 280,
       render: (_: unknown, record: ReceiptGoodsItem, index: number) => (
-        <Input
-          value={record.nomenclatureName}
-          onChange={(e) => updateItem(index, 'nomenclatureName', e.target.value)}
-          placeholder="Наименование"
+        <NomenclatureSelect
+          value={record.nomenclatureId}
+          onChange={(id, name) => updateItemNomenclature(index, id, name)}
         />
       )
     },

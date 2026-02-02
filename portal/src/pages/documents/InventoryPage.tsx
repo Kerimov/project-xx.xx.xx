@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, WarehouseSelect } from '../../components/forms';
+import { OrganizationSelect, WarehouseSelect, NomenclatureSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import { useDocumentEdit } from './useDocumentEdit';
 import dayjs from 'dayjs';
@@ -14,6 +14,7 @@ const { Option } = Select;
 interface InventoryItem {
   id?: string;
   rowNumber?: number;
+  nomenclatureId?: string;
   nomenclatureName: string;
   accountingQuantity: number;
   actualQuantity: number;
@@ -98,6 +99,7 @@ export function InventoryPage({ documentId }: InventoryPageProps = {}) {
 
   const addItem = () => {
     const newItem: InventoryItem = {
+      nomenclatureId: undefined,
       nomenclatureName: '',
       accountingQuantity: 0,
       actualQuantity: 0,
@@ -120,6 +122,15 @@ export function InventoryPage({ documentId }: InventoryPageProps = {}) {
     setItems(updated);
   };
 
+  const updateItemNomenclature = (index: number, nomenclatureId: string, nomenclatureName: string) => {
+    const updated = [...items];
+    updated[index] = { ...updated[index], nomenclatureId, nomenclatureName };
+    const item = updated[index];
+    item.discrepancyQuantity = (item.actualQuantity || 0) - (item.accountingQuantity || 0);
+    item.amount = Math.abs(item.discrepancyQuantity) * (item.price || 0);
+    setItems(updated);
+  };
+
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
   };
@@ -135,12 +146,11 @@ export function InventoryPage({ documentId }: InventoryPageProps = {}) {
       title: 'Номенклатура',
       dataIndex: 'nomenclatureName',
       key: 'nomenclatureName',
-      width: 250,
+      width: 280,
       render: (_: any, record: InventoryItem, index: number) => (
-        <Input
-          value={record.nomenclatureName}
-          onChange={(e) => updateItem(index, 'nomenclatureName', e.target.value)}
-          placeholder="Введите наименование"
+        <NomenclatureSelect
+          value={record.nomenclatureId}
+          onChange={(id, name) => updateItemNomenclature(index, id, name)}
         />
       )
     },

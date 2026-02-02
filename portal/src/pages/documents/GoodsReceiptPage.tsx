@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, WarehouseSelect, AccountingAccountSelect } from '../../components/forms';
+import { OrganizationSelect, WarehouseSelect, AccountingAccountSelect, NomenclatureSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
 import { parseDateSafe } from '../../utils/dateUtils';
@@ -17,6 +17,7 @@ interface ReceiptItem {
   /** Стабильный ключ строки (для новых позиций без id), чтобы не терять фокус при вводе */
   rowKey?: string;
   rowNumber?: number;
+  nomenclatureId?: string;
   nomenclatureName: string;
   quantity: number;
   unit: string;
@@ -187,6 +188,7 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
   const addItem = () => {
     const newItem: ReceiptItem = {
       rowKey: `row-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      nomenclatureId: undefined,
       nomenclatureName: '',
       quantity: 1,
       unit: 'шт',
@@ -198,6 +200,15 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
 
   const updateItem = (index: number, field: keyof ReceiptItem, value: any) => {
     const updated = items.map((it, i) => (i === index ? { ...it, [field]: value } : it));
+    const item = updated[index];
+    item.amount = (item.quantity || 0) * (item.price || 0);
+    setItems(updated);
+  };
+
+  const updateItemNomenclature = (index: number, nomenclatureId: string, nomenclatureName: string) => {
+    const updated = items.map((it, i) =>
+      i === index ? { ...it, nomenclatureId, nomenclatureName } : it
+    );
     const item = updated[index];
     item.amount = (item.quantity || 0) * (item.price || 0);
     setItems(updated);
@@ -218,12 +229,11 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
       title: 'Номенклатура',
       dataIndex: 'nomenclatureName',
       key: 'nomenclatureName',
-      width: 250,
+      width: 280,
       render: (_: any, record: ReceiptItem, index: number) => (
-        <Input
-          value={record.nomenclatureName}
-          onChange={(e) => updateItem(index, 'nomenclatureName', e.target.value)}
-          placeholder="Введите наименование"
+        <NomenclatureSelect
+          value={record.nomenclatureId}
+          onChange={(id, name) => updateItemNomenclature(index, id, name)}
         />
       )
     },
