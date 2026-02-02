@@ -6,6 +6,7 @@ import {
   transitionStatus,
   isEditable,
   getAvailableTransitions,
+  STATUS_LABELS_RU,
   type PortalStatus
 } from '../services/document-status.js';
 import { validateDocument } from '../services/document-validation.js';
@@ -53,7 +54,7 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
     
     const row = await documentsRepo.getDocumentById(id);
     if (!row) {
-      return res.status(404).json({ error: { message: 'Document not found' } });
+      return res.status(404).json({ error: { message: 'Документ не найден' } });
     }
 
     // Получаем полные данные из версии документа
@@ -172,6 +173,7 @@ export async function createDocument(req: Request, res: Response, next: NextFunc
       returnBasis: documentData.returnBasis,
       documentNumber: documentData.documentNumber,
       paymentTerms: documentData.paymentTerms,
+      waybillDate: documentData.waybillDate,
       createdBy: req.user?.username || 'system'
     });
     
@@ -210,7 +212,7 @@ export async function createDocument(req: Request, res: Response, next: NextFunc
     }
     if (error.code === '23505') {
       return res.status(409).json({ 
-        error: { message: 'Document with this number already exists' } 
+        error: { message: 'Документ с таким номером уже существует' } 
       });
     }
     next(error);
@@ -231,7 +233,7 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
     
     const document = await documentsRepo.getDocumentById(id);
     if (!document) {
-      return res.status(404).json({ error: { message: 'Document not found' } });
+      return res.status(404).json({ error: { message: 'Документ не найден' } });
     }
 
     // Проверяем, можно ли редактировать документ в текущем статусе
@@ -263,7 +265,7 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
     } as any);
     
     if (!updated) {
-      return res.status(404).json({ error: { message: 'Document not found' } });
+      return res.status(404).json({ error: { message: 'Документ не найден' } });
     }
 
     // Получаем текущую версию документа для сравнения
@@ -366,13 +368,13 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
     const updatedDoc = await documentsRepo.getDocumentById(id);
     
     if (!updatedDoc) {
-      return res.status(404).json({ error: { message: 'Document not found after update' } });
+      return res.status(404).json({ error: { message: 'Документ не найден после обновления' } });
     }
 
     // Убеждаемся, что ID не изменился
     if (updatedDoc.id !== id) {
       logger.error('Document ID changed during update!', { originalId: id, newId: updatedDoc.id });
-      return res.status(500).json({ error: { message: 'Internal error: Document ID changed' } });
+      return res.status(500).json({ error: { message: 'Внутренняя ошибка: изменился идентификатор документа' } });
     }
 
     // Добавляем запись в историю с деталями изменений
@@ -422,7 +424,7 @@ export async function freezeDocumentVersion(req: Request, res: Response, next: N
     
     const document = await documentsRepo.getDocumentById(id);
     if (!document) {
-      return res.status(404).json({ error: { message: 'Document not found' } });
+      return res.status(404).json({ error: { message: 'Документ не найден' } });
     }
 
     const currentStatus = document.portal_status as PortalStatus;
@@ -481,7 +483,7 @@ export async function changeDocumentStatus(req: Request, res: Response, next: Ne
 
     const document = await documentsRepo.getDocumentById(id);
     if (!document) {
-      return res.status(404).json({ error: { message: 'Document not found' } });
+      return res.status(404).json({ error: { message: 'Документ не найден' } });
     }
 
     const currentStatus = document.portal_status as PortalStatus;
@@ -513,9 +515,18 @@ export async function changeDocumentStatus(req: Request, res: Response, next: Ne
       });
     }
 
-    // Если статус Frozen, добавляем в очередь УХ
+    // Если статус Frozen, добавляем в очередь УХ (ошибка очереди не отменяет смену статуса)
+    let enqueuedToUH = false;
     if (newStatus === 'Frozen') {
-      await uhQueueService.enqueue(id, 'UpsertDocument');
+      try {
+        await uhQueueService.enqueue(id, 'UpsertDocument');
+        enqueuedToUH = true;
+      } catch (enqueueError: any) {
+        logger.error('Failed to enqueue document to UH after freeze', {
+          documentId: id,
+          error: enqueueError?.message ?? enqueueError
+        });
+      }
     }
 
     // Добавляем запись в историю
@@ -556,7 +567,8 @@ export async function changeDocumentStatus(req: Request, res: Response, next: Ne
       data: {
         id: updated.id,
         portalStatus: updated.portal_status,
-        availableTransitions: getAvailableTransitions(newStatus)
+        availableTransitions: getAvailableTransitions(newStatus),
+        enqueuedToUH: newStatus === 'Frozen' ? enqueuedToUH : undefined
       }
     });
   } catch (error) {
@@ -573,7 +585,7 @@ export async function getDocumentStatusTransitions(req: Request, res: Response, 
     
     const document = await documentsRepo.getDocumentById(id);
     if (!document) {
-      return res.status(404).json({ error: { message: 'Document not found' } });
+      return res.status(404).json({ error: { message: 'Документ не найден' } });
     }
 
     const currentStatus = document.portal_status as PortalStatus;
@@ -598,7 +610,7 @@ export async function deleteDocument(req: Request, res: Response, next: NextFunc
     
     const document = await documentsRepo.getDocumentById(id);
     if (!document) {
-      return res.status(404).json({ error: { message: 'Document not found' } });
+      return res.status(404).json({ error: { message: 'Документ не найден' } });
     }
 
     // Проверяем, можно ли удалить документ
@@ -607,7 +619,7 @@ export async function deleteDocument(req: Request, res: Response, next: NextFunc
     if (forbiddenStatuses.includes(document.portal_status as PortalStatus)) {
       return res.status(400).json({ 
         error: { 
-          message: `Нельзя удалить документ в статусе "${document.portal_status}". Можно удалять только документы в статусах: Draft, Validated, Cancelled, RejectedByUH`
+          message: `Нельзя удалить документ в статусе «${STATUS_LABELS_RU[document.portal_status as PortalStatus] ?? document.portal_status}». Удаление возможно только в статусах: Черновик, Проверен, Отменен, Отклонен УХ`
         } 
       });
     }
@@ -628,7 +640,7 @@ export async function deleteDocument(req: Request, res: Response, next: NextFunc
     
     if (!deleted) {
       return res.status(404).json({ 
-        error: { message: 'Document not found' } 
+        error: { message: 'Документ не найден' } 
       });
     }
 
@@ -651,14 +663,14 @@ export async function cancelDocument(req: Request, res: Response, next: NextFunc
     
     const document = await documentsRepo.getDocumentById(id);
     if (!document) {
-      return res.status(404).json({ error: { message: 'Document not found' } });
+      return res.status(404).json({ error: { message: 'Документ не найден' } });
     }
 
     // Проверяем, можно ли отменить документ
     if (['Frozen', 'QueuedToUH', 'SentToUH', 'AcceptedByUH', 'PostedInUH'].includes(document.portal_status)) {
       return res.status(400).json({ 
         error: { 
-          message: 'Нельзя отменить документ в статусе: ' + document.portal_status 
+          message: `Нельзя отменить документ в статусе «${STATUS_LABELS_RU[document.portal_status as PortalStatus] ?? document.portal_status}»` 
         } 
       });
     }
@@ -708,7 +720,7 @@ export async function addDocumentCheck(req: Request, res: Response, next: NextFu
     // Проверяем существование документа
     const document = await documentsRepo.getDocumentById(id);
     if (!document) {
-      return res.status(404).json({ error: { message: 'Document not found' } });
+      return res.status(404).json({ error: { message: 'Документ не найден' } });
     }
 
     const check = await documentsRepo.addDocumentCheck(

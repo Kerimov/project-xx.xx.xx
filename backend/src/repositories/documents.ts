@@ -164,6 +164,7 @@ export async function createDocument(data: {
     counterpartyInn: data.counterpartyInn,
     contractId: data.contractId,
     paymentAccountId: data.paymentAccountId,
+    departmentId: data.departmentId,
     warehouseId: data.warehouseId,
     receiptOperationType: data.receiptOperationType,
     hasDiscrepancies: data.hasDiscrepancies,
@@ -180,7 +181,8 @@ export async function createDocument(data: {
     receiptBasis: data.receiptBasis,
     returnBasis: data.returnBasis,
     documentNumber: data.documentNumber,
-    paymentTerms: data.paymentTerms
+    paymentTerms: data.paymentTerms,
+    waybillDate: data.waybillDate
   };
 
   await pool.query(

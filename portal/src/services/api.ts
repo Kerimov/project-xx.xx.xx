@@ -28,8 +28,8 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: { message: 'Network error' } }));
-    throw new Error(error.error?.message || 'Request failed');
+    const error = await response.json().catch(() => ({ error: { message: 'Ошибка сети' } }));
+    throw new Error(error.error?.message || 'Ошибка запроса');
   }
 
   return response.json();
@@ -195,8 +195,8 @@ export const api = {
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: { message: 'Network error' } }));
-        throw new Error(error.error?.message || 'Upload failed');
+        const error = await response.json().catch(() => ({ error: { message: 'Ошибка сети' } }));
+        throw new Error(error.error?.message || 'Ошибка загрузки файла');
       }
 
       return response.json();
@@ -217,7 +217,7 @@ export const api = {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to download file');
+          throw new Error('Ошибка загрузки файла');
         }
 
         const blob = await response.blob();
@@ -235,7 +235,7 @@ export const api = {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(downloadUrl);
       } catch (error: any) {
-        throw new Error(error.message || 'Failed to download file');
+        throw new Error(error.message || 'Ошибка загрузки файла');
       }
     },
 

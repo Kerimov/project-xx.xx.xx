@@ -20,7 +20,7 @@ export async function uploadFile(req: Request, res: Response, next: NextFunction
 
     if (!file) {
       logger.warn('No file uploaded', { documentId });
-      return res.status(400).json({ error: { message: 'No file uploaded' } });
+      return res.status(400).json({ error: { message: 'Файл не выбран' } });
     }
 
     // Проверяем ошибки multer
@@ -37,7 +37,7 @@ export async function uploadFile(req: Request, res: Response, next: NextFunction
       if (file.path && fs.existsSync(file.path)) {
         fs.unlinkSync(file.path);
       }
-      return res.status(404).json({ error: { message: 'Document not found' } });
+      return res.status(404).json({ error: { message: 'Документ не найден' } });
     }
 
     // Вычисляем SHA-256 хэш файла
@@ -156,7 +156,7 @@ export async function downloadFile(req: Request, res: Response, next: NextFuncti
 
     // Проверяем существование файла
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: { message: 'File not found on disk' } });
+      return res.status(404).json({ error: { message: 'Файл не найден на диске' } });
     }
 
     // Отправляем файл

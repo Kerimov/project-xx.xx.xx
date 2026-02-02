@@ -145,7 +145,7 @@ authRouter.get('/me', async (req: Request, res: Response) => {
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
-      return res.status(401).json({ error: { message: 'Access token required' } });
+      return res.status(401).json({ error: { message: 'Требуется токен авторизации' } });
     }
 
     const secret = process.env.JWT_SECRET || 'your-secret-key';
@@ -162,6 +162,6 @@ authRouter.get('/me', async (req: Request, res: Response) => {
 
     res.json({ data: result.rows[0] });
   } catch (error: any) {
-    res.status(401).json({ error: { message: 'Invalid or expired token' } });
+    res.status(401).json({ error: { message: 'Недействительный или просроченный токен' } });
   }
 });

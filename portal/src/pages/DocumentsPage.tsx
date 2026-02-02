@@ -63,14 +63,22 @@ export function DocumentsPage() {
           Validated: 'processing',
           Frozen: 'geekblue',
           QueuedToUH: 'processing',
-          SentToUH: 'processing'
+          SentToUH: 'processing',
+          AcceptedByUH: 'success',
+          PostedInUH: 'success',
+          RejectedByUH: 'warning',
+          Cancelled: 'error'
         };
         const labelMap: Record<string, string> = {
           Draft: 'Черновик',
           Validated: 'Проверен',
           Frozen: 'Заморожен',
           QueuedToUH: 'В очереди в УХ',
-          SentToUH: 'Отправлен в УХ'
+          SentToUH: 'Отправлен в УХ',
+          AcceptedByUH: 'Принят УХ',
+          PostedInUH: 'Проведен в УХ',
+          RejectedByUH: 'Отклонен УХ',
+          Cancelled: 'Отменен'
         };
 
         const color = colorMap[status] || 'default';

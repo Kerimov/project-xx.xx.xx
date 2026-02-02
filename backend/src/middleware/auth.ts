@@ -21,7 +21,7 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
   if (!token) {
-    return res.status(401).json({ error: { message: 'Access token required' } });
+    return res.status(401).json({ error: { message: 'Требуется токен авторизации' } });
   }
 
   const secret = process.env.JWT_SECRET || 'your-secret-key';
@@ -31,7 +31,7 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
     req.user = decoded;
     next();
   } catch (error) {
-    return res.status(403).json({ error: { message: 'Invalid or expired token' } });
+    return res.status(403).json({ error: { message: 'Недействительный или просроченный токен' } });
   }
 }
 
@@ -42,7 +42,7 @@ export function requireRole(...roles: string[]) {
     }
 
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ error: { message: 'Insufficient permissions' } });
+      return res.status(403).json({ error: { message: 'Недостаточно прав' } });
     }
 
     next();

@@ -78,11 +78,32 @@ export interface UHPayload {
   invoiceDate?: string;
   /** Дата накладной/УПД (от) — в 1С: Объект.ДатаВходящегоДокумента */
   waybillDate?: string;
+  /** Подразделение (UUID из НСИ) — в 1С: Объект.ПодразделениеОрганизации */
+  departmentId?: string;
+  /** Подразделение (альтернативный ключ) */
+  department?: string;
+  /** Наименование подразделения (для поиска в 1С по имени при неудаче по UUID) */
+  departmentName?: string;
   /** Оригинал получен */
   originalReceived?: boolean;
   /** Требуется счёт-фактура */
   invoiceRequired?: boolean;
   [key: string]: unknown;
+}
+
+/**
+ * Форматирование даты в YYYY-MM-DD без сдвига на день из-за часового пояса.
+ * Используем локальные компоненты даты (getFullYear/getDate), чтобы 02.02.2026 не превращался в 01.02.2026 в 1С.
+ */
+function formatDateOnly(value: Date | string): string {
+  if (typeof value === 'string') {
+    return String(value).trim().slice(0, 10);
+  }
+  const d = value as Date;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 /**
@@ -159,6 +180,19 @@ async function getAccountNames(accountId: string | null): Promise<{ name: string
 }
 
 /**
+ * Получить наименование подразделения по ID из НСИ (для поиска в 1С по имени, если UUID не сработает).
+ */
+async function getDepartmentName(departmentId: string | null): Promise<string | null> {
+  if (!departmentId) return null;
+  const res = await pool.query(
+    'SELECT name FROM organization_divisions WHERE id = $1',
+    [departmentId]
+  );
+  if (res.rows.length === 0) return null;
+  return res.rows[0].name ?? null;
+}
+
+/**
  * Собрать payload для отправки в 1С:УХ.
  * - Подставляет sourceCompany из документа (organization_name).
  * - Для документов со складом: подставляет warehouseName/warehouseCode из НСИ по warehouseId.
@@ -170,9 +204,7 @@ export async function buildUHPayload(
   versionData: Record<string, unknown>
 ): Promise<UHPayload> {
   const config = getUHDocumentConfig(document.type);
-  const dateStr = document.date instanceof Date
-    ? document.date.toISOString().split('T')[0]
-    : String(document.date).slice(0, 10);
+  const dateStr = formatDateOnly(document.date);
   const totalAmount = Number(
     versionData.totalAmount ?? versionData.amount ?? document.amount ?? 0
   );
@@ -214,7 +246,7 @@ export async function buildUHPayload(
 
   // Копируем опциональные поля из versionData, не перезатирая уже выставленные
   const optionalTopLevel = [
-    'contractId', 'departmentId', 'dueDate', 'vatOnTop', 'vatIncluded', 'purpose', 'receiptOperationType',
+    'contractId', 'departmentId', 'department', 'dueDate', 'vatOnTop', 'vatIncluded', 'purpose', 'receiptOperationType',
     'servicePeriod', 'serviceStartDate', 'serviceEndDate',
     'warehouseIdFrom', 'warehouseNameFrom', 'warehouseIdTo', 'warehouseNameTo',
     // УПД и НДС
@@ -230,6 +262,21 @@ export async function buildUHPayload(
     if (versionData[key] !== undefined && payload[key] === undefined) {
       payload[key] = versionData[key];
     }
+  }
+
+  // Даты в payload — только строка YYYY-MM-DD, без сдвига по времени
+  if (payload.waybillDate != null && typeof payload.waybillDate !== 'string') {
+    payload.waybillDate = formatDateOnly(payload.waybillDate as Date);
+  }
+  if (payload.dueDate != null && typeof payload.dueDate !== 'string') {
+    payload.dueDate = formatDateOnly(payload.dueDate as Date);
+  }
+
+  // Подразделение: подставляем наименование из НСИ для поиска в 1С по имени (если по UUID не найдётся)
+  const departmentIdForName = (payload.departmentId ?? payload.department) as string | undefined;
+  if (departmentIdForName) {
+    const departmentName = await getDepartmentName(departmentIdForName);
+    if (departmentName) payload.departmentName = departmentName;
   }
 
   // Явно пробрасываем isUPD как булево значение

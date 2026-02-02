@@ -171,14 +171,49 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
     try {
       const values = await form.validateFields();
       const document = {
-        ...values,
-        date: values.date?.format?.('YYYY-MM-DD') ?? values.date,
         type: 'ReceiptGoods',
-        items,
-        portalStatus: 'Frozen',
+        number: values.number,
+        date: values.date ? (typeof values.date === 'string' ? values.date : values.date.format('YYYY-MM-DD')) : undefined,
+        waybillDate: values.waybillDate ? (typeof values.waybillDate === 'string' ? values.waybillDate : values.waybillDate.format('YYYY-MM-DD')) : undefined,
+        documentNumber: values.documentNumber,
+        originalReceived: values.originalReceived ?? false,
+        invoiceReceived: values.invoiceReceived ?? false,
+        organizationId: values.organizationId,
+        counterpartyName: values.counterpartyName,
+        counterpartyInn: values.counterpartyInn,
+        contractId: values.contractId,
+        warehouseId: values.warehouseId,
+        paymentAccountId: values.paymentAccountId,
+        departmentId: values.departmentId ?? values.department,
+        paymentTerms: values.paymentTerms,
+        dueDate: values.dueDate ? (typeof values.dueDate === 'string' ? values.dueDate : values.dueDate.format('YYYY-MM-DD')) : undefined,
+        vatOnTop: values.vatOnTop ?? false,
+        vatIncluded: values.vatIncluded ?? false,
+        hasDiscrepancies: values.hasDiscrepancies ?? false,
+        currency: values.currency || 'RUB',
         receiptOperationType: values.receiptOperationType || 'Товары',
-        totalAmount: items.reduce((sum, item) => sum + item.totalAmount, 0),
-        totalVAT: items.reduce((sum, item) => sum + item.vatAmount, 0)
+        items: items.map((item, idx) => ({
+          rowNumber: idx + 1,
+          nomenclatureId: item.nomenclatureId,
+          nomenclatureName: item.nomenclatureName || '',
+          characteristic: item.characteristic,
+          supplierNomenclature: item.supplierNomenclature,
+          quantity: item.quantity || 0,
+          unit: item.unit || 'шт',
+          price: item.price || 0,
+          amount: item.amount || 0,
+          vatPercent: item.vatPercent ?? 20,
+          vatAmount: item.vatAmount || 0,
+          totalAmount: item.totalAmount || 0,
+          accountId: item.accountId,
+          vatAccountId: item.vatAccountId,
+          budgetItem: item.budgetItem
+        })),
+        totalAmount: items.reduce((sum, item) => sum + (item.totalAmount || 0), 0),
+        totalVAT: items.reduce((sum, item) => sum + (item.vatAmount || 0), 0),
+        isUPD: values.isUPD ?? false,
+        invoiceRequired: values.invoiceRequired || 'notRequired',
+        portalStatus: 'Frozen'
       };
       const res = isEditMode && id
         ? await api.documents.update(id, document)

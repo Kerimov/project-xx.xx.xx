@@ -40,6 +40,19 @@ const READ_ONLY_STATUSES: PortalStatus[] = [
   'Cancelled'
 ];
 
+/** Русские подписи статусов для сообщений пользователю */
+export const STATUS_LABELS_RU: Record<PortalStatus, string> = {
+  Draft: 'Черновик',
+  Validated: 'Проверен',
+  Frozen: 'Заморожен',
+  QueuedToUH: 'В очереди в УХ',
+  SentToUH: 'Отправлен в УХ',
+  AcceptedByUH: 'Принят УХ',
+  PostedInUH: 'Проведен в УХ',
+  RejectedByUH: 'Отклонен УХ',
+  Cancelled: 'Отменен'
+};
+
 /**
  * Проверяет, можно ли перевести документ из одного статуса в другой
  */
@@ -77,14 +90,18 @@ export function validateTransition(
   newStatus: PortalStatus
 ): { valid: boolean; error?: string } {
   if (currentStatus === newStatus) {
-    return { valid: false, error: 'Статус уже установлен' };
+    const label = STATUS_LABELS_RU[currentStatus] ?? currentStatus;
+    return { valid: false, error: `Статус «${label}» уже установлен` };
   }
 
   if (!canTransition(currentStatus, newStatus)) {
     const available = getAvailableTransitions(currentStatus);
+    const fromLabel = STATUS_LABELS_RU[currentStatus] ?? currentStatus;
+    const toLabel = STATUS_LABELS_RU[newStatus] ?? newStatus;
+    const availableLabels = available.map(s => STATUS_LABELS_RU[s] ?? s).join(', ');
     return {
       valid: false,
-      error: `Невозможно перевести документ из статуса "${currentStatus}" в "${newStatus}". Доступные переходы: ${available.join(', ')}`
+      error: `Невозможно перевести документ из статуса «${fromLabel}» в «${toLabel}». Доступные переходы: ${availableLabels}`
     };
   }
 
