@@ -167,6 +167,21 @@ adminRouter.post('/nsi/warehouses/sync', async (_req: Request, res: Response) =>
   }
 });
 
+// Ручной запуск синхронизации только номенклатуры (отдельный сервис /nsi/nomenclature).
+adminRouter.post('/nsi/nomenclature/sync', async (_req: Request, res: Response) => {
+  try {
+    const result = await nsiSyncService.manualSyncNomenclature();
+    res.json({ data: result });
+  } catch (error: any) {
+    res.status(500).json({
+      error: {
+        message: error.message,
+        data: { success: false, synced: 0, total: 0, failed: 0, errors: [{ type: 'System', id: '', message: error.message }] }
+      }
+    });
+  }
+});
+
 // Очистка синхронизированных данных НСИ (договоры, счета, склады, контрагенты, организации). Организации, на которые ссылаются документы/пакеты/пользователи, не удаляются. После очистки можно запустить синхронизацию заново.
 adminRouter.post('/nsi/clear', async (req: Request, res: Response) => {
   try {

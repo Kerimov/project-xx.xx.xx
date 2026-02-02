@@ -252,6 +252,70 @@ export class NSISyncService {
   }
 
   /**
+   * Синхронизация только номенклатуры НСИ из УХ (отдельный сервис /nsi/nomenclature).
+   * Не обновляет nsi_sync_state.
+   */
+  async syncNomenclatureOnly(): Promise<NSISyncResult> {
+    const emptyResult: NSISyncResult = { success: true, synced: 0, total: 0, failed: 0, errors: [] };
+
+    try {
+      logger.info('Syncing NSI nomenclature from UH (separate service)');
+
+      const delta = await uhIntegrationService.getNSINomenclature();
+      const items = (delta.items || []).filter(item => item.type === 'Nomenclature');
+
+      if (items.length === 0) {
+        logger.info('NSI nomenclature is empty or service returned no items');
+        return { ...emptyResult, message: 'Номенклатура не получена (пустой ответ или сервис /nsi/nomenclature не настроен)' };
+      }
+
+      logger.info('Received NSI nomenclature from UH', { count: items.length });
+
+      let synced = 0;
+      const errors: NSISyncError[] = [];
+
+      for (const item of items) {
+        try {
+          await this.syncNomenclature(item);
+          synced++;
+        } catch (error: any) {
+          const msg = error?.message || String(error);
+          logger.error('Failed to sync nomenclature item', error, { itemId: item.id });
+          errors.push({
+            type: 'Nomenclature',
+            id: item.id || '',
+            name: item.name || item.data?.name,
+            message: msg
+          });
+        }
+      }
+
+      const result: NSISyncResult = {
+        success: errors.length === 0,
+        synced,
+        total: items.length,
+        failed: errors.length,
+        errors,
+        version: delta.version
+      };
+
+      logger.info('NSI nomenclature sync completed', result);
+      return result;
+    } catch (error: any) {
+      const msg = error?.message || String(error);
+      logger.error('NSI nomenclature sync failed', error);
+      return {
+        success: false,
+        synced: 0,
+        total: 0,
+        failed: 0,
+        errors: [{ type: 'System', id: '', message: msg }],
+        message: msg
+      };
+    }
+  }
+
+  /**
    * Обработка одного элемента НСИ
    */
   private async processNSIItem(item: any) {
@@ -638,6 +702,11 @@ export class NSISyncService {
   async manualSyncWarehouses(): Promise<NSISyncResult> {
     logger.info('Manual NSI warehouses sync triggered');
     return await this.syncWarehousesOnly();
+  }
+
+  async manualSyncNomenclature(): Promise<NSISyncResult> {
+    logger.info('Manual NSI nomenclature sync triggered');
+    return await this.syncNomenclatureOnly();
   }
 }
 
