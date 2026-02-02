@@ -125,18 +125,20 @@ export class UHIntegrationService {
         req.end();
       });
 
+      // Всегда сохраняем последний ответ для диагностики (не только при debug)
+      const bodyPreview = (result.body || '').slice(0, 1000);
+      const info = {
+        url,
+        method: options.method || 'GET',
+        statusCode: result.statusCode,
+        headers: result.headers,
+        bodyLength: (result.body || '').length,
+        bodyPreview,
+        at: new Date().toISOString()
+      };
+      this.lastResponse = info;
+      
       if (this.debug) {
-        const bodyPreview = (result.body || '').slice(0, 1000);
-        const info = {
-          url,
-          method: options.method || 'GET',
-          statusCode: result.statusCode,
-          headers: result.headers,
-          bodyLength: (result.body || '').length,
-          bodyPreview,
-          at: new Date().toISOString()
-        };
-        this.lastResponse = info;
         logger.info('UH API response', info);
       }
 
@@ -155,9 +157,23 @@ export class UHIntegrationService {
         throw new Error(`UH API invalid JSON: ${trimmed}`);
       }
     } catch (error: any) {
+      // Сохраняем информацию об ошибке как последний ответ
       const errorMessage = error?.message || String(error);
       const errorDetails = this.formatError(error);
       const fullErrorMsg = errorMessage !== errorDetails ? `${errorMessage} | ${errorDetails}` : errorMessage;
+      
+      // Сохраняем ошибку как lastResponse для диагностики
+      const errorInfo = {
+        url,
+        method: options.method || 'GET',
+        statusCode: 0,
+        headers: {},
+        bodyLength: 0,
+        bodyPreview: fullErrorMsg.slice(0, 1000),
+        at: new Date().toISOString(),
+        error: true
+      };
+      this.lastResponse = errorInfo;
       
       if (attempt < this.retryAttempts && this.shouldRetry(error)) {
         console.warn(`⚠️ UH API request failed (attempt ${attempt}/${this.retryAttempts}), retrying...`);
@@ -167,7 +183,8 @@ export class UHIntegrationService {
         return this.requestWithRetry<T>(url, options, attempt + 1);
       }
       
-      // При финальной ошибке выводим полную информацию
+      // При финальной ошибке обновляем lastResponse (уже сохранён выше) и выводим полную информацию
+      
       console.error(`❌ UH API request failed (final attempt ${attempt}/${this.retryAttempts})`);
       console.error(`   URL: ${url}`);
       console.error(`   Method: ${options.method || 'GET'}`);

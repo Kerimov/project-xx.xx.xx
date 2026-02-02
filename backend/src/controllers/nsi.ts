@@ -353,6 +353,9 @@ export async function getWarehouses(req: Request, res: Response, next: NextFunct
     
     const result = await pool.query(query, params);
     
+    // Логируем для диагностики
+    console.log(`📦 Warehouses query: found ${result.rows.length} warehouses`);
+    
     res.json({
       data: result.rows.map(row => ({
         id: row.id,
@@ -364,6 +367,7 @@ export async function getWarehouses(req: Request, res: Response, next: NextFunct
       }))
     });
   } catch (error) {
+    console.error('❌ Error fetching warehouses:', error);
     next(error);
   }
 }

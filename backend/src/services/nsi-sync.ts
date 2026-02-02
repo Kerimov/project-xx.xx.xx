@@ -101,6 +101,14 @@ export class NSISyncService {
         const list = byType.get(item.type);
         if (list) list.push(item);
       }
+      
+      // Логируем количество элементов по типам для диагностики
+      const typeCounts: Record<string, number> = {};
+      for (const t of order) {
+        typeCounts[t] = byType.get(t)?.length || 0;
+      }
+      logger.info('NSI items by type', typeCounts);
+      
       const orderedItems: typeof delta.items = [];
       for (const t of order) orderedItems.push(...(byType.get(t) ?? []));
 
@@ -305,6 +313,8 @@ export class NSISyncService {
     const name = this.fallbackName(item);
     const organizationId = item.data?.organizationId || null;
 
+    logger.debug('Syncing warehouse', { id: item.id, name, code, organizationId });
+
     await pool.query(
       `INSERT INTO warehouses (id, code, name, organization_id, data)
        VALUES ($1, $2, $3, $4, $5)
@@ -350,6 +360,22 @@ export class NSISyncService {
        SET code = COALESCE(EXCLUDED.code, accounting_accounts.code), name = EXCLUDED.name, data = EXCLUDED.data, updated_at = NOW()`,
       [item.id, code, name, JSON.stringify(item.data ?? {})]
     );
+  }
+
+  /**
+   * Удалить только искусственные склады (созданные через seedWarehouses).
+   * Искусственные склады имеют названия вида "Основной склад (...)", "Склад материалов (...)", "Торговый склад (...)".
+   */
+  async clearSeededWarehouses(): Promise<{ cleared: number }> {
+    const result = await pool.query(`
+      DELETE FROM warehouses
+      WHERE name LIKE 'Основной склад (%'
+         OR name LIKE 'Склад материалов (%'
+         OR name LIKE 'Торговый склад (%'
+    `);
+    const cleared = result.rowCount ?? 0;
+    logger.info('Seeded warehouses cleared', { cleared });
+    return { cleared };
   }
 
   /**

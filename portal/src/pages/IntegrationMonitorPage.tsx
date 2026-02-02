@@ -42,6 +42,7 @@ export function IntegrationMonitorPage() {
   const [nsiSyncLoading, setNsiSyncLoading] = useState(false);
   const [nsiClearLoading, setNsiClearLoading] = useState(false);
   const [nsiSeedWarehousesLoading, setNsiSeedWarehousesLoading] = useState(false);
+  const [nsiClearSeededWarehousesLoading, setNsiClearSeededWarehousesLoading] = useState(false);
   const [nsiSyncResult, setNsiSyncResult] = useState<{
     success: boolean;
     synced: number;
@@ -149,6 +150,28 @@ export function IntegrationMonitorPage() {
     } finally {
       setNsiSeedWarehousesLoading(false);
     }
+  };
+
+  const handleClearSeededWarehouses = async () => {
+    Modal.confirm({
+      title: 'Удалить искусственные склады?',
+      content: 'Будут удалены только склады, созданные автоматически (с названиями вида "Основной склад (...)", "Склад материалов (...)", "Торговый склад (...)"). Склады, синхронизированные из 1С, не будут затронуты.',
+      okText: 'Удалить',
+      okType: 'danger',
+      cancelText: 'Отмена',
+      onOk: async () => {
+        try {
+          setNsiClearSeededWarehousesLoading(true);
+          const res = await api.admin.nsi.clearSeededWarehouses();
+          const cleared = res.data?.cleared ?? 0;
+          message.success(`Удалено искусственных складов: ${cleared}. Запустите синхронизацию НСИ, чтобы получить склады из 1С.`);
+        } catch (error: any) {
+          message.error('Ошибка: ' + (error.message || 'Не удалось удалить склады'));
+        } finally {
+          setNsiClearSeededWarehousesLoading(false);
+        }
+      }
+    });
   };
 
   const runAuthDebug = async (endpoint: string, method: string, payload?: Record<string, unknown>) => {
@@ -414,6 +437,11 @@ export function IntegrationMonitorPage() {
           <Tooltip title="Создать склады для организаций, у которых ещё нет складов (если 1С не вернула склады в НСИ)">
             <Button onClick={handleSeedWarehouses} loading={nsiSeedWarehousesLoading}>
               Добавить склады для организаций
+            </Button>
+          </Tooltip>
+          <Tooltip title="Удалить только искусственные склады (созданные автоматически), чтобы освободить место для синхронизации из 1С">
+            <Button danger onClick={handleClearSeededWarehouses} loading={nsiClearSeededWarehousesLoading}>
+              Удалить искусственные склады
             </Button>
           </Tooltip>
         </Space>

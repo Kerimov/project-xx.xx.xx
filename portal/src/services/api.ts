@@ -353,6 +353,15 @@ export const api = {
 
   // Административные функции
   admin: {
+    logs: {
+      get: (tail?: number) => {
+        const params = new URLSearchParams();
+        if (tail) params.append('tail', tail.toString());
+        return request<{ data: { tail: number; filePath: string; lines: string[] } }>(
+          `/admin/logs${params.toString() ? `?${params.toString()}` : ''}`
+        );
+      }
+    },
     queue: {
       stats: () => request<{ data: { pending: number; processing: number; completed: number; failed: number } }>('/admin/queue/stats'),
       items: (status?: string, limit?: number) => {
@@ -404,7 +413,9 @@ export const api = {
           };
         }>('/admin/nsi/clear', { method: 'POST' }),
       seedWarehouses: () =>
-        request<{ data: { added: number } }>('/admin/nsi/seed-warehouses', { method: 'POST' })
+        request<{ data: { added: number } }>('/admin/nsi/seed-warehouses', { method: 'POST' }),
+      clearSeededWarehouses: () =>
+        request<{ data: { cleared: number } }>('/admin/nsi/clear-seeded-warehouses', { method: 'POST' })
     }
   }
 };

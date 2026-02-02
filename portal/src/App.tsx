@@ -13,6 +13,7 @@ import { DocumentsPage } from './pages/DocumentsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { IntegrationMonitorPage } from './pages/IntegrationMonitorPage';
 import { UHDbConnectionPage } from './pages/UHDbConnectionPage';
+import { LogsPage } from './pages/LogsPage';
 import { DocumentDetailsPage } from './pages/DocumentDetailsPage';
 import CreateDocumentPage from './pages/CreateDocumentPage';
 import { SelectDocumentTypePage } from './pages/SelectDocumentTypePage';
@@ -53,6 +54,7 @@ function AppLayout() {
             <Route path="/documents/:id" element={<DocumentDetailsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/integration" element={<IntegrationMonitorPage />} />
+            <Route path="/logs" element={<LogsPage />} />
             <Route path="/uh-db-connection" element={<UHDbConnectionPage />} />
             <Route path="/nsi" element={<NSIPage />} />
             <Route path="/nsi/organizations/:id" element={<OrganizationDetailsPage />} />

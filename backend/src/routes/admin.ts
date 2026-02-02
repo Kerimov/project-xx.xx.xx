@@ -1,6 +1,8 @@
 // Административные роуты для мониторинга и управления
 
 import { Router, Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { uhQueueService } from '../services/uh-queue.js';
 import { nsiSyncService } from '../services/nsi-sync.js';
 import { testUHConnection } from '../db/uh-connection.js';
@@ -132,6 +134,38 @@ adminRouter.post('/nsi/seed-warehouses', async (req: Request, res: Response) => 
   try {
     const result = await nsiSyncService.seedWarehouses();
     res.json({ data: result });
+  } catch (error: any) {
+    res.status(500).json({ error: { message: error.message } });
+  }
+});
+
+// Удалить только искусственные склады (созданные через seedWarehouses), чтобы освободить место для синхронизации из 1С.
+adminRouter.post('/nsi/clear-seeded-warehouses', async (req: Request, res: Response) => {
+  try {
+    const result = await nsiSyncService.clearSeededWarehouses();
+    res.json({ data: result });
+  } catch (error: any) {
+    res.status(500).json({ error: { message: error.message } });
+  }
+});
+
+// Получить последние строки логов backend
+adminRouter.get('/logs', async (req: Request, res: Response) => {
+  try {
+    const tail = Math.min(Math.max(parseInt(String(req.query.tail || '200'), 10) || 200, 20), 2000);
+    const dir = process.env.LOG_DIR || 'logs';
+    const logDir = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir);
+    const logFilePath = path.join(logDir, 'app.log');
+
+    if (!fs.existsSync(logFilePath)) {
+      return res.json({ data: { tail, filePath: logFilePath, lines: [] } });
+    }
+
+    const content = fs.readFileSync(logFilePath, 'utf8');
+    const lines = content.split(/\r?\n/).filter(Boolean);
+    const sliced = lines.slice(-tail);
+
+    res.json({ data: { tail, filePath: logFilePath, lines: sliced } });
   } catch (error: any) {
     res.status(500).json({ error: { message: error.message } });
   }

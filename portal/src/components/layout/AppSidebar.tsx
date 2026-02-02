@@ -6,7 +6,8 @@ import {
   LineChartOutlined,
   CloudSyncOutlined,
   DatabaseOutlined,
-  LinkOutlined
+  LinkOutlined,
+  FileSearchOutlined
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -17,6 +18,7 @@ const items = [
   { key: '/nsi', icon: <DatabaseOutlined />, label: 'Справочники' },
   { key: '/reports', icon: <LineChartOutlined />, label: 'Отчётность' },
   { key: '/integration', icon: <CloudSyncOutlined />, label: 'Интеграция с УХ' },
+  { key: '/logs', icon: <FileSearchOutlined />, label: 'Логи' },
   { key: '/uh-db-connection', icon: <LinkOutlined />, label: 'Подключение к БД УХ' }
 ];
 
