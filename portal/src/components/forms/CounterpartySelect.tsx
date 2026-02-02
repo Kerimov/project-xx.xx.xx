@@ -27,7 +27,17 @@ export function CounterpartySelect({ value, onChange, onNameChange, ...props }: 
     setLoading(true);
     try {
       const response = await api.nsi.counterparties(search);
-      setCounterparties(response.data || []);
+      let list = response.data || [];
+      // Если задан value и его нет в списке — подгружаем по ID (для редактирования)
+      if (value && !list.some((cp: Counterparty) => cp.id === value)) {
+        try {
+          const res = await api.nsi.getCounterparty(value);
+          if (res.data) list = [res.data, ...list];
+        } catch {
+          // Игнорируем — возможно контрагент удалён
+        }
+      }
+      setCounterparties(list);
     } catch (error: any) {
       message.error('Ошибка загрузки контрагентов: ' + (error.message || 'Неизвестная ошибка'));
     } finally {
@@ -37,7 +47,7 @@ export function CounterpartySelect({ value, onChange, onNameChange, ...props }: 
 
   useEffect(() => {
     loadCounterparties();
-  }, []);
+  }, [value]);
 
   const handleSearch = (search: string) => {
     setSearchValue(search);

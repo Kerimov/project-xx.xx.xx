@@ -21,16 +21,16 @@ const ALLOWED_TRANSITIONS: Record<PortalStatus, PortalStatus[]> = {
   Validated: ['Draft', 'Frozen', 'Cancelled'],
   Frozen: ['QueuedToUH'], // Автоматический переход
   QueuedToUH: ['SentToUH'], // Автоматический переход
-  SentToUH: ['AcceptedByUH', 'PostedInUH', 'UnpostedInUH', 'RejectedByUH'], // Переходы от УХ (UnpostedInUH — через синхронизацию)
+  SentToUH: ['AcceptedByUH', 'PostedInUH', 'UnpostedInUH', 'RejectedByUH'], // Переходы от УХ
   AcceptedByUH: ['PostedInUH'], // Автоматический переход
-  PostedInUH: [], // Финальный; UnpostedInUH задаётся только синхронизацией из 1С
-  UnpostedInUH: [], // Задаётся только синхронизацией; обратно в PostedInUH — через синхронизацию
+  PostedInUH: ['UnpostedInUH'], // «Отменить проведение» — проверка через sync с 1С
+  UnpostedInUH: ['Draft', 'PostedInUH'], // Как RejectedByUH: вернуть в черновик или провести повторно
   RejectedByUH: ['Draft'], // Можно вернуть в черновик для исправления
   Cancelled: [] // Финальный статус
 };
 
 // Статусы, в которых документ можно редактировать
-const EDITABLE_STATUSES: PortalStatus[] = ['Draft', 'Validated', 'RejectedByUH'];
+const EDITABLE_STATUSES: PortalStatus[] = ['Draft', 'Validated', 'RejectedByUH', 'UnpostedInUH'];
 
 // Статусы, в которых документ нельзя редактировать
 const READ_ONLY_STATUSES: PortalStatus[] = [
@@ -39,7 +39,6 @@ const READ_ONLY_STATUSES: PortalStatus[] = [
   'SentToUH',
   'AcceptedByUH',
   'PostedInUH',
-  'UnpostedInUH',
   'Cancelled'
 ];
 
@@ -76,7 +75,7 @@ export function isEditable(status: PortalStatus): boolean {
  * Проверяет, является ли статус финальным (нельзя изменить)
  */
 export function isFinalStatus(status: PortalStatus): boolean {
-  return READ_ONLY_STATUSES.includes(status) && status !== 'RejectedByUH';
+  return READ_ONLY_STATUSES.includes(status) && status !== 'RejectedByUH' && status !== 'UnpostedInUH';
 }
 
 /**

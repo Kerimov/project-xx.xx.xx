@@ -119,7 +119,7 @@ export function DocumentsPage() {
       key: 'actions',
       width: 150,
       render: (_: any, record: any) => {
-        const canDelete = ['Draft', 'Validated', 'Cancelled', 'RejectedByUH'].includes(record.portalStatus);
+        const canDelete = ['Draft', 'Validated', 'Cancelled', 'RejectedByUH', 'UnpostedInUH'].includes(record.portalStatus);
         return (
           <Space>
             <Button 

@@ -31,6 +31,7 @@ export const createDocumentSchema = z.object({
   date: dateSchema,
   type: nonEmptyString,
   organizationId: uuidSchema,
+  counterpartyId: uuidSchema.optional().nullable(),
   counterpartyName: z.string().optional().nullable(),
   counterpartyInn: z.string().optional().nullable(),
   amount: z.number().optional().nullable(),

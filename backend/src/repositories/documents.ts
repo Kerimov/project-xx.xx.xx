@@ -7,6 +7,7 @@ export interface DocumentRow {
   date: Date;
   type: string;
   organization_id: string;
+  counterparty_id: string | null;
   counterparty_name: string | null;
   counterparty_inn: string | null;
   amount: number | null;
@@ -99,6 +100,7 @@ export async function createDocument(data: {
   date: string;
   type: string;
   organizationId: string;
+  counterpartyId?: string | null;
   counterpartyName?: string;
   counterpartyInn?: string;
   amount?: number;
@@ -133,9 +135,9 @@ export async function createDocument(data: {
   const result = await pool.query(
     `INSERT INTO documents (
       package_id, number, date, type, organization_id,
-      counterparty_name, counterparty_inn, amount, currency,
+      counterparty_id, counterparty_name, counterparty_inn, amount, currency,
       portal_status, current_version, created_by
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING *`,
     [
       data.packageId || null,
@@ -143,6 +145,7 @@ export async function createDocument(data: {
       data.date,
       data.type,
       data.organizationId,
+      data.counterpartyId || null,
       data.counterpartyName || null,
       data.counterpartyInn || null,
       data.amount || data.totalAmount || null,
@@ -160,6 +163,7 @@ export async function createDocument(data: {
     date: data.date,
     type: data.type,
     organizationId: data.organizationId, // Важно: включаем organizationId для валидации
+    counterpartyId: data.counterpartyId ?? null,
     counterpartyName: data.counterpartyName,
     counterpartyInn: data.counterpartyInn,
     contractId: data.contractId,
@@ -251,7 +255,12 @@ export async function freezeDocumentVersion(documentId: string, version: number)
 export async function updateDocumentStatus(
   documentId: string,
   newStatus: string,
-  metadata?: { validatedAt?: Date; frozenAt?: Date; cancelledAt?: Date }
+  metadata?: {
+    validatedAt?: Date;
+    frozenAt?: Date;
+    cancelledAt?: Date;
+    uhStatus?: string;
+  }
 ) {
   const updates: string[] = ['portal_status = $2', 'updated_at = CURRENT_TIMESTAMP'];
   const params: any[] = [documentId, newStatus];
@@ -272,6 +281,11 @@ export async function updateDocumentStatus(
     params.push(metadata.cancelledAt);
   }
 
+  if (metadata?.uhStatus !== undefined) {
+    updates.push(`uh_status = $${paramIndex++}`, `uh_error_message = NULL`);
+    params.push(metadata.uhStatus);
+  }
+
   const result = await pool.query(
     `UPDATE documents
      SET ${updates.join(', ')}
@@ -289,7 +303,7 @@ export async function cancelDocument(documentId: string) {
     `UPDATE documents
      SET portal_status = 'Cancelled', cancelled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
      WHERE id = $1 
-       AND portal_status NOT IN ('Frozen', 'QueuedToUH', 'SentToUH', 'AcceptedByUH', 'PostedInUH', 'UnpostedInUH')
+       AND portal_status NOT IN ('Frozen', 'QueuedToUH', 'SentToUH', 'AcceptedByUH', 'PostedInUH')
      RETURNING *`,
     [documentId]
   );

@@ -161,8 +161,8 @@ export function DocumentDetailsPage() {
     }
   };
 
-  const canCancel = doc && ['Draft', 'Validated'].includes(doc.portalStatus);
-  const canDelete = doc && ['Draft', 'Validated', 'Cancelled', 'RejectedByUH'].includes(doc.portalStatus);
+  const canCancel = doc && ['Draft', 'Validated', 'RejectedByUH', 'UnpostedInUH'].includes(doc.portalStatus);
+  const canDelete = doc && ['Draft', 'Validated', 'Cancelled', 'RejectedByUH', 'UnpostedInUH'].includes(doc.portalStatus);
   const canEdit = statusTransitions?.editable ?? false;
   const availableTransitions = statusTransitions?.availableTransitions || [];
 
@@ -249,6 +249,7 @@ export function DocumentDetailsPage() {
       date: doc.date,
       type: doc.type,
       organizationId: doc.organizationId,
+      counterpartyId: doc.counterpartyId || null,
       counterpartyName: doc.counterpartyName || null,
       counterpartyInn: doc.counterpartyInn || null,
       amount: doc.amount ?? doc.totalAmount ?? 0,

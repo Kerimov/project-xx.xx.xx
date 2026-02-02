@@ -95,7 +95,7 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
       type: row.type,
       organizationId: row.organization_id,
       organizationName: row.organization_name || '',
-      counterpartyId: versionData?.data?.counterpartyId || null,
+      counterpartyId: row.counterparty_id || versionData?.data?.counterpartyId || null,
       counterpartyName: row.counterparty_name || versionData?.data?.counterpartyName || '',
       counterpartyInn: row.counterparty_inn || versionData?.data?.counterpartyInn || null,
       contractId: versionData?.data?.contractId || null,
@@ -269,12 +269,18 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
         }
       });
     }
+
+    // Получаем текущую версию документа (нужно до updateDocument для counterpartyId)
+    const currentVersionData = await documentsRepo.getDocumentVersion(id, document.current_version);
+    const oldData = currentVersionData?.data || {};
     
-    // Обновляем базовую таблицу documents
+    // Обновляем базовую таблицу documents (по аналогии с organization_id — counterparty_id тоже в documents)
+    const counterpartyId = updates.counterpartyId ?? oldData.counterpartyId ?? document.counterparty_id;
     const updated = await documentsRepo.updateDocument(id, {
       number: updates.number,
       date: updates.date ? new Date(updates.date) : undefined,
       type: updates.type,
+      counterparty_id: counterpartyId ?? null,
       counterparty_name: updates.counterpartyName,
       counterparty_inn: updates.counterpartyInn,
       amount: updates.totalAmount || updates.amount,
@@ -285,16 +291,13 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
       return res.status(404).json({ error: { message: 'Документ не найден' } });
     }
 
-    // Получаем текущую версию документа для сравнения
-    const currentVersionData = await documentsRepo.getDocumentVersion(id, document.current_version);
-    const oldData = currentVersionData?.data || {};
-
     // Создаём новую версию документа с полными данными
     const versionData = {
       number: updates.number,
       date: updates.date,
       type: updates.type,
       organizationId: updates.organizationId || document.organization_id, // Важно: включаем organizationId для валидации
+      counterpartyId: updates.counterpartyId ?? oldData.counterpartyId,
       counterpartyName: updates.counterpartyName,
       counterpartyInn: updates.counterpartyInn,
       contractId: updates.contractId,
@@ -514,14 +517,49 @@ export async function changeDocumentStatus(req: Request, res: Response, next: Ne
       });
     }
 
+    // Переходы UnpostedInUH / PostedInUH — проверяем фактический статус в 1С
+    let uhStatusFrom1C: string | undefined;
+    if (newStatus === 'UnpostedInUH' || newStatus === 'PostedInUH') {
+      const uhRef = document.uh_document_ref;
+      if (!uhRef || typeof uhRef !== 'string' || uhRef.trim() === '') {
+        return res.status(400).json({
+          error: { message: 'Документ не связан с 1С УХ. Сначала обновите статус из УХ.' }
+        });
+      }
+      const uhResponse = await uhIntegrationService.getDocumentStatus(uhRef.trim());
+      if (!uhResponse.success) {
+        return res.status(400).json({
+          error: { message: uhResponse.errorMessage || 'Не удалось получить статус из 1С УХ' }
+        });
+      }
+      uhStatusFrom1C = uhResponse.status || 'Accepted';
+      const wasPosted = document.uh_status === 'Posted';
+      const expectedPortalStatus: PortalStatus =
+        uhStatusFrom1C === 'Posted' ? 'PostedInUH' : wasPosted ? 'UnpostedInUH' : 'AcceptedByUH';
+      if (expectedPortalStatus !== newStatus) {
+        const msg =
+          newStatus === 'UnpostedInUH'
+            ? 'В 1С УХ документ ещё проведён. Отмените проведение в 1С, затем повторите действие.'
+            : 'В 1С УХ документ ещё не проведён. Проведите документ в 1С, затем повторите действие.';
+        return res.status(400).json({ error: { message: msg } });
+      }
+    }
+
     // Обновляем статус документа
-    const metadata: { validatedAt?: Date; frozenAt?: Date; cancelledAt?: Date } = {};
+    const metadata: {
+      validatedAt?: Date;
+      frozenAt?: Date;
+      cancelledAt?: Date;
+      uhStatus?: string;
+    } = {};
     if (newStatus === 'Validated') {
       metadata.validatedAt = new Date();
     } else if (newStatus === 'Frozen') {
       metadata.frozenAt = new Date();
     } else if (newStatus === 'Cancelled') {
       metadata.cancelledAt = new Date();
+    } else if (uhStatusFrom1C) {
+      metadata.uhStatus = uhStatusFrom1C;
     }
 
     const updated = await documentsRepo.updateDocumentStatus(id, newStatus, metadata);
@@ -685,7 +723,7 @@ export async function cancelDocument(req: Request, res: Response, next: NextFunc
     }
 
     // Проверяем, можно ли отменить документ
-    if (['Frozen', 'QueuedToUH', 'SentToUH', 'AcceptedByUH', 'PostedInUH', 'UnpostedInUH'].includes(document.portal_status)) {
+    if (['Frozen', 'QueuedToUH', 'SentToUH', 'AcceptedByUH', 'PostedInUH'].includes(document.portal_status)) {
       return res.status(400).json({ 
         error: { 
           message: `Нельзя отменить документ в статусе «${STATUS_LABELS_RU[document.portal_status as PortalStatus] ?? document.portal_status}»` 
@@ -825,7 +863,11 @@ export async function syncDocumentUHStatus(req: Request, res: Response, next: Ne
     }
 
     const uhStatus = response.status || 'Accepted';
-    const wasPosted = document.uh_status === 'Posted';
+    // «Был проведён» — если uh_status=Posted ИЛИ portal_status уже PostedInUH/UnpostedInUH (чтобы не перезаписывать UnpostedInUH на AcceptedByUH)
+    const wasPosted =
+      document.uh_status === 'Posted' ||
+      document.portal_status === 'PostedInUH' ||
+      document.portal_status === 'UnpostedInUH';
     const portalStatus: PortalStatus =
       uhStatus === 'Posted'
         ? 'PostedInUH'
