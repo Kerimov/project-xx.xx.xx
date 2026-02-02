@@ -76,6 +76,8 @@ export interface UHPayload {
   /** Номер и дата счёта-фактуры */
   invoiceNumber?: string;
   invoiceDate?: string;
+  /** Дата накладной/УПД (от) — в 1С: Объект.ДатаВходящегоДокумента */
+  waybillDate?: string;
   /** Оригинал получен */
   originalReceived?: boolean;
   /** Требуется счёт-фактура */
@@ -219,6 +221,8 @@ export async function buildUHPayload(
     'isUPD', 'totalVAT', 'totalVatAmount', 'vatPercent', 'vatAmount',
     // Номер и дата счёта-фактуры
     'invoiceNumber', 'invoiceDate',
+    // Дата накладной (от) → в 1С ДатаВходящегоДокумента
+    'waybillDate',
     // Прочие реквизиты
     'originalReceived', 'invoiceReceived', 'invoiceRequired'
   ];
