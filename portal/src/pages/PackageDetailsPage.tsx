@@ -11,7 +11,7 @@ import {
   message,
   Modal
 } from 'antd';
-import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, PlusOutlined, SendOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
 import { documentGroups } from '../config/documentGroups';
 
@@ -77,6 +77,7 @@ export function PackageDetailsPage() {
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [adding, setAdding] = useState(false);
+  const [sendingToUH, setSendingToUH] = useState(false);
 
   const loadPackage = useCallback(async () => {
     if (!id) return;
@@ -107,6 +108,28 @@ export function PackageDetailsPage() {
       message.error('Ошибка загрузки документов');
     } finally {
       setLoadingDocs(false);
+    }
+  };
+
+  const handleSendToUH = async () => {
+    if (!id) return;
+    try {
+      setSendingToUH(true);
+      const res = await api.packages.sendToUH(id);
+      const d = res.data;
+      if (d.enqueued > 0) {
+        message.success(`Отправлено в очередь УХ: ${d.enqueued} документов`);
+        loadPackage();
+      } else {
+        message.info(d.message || 'Нет документов для отправки');
+      }
+      if (d.errors?.length) {
+        message.warning(`Ошибки: ${d.errors.slice(0, 3).join('; ')}${d.errors.length > 3 ? '...' : ''}`);
+      }
+    } catch (e: any) {
+      message.error('Ошибка: ' + (e?.message || 'Неизвестная ошибка'));
+    } finally {
+      setSendingToUH(false);
     }
   };
 
@@ -157,9 +180,18 @@ export function PackageDetailsPage() {
 
   return (
     <div className="page">
-      <Space style={{ marginBottom: 16 }}>
+      <Space style={{ marginBottom: 16 }} wrap>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/packages')}>
           К пакетам
+        </Button>
+        <Button
+          type="primary"
+          icon={<SendOutlined />}
+          onClick={handleSendToUH}
+          loading={sendingToUH}
+          disabled={!pkg?.documents?.length}
+        >
+          Отправить все в УХ
         </Button>
       </Space>
 

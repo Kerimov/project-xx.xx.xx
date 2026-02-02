@@ -176,6 +176,12 @@ export const api = {
         body: JSON.stringify({ documentIds })
       }),
 
+    sendToUH: (packageId: string) =>
+      request<{ data: { packageId: string; enqueued: number; skipped: number; totalInPackage: number; errors?: string[] } }>(
+        `/packages/${packageId}/send-to-uh`,
+        { method: 'POST' }
+      ),
+
     create: (pkg: any) => request<{ data: any }>('/packages', {
       method: 'POST',
       body: JSON.stringify(pkg)
