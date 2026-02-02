@@ -86,6 +86,27 @@ export class NSISyncService {
         version: sinceVersion
       });
 
+      // Дополняем общую дельту складами из отдельного сервиса /nsi/warehouses (иерархия, корректная выгрузка)
+      try {
+        const warehousesResp = await uhIntegrationService.getNSIWarehouses({ version: sinceVersion });
+        if (warehousesResp?.items?.length) {
+          const existingIds = new Set(delta.items.map((i: any) => i.id));
+          let added = 0;
+          for (const item of warehousesResp.items) {
+            if (item.type === 'Warehouse' && item.id && !existingIds.has(item.id)) {
+              delta.items.push(item);
+              existingIds.add(item.id);
+              added++;
+            }
+          }
+          if (added > 0) {
+            logger.info('Merged warehouses from /nsi/warehouses into NSI delta', { added });
+          }
+        }
+      } catch (whErr: any) {
+        logger.warn('Could not merge /nsi/warehouses into delta, using delta only', { message: whErr?.message });
+      }
+
       if (delta.items.length === 0) {
         logger.info('NSI is up to date');
         return { ...emptyResult, message: 'НСИ актуальна' };
@@ -155,6 +176,70 @@ export class NSISyncService {
     } catch (error: any) {
       const msg = error?.message || String(error);
       logger.error('NSI sync failed', error);
+      return {
+        success: false,
+        synced: 0,
+        total: 0,
+        failed: 0,
+        errors: [{ type: 'System', id: '', message: msg }],
+        message: msg
+      };
+    }
+  }
+
+  /**
+   * Синхронизация только складов НСИ из УХ (отдельный сервис).
+   * Не обновляет nsi_sync_state, чтобы не ломать общую версионность НСИ.
+   */
+  async syncWarehousesOnly(): Promise<NSISyncResult> {
+    const emptyResult: NSISyncResult = { success: true, synced: 0, total: 0, failed: 0, errors: [] };
+
+    try {
+      logger.info('Syncing NSI warehouses from UH (separate service)');
+
+      const delta = await uhIntegrationService.getNSIWarehouses();
+      const items = (delta.items || []).filter(item => item.type === 'Warehouse');
+
+      if (items.length === 0) {
+        logger.info('NSI warehouses are up to date or empty');
+        return { ...emptyResult, message: 'Склады не изменились' };
+      }
+
+      logger.info('Received NSI warehouses from UH', { count: items.length });
+
+      let synced = 0;
+      const errors: NSISyncError[] = [];
+
+      for (const item of items) {
+        try {
+          await this.syncWarehouse(item);
+          synced++;
+        } catch (error: any) {
+          const msg = error?.message || String(error);
+          logger.error(`Failed to sync warehouse`, error, { itemId: item.id, itemType: item.type });
+          errors.push({
+            type: item.type || 'Warehouse',
+            id: item.id || '',
+            name: item.name || item.data?.name,
+            message: msg
+          });
+        }
+      }
+
+      const result: NSISyncResult = {
+        success: errors.length === 0,
+        synced,
+        total: items.length,
+        failed: errors.length,
+        errors,
+        version: delta.version
+      };
+
+      logger.info('NSI warehouses sync completed', result);
+      return result;
+    } catch (error: any) {
+      const msg = error?.message || String(error);
+      logger.error('NSI warehouses sync failed', error);
       return {
         success: false,
         synced: 0,
@@ -306,12 +391,16 @@ export class NSISyncService {
   }
 
   /**
-   * Синхронизация склада
+   * Синхронизация склада. При отсутствии организации в портале создаётся заглушка.
    */
   private async syncWarehouse(item: any) {
     const code = item.code || item.data?.code || null;
     const name = this.fallbackName(item);
     const organizationId = item.data?.organizationId || null;
+
+    if (organizationId) {
+      await this.ensureOrganizationExists(organizationId);
+    }
 
     logger.debug('Syncing warehouse', { id: item.id, name, code, organizationId });
 
@@ -465,6 +554,14 @@ export class NSISyncService {
         this.syncing = false;
       }
     }
+  }
+
+  /**
+   * Ручной запуск синхронизации только складов.
+   */
+  async manualSyncWarehouses(): Promise<NSISyncResult> {
+    logger.info('Manual NSI warehouses sync triggered');
+    return await this.syncWarehousesOnly();
   }
 }
 

@@ -45,7 +45,7 @@ export interface UHOperationResponse {
 
 export interface NSIItem {
   id: string;
-  type: 'Counterparty' | 'Contract' | 'Organization' | 'Article' | 'Other';
+  type: 'Counterparty' | 'Contract' | 'Organization' | 'Warehouse' | 'Account' | 'AccountingAccount' | 'Article' | 'Other';
   code?: string;
   name: string;
   data: Record<string, any>;

@@ -428,9 +428,11 @@ export function IntegrationMonitorPage() {
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
             Обновить
           </Button>
-          <Button icon={<SyncOutlined />} onClick={handleSyncNSI} loading={nsiSyncLoading}>
-            Синхронизировать НСИ
-          </Button>
+          <Tooltip title="Организации, контрагенты, договоры, счета, склады и счета учёта. Склады подтягиваются из сервиса /nsi/warehouses и объединяются с дельтой НСИ.">
+            <Button icon={<SyncOutlined />} onClick={handleSyncNSI} loading={nsiSyncLoading}>
+              Синхронизировать НСИ
+            </Button>
+          </Tooltip>
           <Button danger onClick={handleClearNSI} loading={nsiClearLoading}>
             Очистить НСИ
           </Button>
@@ -522,34 +524,6 @@ export function IntegrationMonitorPage() {
           </Col>
         </Row>
 
-        {items.some((i: any) => i.lastError && (i.lastError.includes('ECONNREFUSED') || i.lastError.includes('fetch failed'))) && (
-          <Alert
-            type="warning"
-            showIcon
-            message="Сервер 1С недоступен"
-            description="Backend не может подключиться к HTTP API 1С (ECONNREFUSED). UH_API_URL в backend/.env — базовый URL сервиса ecof (без /documents), например https://localhost:8035/kk_test/hs/ecof. Backend сам обращается к .../documents, .../health. Проверьте, что HTTP-сервис 1С запущен; при HTTPS с самоподписанным сертификатом задайте UH_API_INSECURE=true."
-            style={{ marginBottom: 16 }}
-          />
-        )}
-        {items.some((i: any) => i.lastError && i.lastError.includes('401')) && (
-          <Alert
-            type="error"
-            showIcon
-            message="Ошибка 401 — 1С отклонила авторизацию"
-            description="При передаче документа 1С вернула 401 Unauthorized. Задайте в backend/.env переменные UH_API_USER и UH_API_PASSWORD (логин и пароль пользователя 1С УХ), затем перезапустите backend. Учётные данные должны совпадать с теми, с которыми вы успешно входите в 1С из браузера."
-            style={{ marginBottom: 16 }}
-          />
-        )}
-        {items.some((i: any) => i.lastError && i.lastError.includes('500')) && (
-          <Alert
-            type="info"
-            showIcon
-            message="Ошибка 500 от 1С при передаче документа"
-            description="Авторизация (логин/пароль) прошла успешно — иначе 1С вернула бы 401. Код 500 означает, что 1С приняла запрос, но упала при обработке документа: проверьте полный текст ошибки в колонке «Ошибка» (подсказка при наведении). Часто это «Превышено допустимое количество ошибок проведения» — исправьте данные документа в 1С или в портале (обязательные реквизиты, НСИ, правила проведения)."
-            style={{ marginBottom: 16 }}
-          />
-        )}
-
         <Card title="Диагностика авторизации 1С">
           <Space direction="vertical" style={{ width: '100%' }}>
             <Space wrap>
@@ -583,6 +557,18 @@ export function IntegrationMonitorPage() {
               loading={authDebugLoading}
             >
               Проверить /documents
+            </Button>
+            <Button
+              onClick={() => runAuthDebug('/nsi/delta', 'GET')}
+              loading={authDebugLoading}
+            >
+              Проверить /nsi/delta
+            </Button>
+            <Button
+              onClick={() => runAuthDebug('/nsi/warehouses', 'GET')}
+              loading={authDebugLoading}
+            >
+              Проверить /nsi/warehouses
             </Button>
             <Button
               onClick={applyAuthOverride}
@@ -641,6 +627,29 @@ export function IntegrationMonitorPage() {
               pagination={{ pageSize: 20 }}
             />
           </Spin>
+        </Card>
+
+        <Card title="Легенда — типичные ошибки интеграции с 1С">
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <Alert
+              type="warning"
+              showIcon
+              message="Сервер 1С недоступен"
+              description="Backend не может подключиться к HTTP API 1С (ECONNREFUSED). UH_API_URL в backend/.env — базовый URL сервиса ecof (без /documents), например https://localhost:8035/kk_test/hs/ecof. Backend сам обращается к .../documents, .../health. Проверьте, что HTTP-сервис 1С запущен; при HTTPS с самоподписанным сертификатом задайте UH_API_INSECURE=true."
+            />
+            <Alert
+              type="error"
+              showIcon
+              message="Ошибка 401 — 1С отклонила авторизацию"
+              description="При передаче документа 1С вернула 401 Unauthorized. Задайте в backend/.env переменные UH_API_USER и UH_API_PASSWORD (логин и пароль пользователя 1С УХ), затем перезапустите backend. Учётные данные должны совпадать с теми, с которыми вы успешно входите в 1С из браузера."
+            />
+            <Alert
+              type="info"
+              showIcon
+              message="Ошибка 500 от 1С при передаче документа"
+              description="Авторизация (логин/пароль) прошла успешно — иначе 1С вернула бы 401. Код 500 означает, что 1С приняла запрос, но упала при обработке документа: проверьте полный текст ошибки в колонке «Ошибка» (подсказка при наведении). Часто это «Превышено допустимое количество ошибок проведения» — исправьте данные документа в 1С или в портале (обязательные реквизиты, НСИ, правила проведения)."
+            />
+          </Space>
         </Card>
       </Space>
     </div>

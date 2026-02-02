@@ -333,6 +333,37 @@ export class UHIntegrationService {
   }
 
   /**
+   * Получение складов НСИ из УХ (отдельный сервис)
+   */
+  async getNSIWarehouses(request: Pick<NSIDeltaRequest, 'version'> = {}): Promise<NSIDeltaResponse> {
+    try {
+      const params = new URLSearchParams();
+      if (request.version) params.append('version', request.version.toString());
+
+      console.log(`📥 Fetching NSI warehouses from UH: ${params.toString()}`);
+
+      const response = await this.requestWithRetry<NSIDeltaResponse>(
+        `${this.baseUrl}/nsi/warehouses${params.toString() ? `?${params.toString()}` : ''}`,
+        {
+          method: 'GET'
+        }
+      );
+
+      console.log(`✅ NSI warehouses received: ${response.items.length} items`);
+      return response;
+    } catch (error: any) {
+      const errorDetails = this.formatError(error);
+      console.error(`❌ Failed to fetch NSI warehouses from UH`);
+      console.error(`   Full error details: ${errorDetails}`);
+      return {
+        items: [],
+        version: request.version || 0,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
    * Получение статуса документа в УХ
    */
   async getDocumentStatus(uhDocumentRef: string): Promise<UHOperationResponse> {

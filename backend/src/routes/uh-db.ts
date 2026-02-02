@@ -6,6 +6,7 @@ import http from 'http';
 import { testUHConnectionWithMessage, getUHDbSafeConfig, runUHSampleQuery } from '../db/uh-connection.js';
 import { check1CServices } from '../utils/check-1c-url.js';
 import { uhIntegrationService } from '../services/uh-integration.js';
+import { logger } from '../utils/logger.js';
 
 export const uhDbRouter = Router();
 
@@ -90,7 +91,12 @@ uhDbRouter.post('/auth-debug', async (req: Request, res: Response) => {
     const password = (req.body?.password ?? process.env.UH_API_PASSWORD ?? '').toString();
     const payload = req.body?.payload;
 
-    const u = new URL(baseUrl.replace(/\/$/, '') + endpoint);
+    let u: URL;
+    try {
+      u = new URL(baseUrl.replace(/\/$/, '') + endpoint);
+    } catch (e: any) {
+      return res.status(400).json({ error: { message: `Некорректный baseUrl/endpoint: ${e?.message || e}` } });
+    }
     const isHttps = u.protocol === 'https:';
     const authHeader = username && password
       ? `Basic ${Buffer.from(`${username}:${password}`, 'utf8').toString('base64')}`
@@ -145,7 +151,14 @@ uhDbRouter.post('/auth-debug', async (req: Request, res: Response) => {
       }
     });
   } catch (error: any) {
-    res.status(500).json({ error: { message: error?.message || 'Auth debug failed' } });
+    const message = error?.message || 'Auth debug failed';
+    logger.error('Auth debug failed', { message, stack: error?.stack });
+    const status = message.toLowerCase().includes('timeout') ? 504 : 500;
+    res.status(status).json({
+      error: {
+        message
+      }
+    });
   }
 });
 
