@@ -5,6 +5,7 @@
 
 import { pool } from '../db/connection.js';
 import { getUHDocumentConfig } from '../config/uh-document-types.js';
+import { logger } from '../utils/logger.js';
 
 export interface DocumentRow {
   id: string;
@@ -36,6 +37,10 @@ export interface UHPayloadItem {
   vatPercent?: number;
   vatAmount?: number;
   rowNumber?: number;
+  /** Счёт учёта (план счетов 1С) — ID для поиска в 1С */
+  accountId?: string;
+  /** Счёт НДС (план счетов 1С) — ID для поиска в 1С */
+  vatAccountId?: string;
   [key: string]: unknown;
 }
 
@@ -60,6 +65,21 @@ export interface UHPayload {
   accountCode?: string;
   /** Аналитика «Договор» — наименование для 1С */
   contractName?: string;
+  /** Признак УПД (универсальный передаточный документ) */
+  isUPD?: boolean;
+  /** Общая сумма НДС */
+  totalVAT?: number;
+  totalVatAmount?: number;
+  /** Ставка НДС на уровне документа */
+  vatPercent?: number;
+  vatAmount?: number;
+  /** Номер и дата счёта-фактуры */
+  invoiceNumber?: string;
+  invoiceDate?: string;
+  /** Оригинал получен */
+  originalReceived?: boolean;
+  /** Требуется счёт-фактура */
+  invoiceRequired?: boolean;
   [key: string]: unknown;
 }
 
@@ -77,6 +97,10 @@ function normalizeItem(row: Record<string, unknown>, _config: { itemRequiredFiel
   const vatPercent = row.vatPercent != null ? Number(row.vatPercent) : undefined;
   const vatAmount = row.vatAmount != null ? Number(row.vatAmount) : undefined;
   const rowNumber = row.rowNumber != null ? Number(row.rowNumber) : undefined;
+  // Счёт учёта (план счетов 1С) — передаём ID для поиска в 1С
+  const accountId = row.accountId as string | undefined;
+  // Счёт НДС (план счетов 1С) — передаём ID для поиска в 1С
+  const vatAccountId = row.vatAccountId as string | undefined;
 
   const result: UHPayloadItem = {
     nomenclatureName: nomenclatureName || (row.serviceName as string) || (row.service as string) || undefined,
@@ -90,6 +114,8 @@ function normalizeItem(row: Record<string, unknown>, _config: { itemRequiredFiel
   if (amount !== undefined) result.amount = amount;
   if (vatPercent !== undefined) result.vatPercent = vatPercent;
   if (vatAmount !== undefined) result.vatAmount = vatAmount;
+  if (accountId) result.accountId = accountId;
+  if (vatAccountId) result.vatAccountId = vatAccountId;
   if (!result.nomenclatureName && result.serviceName) result.nomenclatureName = result.serviceName;
   return result;
 }
@@ -188,12 +214,31 @@ export async function buildUHPayload(
   const optionalTopLevel = [
     'contractId', 'dueDate', 'vatOnTop', 'vatIncluded', 'purpose', 'receiptOperationType',
     'servicePeriod', 'serviceStartDate', 'serviceEndDate',
-    'warehouseIdFrom', 'warehouseNameFrom', 'warehouseIdTo', 'warehouseNameTo'
+    'warehouseIdFrom', 'warehouseNameFrom', 'warehouseIdTo', 'warehouseNameTo',
+    // УПД и НДС
+    'isUPD', 'totalVAT', 'totalVatAmount', 'vatPercent', 'vatAmount',
+    // Номер и дата счёта-фактуры
+    'invoiceNumber', 'invoiceDate',
+    // Прочие реквизиты
+    'originalReceived', 'invoiceRequired'
   ];
   for (const key of optionalTopLevel) {
     if (versionData[key] !== undefined && payload[key] === undefined) {
       payload[key] = versionData[key];
     }
+  }
+
+  // Явно пробрасываем isUPD как булево значение
+  if (versionData.isUPD !== undefined) {
+    payload.isUPD = Boolean(versionData.isUPD);
+  }
+
+  // Пробрасываем общую сумму НДС
+  if (versionData.totalVAT !== undefined) {
+    payload.totalVAT = Number(versionData.totalVAT);
+  }
+  if (versionData.totalVatAmount !== undefined) {
+    payload.totalVatAmount = Number(versionData.totalVatAmount);
   }
 
   // Совместимость: пробросить вид операции под альтернативными ключами
@@ -213,6 +258,20 @@ export async function buildUHPayload(
   } else if (config?.hasItems) {
     payload.items = [];
   }
+
+  // Логируем payload для отладки
+  logger.info('UH Payload built', {
+    docId: document.id,
+    type: document.type,
+    isUPD: payload.isUPD,
+    totalVAT: payload.totalVAT,
+    itemsCount: payload.items?.length || 0,
+    firstItem: payload.items?.[0] ? {
+      vatPercent: payload.items[0].vatPercent,
+      vatAmount: payload.items[0].vatAmount,
+      accountId: payload.items[0].accountId
+    } : null
+  });
 
   return payload;
 }

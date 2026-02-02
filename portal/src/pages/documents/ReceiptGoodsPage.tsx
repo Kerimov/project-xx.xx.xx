@@ -27,6 +27,7 @@ interface ReceiptGoodsItem {
   vatAmount: number;
   totalAmount: number;
   accountId?: string;
+  vatAccountId?: string;
   budgetItem?: string;
 }
 
@@ -137,6 +138,7 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
           vatAmount: item.vatAmount || 0,
           totalAmount: item.totalAmount || 0,
           accountId: item.accountId,
+          vatAccountId: item.vatAccountId,
           budgetItem: item.budgetItem
         })),
         totalAmount: items.reduce((sum, item) => sum + (item.totalAmount || 0), 0),
@@ -350,6 +352,20 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
         <AccountingAccountSelect
           value={record.accountId}
           onChange={(v) => updateItem(index, 'accountId', v)}
+          placeholder="Выберите счет"
+          style={{ width: '100%' }}
+        />
+      )
+    },
+    {
+      title: 'Счет НДС',
+      dataIndex: 'vatAccountId',
+      key: 'vatAccountId',
+      width: 140,
+      render: (_: unknown, record: ReceiptGoodsItem, index: number) => (
+        <AccountingAccountSelect
+          value={record.vatAccountId}
+          onChange={(v) => updateItem(index, 'vatAccountId', v)}
           placeholder="Выберите счет"
           style={{ width: '100%' }}
         />

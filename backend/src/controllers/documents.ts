@@ -219,6 +219,13 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
     const { id } = req.params;
     const updates = req.body;
     
+    logger.info('Update document request', { 
+      documentId: id, 
+      hasOrganizationId: !!updates.organizationId,
+      organizationId: updates.organizationId,
+      portalStatus: updates.portalStatus 
+    });
+    
     const document = await documentsRepo.getDocumentById(id);
     if (!document) {
       return res.status(404).json({ error: { message: 'Document not found' } });
@@ -226,7 +233,14 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
 
     // Проверяем, можно ли редактировать документ в текущем статусе
     const currentStatus = document.portal_status as PortalStatus;
+    logger.info('Document status check', { 
+      documentId: id, 
+      currentStatus, 
+      isEditable: isEditable(currentStatus) 
+    });
+    
     if (!isEditable(currentStatus)) {
+      logger.warn('Document not editable', { documentId: id, currentStatus });
       return res.status(403).json({
         error: {
           message: `Документ нельзя редактировать в статусе "${currentStatus}". Доступно редактирование только в статусах: Draft, Validated, RejectedByUH`
@@ -389,7 +403,8 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
     logger.info('Document updated', { documentId: id, status: currentStatus, newVersion: updatedDoc.current_version });
     
     res.json({ data: updatedDoc });
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Error updating document', error, { documentId: req.params.id, errorMessage: error?.message });
     next(error);
   }
 }

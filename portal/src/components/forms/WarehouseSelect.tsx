@@ -17,11 +17,14 @@ interface Warehouse {
 interface WarehouseSelectProps extends Omit<SelectProps, 'options' | 'loading'> {
   value?: string;
   onChange?: (value: string) => void;
+  /** @deprecated Не используется, склады не фильтруются по организации */
+  organizationId?: string;
 }
 
 export function WarehouseSelect({ 
   value, 
   onChange,
+  organizationId: _organizationId, // деструктурируем, чтобы не передавать в DOM
   ...props 
 }: WarehouseSelectProps) {
   const [loading, setLoading] = useState(false);
