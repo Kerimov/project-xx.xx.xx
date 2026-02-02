@@ -51,7 +51,7 @@ export function ReferenceSelectWrapper<T extends { id: string }>({
     if (modalOpen) {
       load(undefined);
     }
-  }, [modalOpen]);
+  }, [modalOpen, loadItems]);
 
   const handleSearch = () => {
     load(search || undefined);
@@ -103,6 +103,7 @@ export function ReferenceSelectWrapper<T extends { id: string }>({
           dataSource={items}
           columns={columns}
           loading={loading}
+          locale={{ emptyText: loading ? 'Загрузка…' : 'Нет данных' }}
           pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (t) => `Всего: ${t}` }}
           onRow={(record) => ({
             onClick: () => handleRowClick(record),

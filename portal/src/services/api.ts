@@ -278,9 +278,10 @@ export const api = {
     },
     getAccount: (id: string) => request<{ data: any }>(`/nsi/accounts/${id}`),
 
-    warehouses: (organizationId?: string) => {
+    warehouses: (organizationId?: string, search?: string) => {
       const params = new URLSearchParams();
       if (organizationId) params.append('organizationId', organizationId);
+      if (search) params.append('search', search);
       return request<{ data: any[] }>(`/nsi/warehouses${params.toString() ? `?${params.toString()}` : ''}`);
     },
     getWarehouse: (id: string) => request<{ data: any }>(`/nsi/warehouses/${id}`),
@@ -428,6 +429,17 @@ export const api = {
         request<{ data: { added: number } }>('/admin/nsi/seed-warehouses', { method: 'POST' }),
       clearSeededWarehouses: () =>
         request<{ data: { cleared: number } }>('/admin/nsi/clear-seeded-warehouses', { method: 'POST' })
+    },
+    dashboard: {
+      stats: () =>
+        request<{
+          data: {
+            packagesInProcessing: number;
+            documentsWithErrors: number;
+            processedToday: number;
+            queueCount: number;
+          };
+        }>('/admin/dashboard/stats')
     },
     clearPortalData: () =>
       request<{

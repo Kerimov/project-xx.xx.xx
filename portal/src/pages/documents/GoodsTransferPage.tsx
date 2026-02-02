@@ -226,15 +226,11 @@ export function GoodsTransferPage({ documentId }: GoodsTransferPageProps = {}) {
             </Form.Item>
 
             <Form.Item label="Склад-отправитель" name="sourceWarehouseId" rules={[{ required: true, message: 'Выберите склад-отправитель' }]}>
-              <WarehouseSelect
-                organizationId={selectedOrganizationId}
-              />
+              <WarehouseSelect />
             </Form.Item>
 
             <Form.Item label="Склад-получатель" name="targetWarehouseId" rules={[{ required: true, message: 'Выберите склад-получатель' }]}>
-              <WarehouseSelect
-                organizationId={selectedOrganizationId}
-              />
+              <WarehouseSelect />
             </Form.Item>
           </BaseDocumentForm>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Select, Spin, message } from 'antd';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
@@ -32,7 +32,7 @@ export function WarehouseSelect({
   const loadWarehouses = async () => {
     setLoading(true);
     try {
-      const response = await api.nsi.warehouses(organizationId);
+      const response = await api.nsi.warehouses(organizationId, undefined);
       setWarehouses(response.data || []);
     } catch (error: any) {
       message.error('Ошибка загрузки складов: ' + (error.message || 'Неизвестная ошибка'));
@@ -42,17 +42,18 @@ export function WarehouseSelect({
   };
 
   useEffect(() => {
-    if (organizationId) {
-      loadWarehouses();
-    } else {
-      setWarehouses([]);
-    }
+    loadWarehouses();
   }, [organizationId]);
 
-  const loadItems = async () => {
-    const response = await api.nsi.warehouses(organizationId);
-    return (response.data || []) as Warehouse[];
-  };
+  const loadItems = useCallback(async (search?: string): Promise<Warehouse[]> => {
+    try {
+      const response = await api.nsi.warehouses(organizationId, search);
+      const list = response?.data;
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
+  }, [organizationId]);
 
   return (
     <ReferenceSelectWrapper<Warehouse>
@@ -64,8 +65,6 @@ export function WarehouseSelect({
       ]}
       loadItems={loadItems}
       onSelect={(id) => onChange?.(id)}
-      disabled={!organizationId}
-      disabledHint="Сначала выберите организацию"
     >
       <Select
         {...props}
@@ -75,10 +74,11 @@ export function WarehouseSelect({
         allowClear
         placeholder="Выберите склад"
         loading={loading}
-        filterOption={(input, option) =>
-          (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
-        }
-        notFoundContent={loading ? <Spin size="small" /> : organizationId ? 'Склады не найдены' : 'Сначала выберите организацию'}
+        filterOption={(input, option) => {
+          const label = (option?.label ?? option?.value ?? '')?.toString?.() ?? '';
+          return label.toLowerCase().includes((input ?? '').toLowerCase());
+        }}
+        notFoundContent={loading ? <Spin size="small" /> : 'Склады не найдены. Запустите синхронизацию НСИ на странице «Интеграция с УХ».'}
         optionLabelProp="label"
         style={{ width: '100%' }}
       >

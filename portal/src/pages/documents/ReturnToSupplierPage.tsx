@@ -432,9 +432,7 @@ export function ReturnToSupplierPage({ documentId }: ReturnToSupplierPageProps =
             </Form.Item>
 
             <Form.Item label="Склад" name="warehouseId" rules={[{ required: true, message: 'Выберите склад' }]}>
-              <WarehouseSelect
-                organizationId={selectedOrganizationId}
-              />
+              <WarehouseSelect />
             </Form.Item>
 
             <Form.Item label="Основание возврата:" name="returnBasis">

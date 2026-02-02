@@ -3,6 +3,7 @@
 import { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
+import { pool } from '../db/connection.js';
 import { uhQueueService } from '../services/uh-queue.js';
 import { nsiSyncService } from '../services/nsi-sync.js';
 import { testUHConnection } from '../db/uh-connection.js';
@@ -13,6 +14,39 @@ export const adminRouter = Router();
 
 // Все роуты требуют аутентификации
 adminRouter.use(authenticateToken);
+
+// Статистика для дашборда: пакеты в обработке, документы с ошибками, проведено за сегодня, в очереди на УХ
+adminRouter.get('/dashboard/stats', async (_req: Request, res: Response) => {
+  try {
+    const [packagesRes, documentsErrorsRes, processedTodayRes, queueStats] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS c FROM packages WHERE status IN ('New', 'InProcessing')`
+      ),
+      pool.query(
+        `SELECT COUNT(*)::int AS c FROM documents WHERE uh_status = 'Error'`
+      ),
+      pool.query(
+        `SELECT COUNT(*)::int AS c FROM uh_integration_queue
+         WHERE status = 'Completed' AND completed_at::date = CURRENT_DATE`
+      ),
+      uhQueueService.getStats()
+    ]);
+    const packagesInProcessing = packagesRes.rows[0]?.c ?? 0;
+    const documentsWithErrors = documentsErrorsRes.rows[0]?.c ?? 0;
+    const processedToday = processedTodayRes.rows[0]?.c ?? 0;
+    const queueCount = (queueStats.pending ?? 0) + (queueStats.processing ?? 0);
+    res.json({
+      data: {
+        packagesInProcessing,
+        documentsWithErrors,
+        processedToday,
+        queueCount
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: { message: error.message } });
+  }
+});
 
 // Статистика очереди УХ (доступна всем авторизованным пользователям)
 adminRouter.get('/queue/stats', async (req: Request, res: Response) => {
@@ -27,7 +61,6 @@ adminRouter.get('/queue/stats', async (req: Request, res: Response) => {
 // Список задач очереди УХ (доступен всем авторизованным пользователям)
 adminRouter.get('/queue/items', async (req: Request, res: Response) => {
   try {
-    const { pool } = await import('../db/connection.js');
     const limit = parseInt(req.query.limit as string) || 50;
     const status = req.query.status as string | undefined;
     

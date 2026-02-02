@@ -285,9 +285,7 @@ export function InventoryPage({ documentId }: InventoryPageProps = {}) {
             </Form.Item>
 
             <Form.Item label="Склад" name="warehouseId" rules={[{ required: true, message: 'Выберите склад' }]}>
-              <WarehouseSelect
-                organizationId={selectedOrganizationId}
-              />
+              <WarehouseSelect />
             </Form.Item>
 
             <Form.Item label="Комиссия:" name="commission">
