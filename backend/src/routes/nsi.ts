@@ -11,7 +11,9 @@ import {
   getAccounts,
   getAccountById,
   getWarehouses,
-  getWarehouseById
+  getWarehouseById,
+  getAccountingAccounts,
+  getAccountingAccountById
 } from '../controllers/nsi.js';
 
 export const nsiRouter = Router();
@@ -26,3 +28,5 @@ nsiRouter.get('/accounts', getAccounts);
 nsiRouter.get('/accounts/:id', getAccountById);
 nsiRouter.get('/warehouses', getWarehouses);
 nsiRouter.get('/warehouses/:id', getWarehouseById);
+nsiRouter.get('/accounting-accounts', getAccountingAccounts);
+nsiRouter.get('/accounting-accounts/:id', getAccountingAccountById);

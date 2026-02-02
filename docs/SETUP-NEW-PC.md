@@ -80,12 +80,14 @@ UH_1C_USER=Администратор
 UH_1C_PASSWORD=test123!@#
 ```
 
-**HTTP API 1С УХ (если используется):**
+**HTTP API 1С УХ (базовый URL сервиса ecof — без /documents в конце):**
 ```env
-UH_API_URL=https://web1c.pra.ru:8035/kk_test/hs/ecof
+UH_API_URL=https://localhost:8035/kk_test/hs/ecof
 UH_API_USER=Администратор
 UH_API_PASSWORD=test123!@#
+UH_API_INSECURE=true
 ```
+Backend сам обращается к `.../ecof/documents`, `.../ecof/health`, `.../ecof/nsi/delta`. В браузере по адресу `https://localhost:8035/kk_test/hs/ecof` будет 404 — это нормально, обработчиков на корне нет. (Для внешнего доступа замените localhost на web1c.pra.ru:8035.)
 
 ### 2. Переменные окружения Portal (`portal/.env`)
 
@@ -119,7 +121,7 @@ VITE_API_URL=http://localhost:3000/api
 ### Проверка HTTP-сервисов 1С
 
 На странице **"Проверка HTTP-сервисов 1С"**:
-- **URL публикации** по умолчанию: `https://web1c.pra.ru:8035/kk_test`
+- **URL публикации** по умолчанию: `https://localhost:8035/kk_test` (HTTP-сервисы под `/hs/`)
 - **Логин 1С** по умолчанию: `Администратор`
 - **Пароль** по умолчанию: `test123!@#`
 

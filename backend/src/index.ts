@@ -38,6 +38,11 @@ const PORT = process.env.PORT || 3000;
     const queueInterval = parseInt(process.env.UH_QUEUE_INTERVAL || '5000');
     uhQueueService.startProcessing(queueInterval);
     logger.info('UH queue processor started');
+    if (!process.env.UH_API_USER || !process.env.UH_API_PASSWORD) {
+      logger.warn('UH_API_USER или UH_API_PASSWORD не заданы — при передаче документов в 1С возможна ошибка 401. Задайте их в backend/.env и перезапустите backend.');
+    } else {
+      logger.info('UH API credentials loaded (user: ' + (process.env.UH_API_USER || '').slice(0, 3) + '…)');
+    }
     
     // Запускаем синхронизацию НСИ
     const nsiSyncInterval = parseInt(process.env.UH_SYNC_INTERVAL || '60000');

@@ -8,6 +8,7 @@ pnpm-lock.yaml
 dist/
 build/
 *.log
+logs/
 
 # IDE
 .vscode/

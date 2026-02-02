@@ -4,6 +4,23 @@ import { pool } from '../db/connection.js';
 import { uhIntegrationService } from './uh-integration.js';
 import { logger } from '../utils/logger.js';
 
+export interface NSISyncError {
+  type: string;
+  id: string;
+  name?: string;
+  message: string;
+}
+
+export interface NSISyncResult {
+  success: boolean;
+  synced: number;
+  total: number;
+  failed: number;
+  errors: NSISyncError[];
+  version?: number;
+  message?: string;
+}
+
 export class NSISyncService {
   private syncing = false;
   private intervalId: NodeJS.Timeout | null = null;
@@ -42,15 +59,16 @@ export class NSISyncService {
   }
 
   /**
-   * Синхронизация НСИ из УХ
+   * Синхронизация НСИ из УХ. Возвращает результат с количеством успешных/ошибочных и списком ошибок.
    */
-  async syncNSI() {
+  async syncNSI(): Promise<NSISyncResult> {
+    const emptyResult: NSISyncResult = { success: true, synced: 0, total: 0, failed: 0, errors: [] };
+
     if (this.syncing === false) {
-      return;
+      return emptyResult;
     }
 
     try {
-      // Получаем последнюю версию синхронизации
       const versionResult = await pool.query(
         'SELECT version FROM nsi_sync_state ORDER BY synced_at DESC LIMIT 1'
       );
@@ -64,30 +82,47 @@ export class NSISyncService {
 
       logger.info('Syncing NSI from UH', { version: sinceVersion });
 
-      // Запрашиваем дельту НСИ из УХ
       const delta = await uhIntegrationService.getNSIDelta({
         version: sinceVersion
       });
 
       if (delta.items.length === 0) {
         logger.info('NSI is up to date');
-        return;
+        return { ...emptyResult, message: 'НСИ актуальна' };
       }
 
       logger.info('Received NSI items from UH', { count: delta.items.length });
 
-      // Обрабатываем элементы НСИ
-      let synced = 0;
+      // Порядок обработки по зависимостям: Organization → Counterparty → Contract, Warehouse, Account, AccountingAccount
+      const order: string[] = ['Organization', 'Counterparty', 'Contract', 'Warehouse', 'Account', 'AccountingAccount'];
+      const byType = new Map<string, typeof delta.items>();
+      for (const t of order) byType.set(t, []);
       for (const item of delta.items) {
+        const list = byType.get(item.type);
+        if (list) list.push(item);
+      }
+      const orderedItems: typeof delta.items = [];
+      for (const t of order) orderedItems.push(...(byType.get(t) ?? []));
+
+      let synced = 0;
+      const errors: NSISyncError[] = [];
+
+      for (const item of orderedItems) {
         try {
           await this.processNSIItem(item);
           synced++;
         } catch (error: any) {
+          const msg = error?.message || String(error);
           logger.error(`Failed to sync NSI item`, error, { itemId: item.id, itemType: item.type });
+          errors.push({
+            type: item.type || 'Unknown',
+            id: item.id || '',
+            name: item.name || item.data?.name,
+            message: msg
+          });
         }
       }
 
-      // Сохраняем версию синхронизации
       await pool.query(
         `INSERT INTO nsi_sync_state (version, items_synced, synced_at)
          VALUES ($1, $2, NOW())
@@ -98,9 +133,28 @@ export class NSISyncService {
 
       this.lastSyncVersion = delta.version;
 
-      logger.info('NSI sync completed', { synced, total: delta.items.length, version: delta.version });
+      const result: NSISyncResult = {
+        success: errors.length === 0,
+        synced,
+        total: delta.items.length,
+        failed: errors.length,
+        errors,
+        version: delta.version
+      };
+
+      logger.info('NSI sync completed', result);
+      return result;
     } catch (error: any) {
+      const msg = error?.message || String(error);
       logger.error('NSI sync failed', error);
+      return {
+        success: false,
+        synced: 0,
+        total: 0,
+        failed: 0,
+        errors: [{ type: 'System', id: '', message: msg }],
+        message: msg
+      };
     }
   }
 
@@ -118,9 +172,24 @@ export class NSISyncService {
       case 'Contract':
         await this.syncContract(item);
         break;
+      case 'Warehouse':
+        await this.syncWarehouse(item);
+        break;
+      case 'Account':
+        await this.syncAccount(item);
+        break;
+      case 'AccountingAccount':
+        await this.syncAccountingAccount(item);
+        break;
       default:
         logger.warn('Unknown NSI item type', { itemType: item.type, itemId: item.id });
     }
+  }
+
+  /** Fallback для пустого наименования (чтобы не ломать FK у договоров/счетов) */
+  private fallbackName(item: any): string {
+    const raw = (item.name || item.data?.name || item.code || item.id || 'Без наименования').toString().trim();
+    return raw || 'Без наименования';
   }
 
   /**
@@ -128,11 +197,7 @@ export class NSISyncService {
    */
   private async syncCounterparty(item: any) {
     const inn = item.data?.inn || null;
-    const name = item.name || item.data?.name || '';
-
-    if (!name) {
-      throw new Error('Counterparty name is required');
-    }
+    const name = this.fallbackName(item);
 
     // Проверяем существование контрагента
     const existing = await pool.query(
@@ -165,12 +230,8 @@ export class NSISyncService {
    */
   private async syncOrganization(item: any) {
     const code = item.code || item.data?.code || '';
-    const name = item.name || item.data?.name || '';
+    const name = (this.fallbackName(item) || 'Организация без наименования').trim();
     const inn = item.data?.inn || null;
-
-    if (!name) {
-      throw new Error('Organization name is required');
-    }
 
     await pool.query(
       `INSERT INTO organizations (id, code, name, inn)
@@ -182,15 +243,49 @@ export class NSISyncService {
   }
 
   /**
-   * Синхронизация договора
+   * Создать контрагента-заглушку, если в 1С он не пришёл в delta (договор ссылается на него).
+   */
+  private async ensureCounterpartyExists(id: string) {
+    const existing = await pool.query('SELECT id FROM counterparties WHERE id = $1', [id]);
+    if (existing.rows.length > 0) return;
+    const stubName = `Контрагент ${id.substring(0, 8)}…`;
+    await pool.query(
+      `INSERT INTO counterparties (id, name, inn, data) VALUES ($1, $2, NULL, '{}')
+       ON CONFLICT (id) DO NOTHING`,
+      [id, stubName]
+    );
+  }
+
+  /**
+   * Создать организацию-заглушку, если в 1С она не пришла в delta (счёт ссылается на неё).
+   */
+  private async ensureOrganizationExists(id: string) {
+    const existing = await pool.query('SELECT id FROM organizations WHERE id = $1', [id]);
+    if (existing.rows.length > 0) return;
+    const stubName = `Организация ${id.substring(0, 8)}…`;
+    // code в organizations UNIQUE NOT NULL — используем id как уникальный код для заглушки
+    const stubCode = `stub-${id}`.substring(0, 50);
+    await pool.query(
+      `INSERT INTO organizations (id, code, name, inn) VALUES ($1, $2, $3, NULL)
+       ON CONFLICT (id) DO NOTHING`,
+      [id, stubCode, stubName]
+    );
+  }
+
+  /**
+   * Синхронизация договора. При отсутствии контрагента в портале создаётся заглушка.
    */
   private async syncContract(item: any) {
-    const name = item.name || item.data?.name || '';
+    const name = this.fallbackName(item);
     const organizationId = item.data?.organizationId || null;
     const counterpartyId = item.data?.counterpartyId || null;
+    const dataToStore = {
+      ...(item.data && typeof item.data === 'object' ? item.data : {}),
+      code: item.code ?? item.data?.code ?? null,
+    };
 
-    if (!name) {
-      throw new Error('Contract name is required');
+    if (counterpartyId) {
+      await this.ensureCounterpartyExists(counterpartyId);
     }
 
     await pool.query(
@@ -198,16 +293,152 @@ export class NSISyncService {
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (id) DO UPDATE
        SET name = $2, organization_id = $3, counterparty_id = $4, data = $5, updated_at = NOW()`,
-      [item.id, name, organizationId, counterpartyId, JSON.stringify(item.data)]
+      [item.id, name, organizationId, counterpartyId, JSON.stringify(dataToStore)]
     );
   }
 
   /**
-   * Ручной запуск синхронизации
+   * Синхронизация склада
    */
-  async manualSync() {
+  private async syncWarehouse(item: any) {
+    const code = item.code || item.data?.code || null;
+    const name = this.fallbackName(item);
+    const organizationId = item.data?.organizationId || null;
+
+    await pool.query(
+      `INSERT INTO warehouses (id, code, name, organization_id, data)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (id) DO UPDATE
+       SET code = COALESCE(EXCLUDED.code, warehouses.code), name = EXCLUDED.name, organization_id = EXCLUDED.organization_id, data = EXCLUDED.data, updated_at = NOW()`,
+      [item.id, code, name, organizationId, JSON.stringify(item.data ?? {})]
+    );
+  }
+
+  /**
+   * Синхронизация счёта (банк/касса). При отсутствии организации в портале создаётся заглушка.
+   */
+  private async syncAccount(item: any) {
+    const code = item.code || item.data?.code || null;
+    const name = this.fallbackName(item);
+    const organizationId = item.data?.organizationId || null;
+    const type = item.data?.type || null;
+
+    if (organizationId) {
+      await this.ensureOrganizationExists(organizationId);
+    }
+
+    await pool.query(
+      `INSERT INTO accounts (id, code, name, organization_id, type, data)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (id) DO UPDATE
+       SET code = COALESCE(EXCLUDED.code, accounts.code), name = EXCLUDED.name, organization_id = EXCLUDED.organization_id, type = COALESCE(EXCLUDED.type, accounts.type), data = EXCLUDED.data, updated_at = NOW()`,
+      [item.id, code, name, organizationId, type, JSON.stringify(item.data ?? {})]
+    );
+  }
+
+  /**
+   * Синхронизация счёта учета (план счетов из 1С УХ).
+   */
+  private async syncAccountingAccount(item: any) {
+    const code = item.code ?? item.data?.code ?? null;
+    const name = this.fallbackName(item);
+
+    await pool.query(
+      `INSERT INTO accounting_accounts (id, code, name, data)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (id) DO UPDATE
+       SET code = COALESCE(EXCLUDED.code, accounting_accounts.code), name = EXCLUDED.name, data = EXCLUDED.data, updated_at = NOW()`,
+      [item.id, code, name, JSON.stringify(item.data ?? {})]
+    );
+  }
+
+  /**
+   * Очистка синхронизированных данных НСИ. Удаляются договоры, счета, склады, контрагенты,
+   * организации (кроме тех, на которые ссылаются документы/пакеты/пользователи), состояние синхронизации.
+   * После вызова следующая синхронизация запросит данные с version 0 (полная выгрузка).
+   */
+  async clearNSIData(): Promise<{ cleared: { contracts: number; accounts: number; warehouses: number; accountingAccounts: number; counterparties: number; organizations: number }; keptOrganizations: number }> {
+    const client = await pool.connect();
+    try {
+      const rContracts = await client.query('DELETE FROM contracts');
+      const rAccounts = await client.query('DELETE FROM accounts');
+      const rWarehouses = await client.query('DELETE FROM warehouses');
+      const rAccountingAccounts = await client.query('DELETE FROM accounting_accounts');
+      const rCounterparties = await client.query('DELETE FROM counterparties');
+      const rOrgBefore = await client.query('SELECT COUNT(*) AS c FROM organizations');
+      await client.query(`
+        DELETE FROM organizations
+        WHERE id NOT IN (
+          SELECT organization_id FROM documents WHERE organization_id IS NOT NULL
+          UNION
+          SELECT organization_id FROM packages WHERE organization_id IS NOT NULL
+          UNION
+          SELECT organization_id FROM users WHERE organization_id IS NOT NULL
+        )
+      `);
+      const rOrgAfter = await client.query('SELECT COUNT(*) AS c FROM organizations');
+      await client.query('DELETE FROM nsi_sync_state');
+      this.lastSyncVersion = 0;
+
+      const cleared = {
+        contracts: rContracts.rowCount ?? 0,
+        accounts: rAccounts.rowCount ?? 0,
+        warehouses: rWarehouses.rowCount ?? 0,
+        accountingAccounts: rAccountingAccounts.rowCount ?? 0,
+        counterparties: rCounterparties.rowCount ?? 0,
+        organizations: (rOrgBefore.rows[0]?.c ?? 0) - (rOrgAfter.rows[0]?.c ?? 0)
+      };
+      const keptOrganizations = parseInt(String(rOrgAfter.rows[0]?.c ?? 0), 10);
+      logger.info('NSI data cleared', { cleared, keptOrganizations });
+      return { cleared, keptOrganizations };
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Создать склады для организаций, у которых ещё нет ни одного склада (если 1С не вернула склады в НСИ).
+   * Возвращает количество добавленных складов.
+   */
+  async seedWarehouses(): Promise<{ added: number }> {
+    const r1 = await pool.query(`
+      INSERT INTO warehouses (id, code, name, organization_id, data)
+      SELECT gen_random_uuid(), o.code || '-WH-01', 'Основной склад (' || o.name || ')', o.id, '{}'
+      FROM organizations o
+      WHERE NOT EXISTS (SELECT 1 FROM warehouses w WHERE w.organization_id = o.id)
+    `);
+    const r2 = await pool.query(`
+      INSERT INTO warehouses (id, code, name, organization_id, data)
+      SELECT gen_random_uuid(), o.code || '-WH-02', 'Склад материалов (' || o.name || ')', o.id, '{}'
+      FROM organizations o
+      WHERE NOT EXISTS (SELECT 1 FROM warehouses w WHERE w.organization_id = o.id AND w.code = o.code || '-WH-02')
+    `);
+    const r3 = await pool.query(`
+      INSERT INTO warehouses (id, code, name, organization_id, data)
+      SELECT gen_random_uuid(), o.code || '-WH-03', 'Торговый склад (' || o.name || ')', o.id, '{}'
+      FROM organizations o
+      WHERE NOT EXISTS (SELECT 1 FROM warehouses w WHERE w.organization_id = o.id AND w.code = o.code || '-WH-03')
+    `);
+    const added = (r1.rowCount ?? 0) + (r2.rowCount ?? 0) + (r3.rowCount ?? 0);
+    logger.info('Warehouses seeded for organizations', { added });
+    return { added };
+  }
+
+  /**
+   * Ручной запуск синхронизации. Возвращает результат с ошибками для вывода в UI.
+   * Всегда выполняет синхронизацию (не зависит от флага syncing).
+   */
+  async manualSync(): Promise<NSISyncResult> {
     logger.info('Manual NSI sync triggered');
-    await this.syncNSI();
+    const wasSyncing = this.syncing;
+    this.syncing = true;
+    try {
+      return await this.syncNSI();
+    } finally {
+      if (!wasSyncing) {
+        this.syncing = false;
+      }
+    }
   }
 }
 

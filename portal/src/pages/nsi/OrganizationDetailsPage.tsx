@@ -69,7 +69,7 @@ export function OrganizationDetailsPage() {
       <Card title="Карточка организации">
         <Descriptions column={1} bordered>
           <Descriptions.Item label="Код">{organization.code || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Наименование">{organization.name}</Descriptions.Item>
+          <Descriptions.Item label="Наименование">{organization.name || 'Без наименования'}</Descriptions.Item>
           <Descriptions.Item label="ИНН">{organization.inn || '-'}</Descriptions.Item>
           {organization.contractsCount !== undefined && (
             <Descriptions.Item label="Договоров">

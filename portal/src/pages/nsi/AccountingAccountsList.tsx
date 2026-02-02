@@ -1,40 +1,41 @@
 import { useState, useEffect } from 'react';
-import { Table, Input, Button, Space, Tag, message } from 'antd';
+import { Table, Input, Button, Space, message } from 'antd';
 import { SearchOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 
-interface Organization {
+interface AccountingAccount {
   id: string;
-  code: string;
+  code: string | null;
   name: string;
-  inn: string;
+  data?: Record<string, unknown>;
 }
 
-export function OrganizationsList() {
+export function AccountingAccountsList() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [accounts, setAccounts] = useState<AccountingAccount[]>([]);
   const [search, setSearch] = useState('');
 
-  const loadOrganizations = async () => {
+  const loadAccounts = async () => {
     setLoading(true);
     try {
-      const response = await api.nsi.organizations(search || undefined);
-      setOrganizations(response.data || []);
-    } catch (error: any) {
-      message.error('Ошибка загрузки организаций: ' + (error.message || 'Неизвестная ошибка'));
+      const response = await api.nsi.accountingAccounts(search || undefined);
+      setAccounts(response.data || []);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      message.error('Ошибка загрузки плана счетов: ' + msg);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadOrganizations();
+    loadAccounts();
   }, []);
 
   const handleSearch = () => {
-    loadOrganizations();
+    loadAccounts();
   };
 
   const columns = [
@@ -42,30 +43,24 @@ export function OrganizationsList() {
       title: 'Код',
       dataIndex: 'code',
       key: 'code',
-      width: 100,
+      width: 120,
+      render: (v: string | null) => v ?? '—',
     },
     {
       title: 'Наименование',
       dataIndex: 'name',
       key: 'name',
-      render: (name: string) => name || 'Без наименования',
-    },
-    {
-      title: 'ИНН',
-      dataIndex: 'inn',
-      key: 'inn',
-      width: 150,
     },
     {
       title: 'Действия',
       key: 'actions',
       width: 100,
-      render: (_: any, record: Organization) => (
+      render: (_: unknown, record: AccountingAccount) => (
         <Space>
           <Button
             type="link"
             icon={<EyeOutlined />}
-            onClick={() => navigate(`/nsi/organizations/${record.id}`)}
+            onClick={() => navigate(`/nsi/accounting-accounts/${record.id}`)}
           >
             Открыть
           </Button>
@@ -79,11 +74,11 @@ export function OrganizationsList() {
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
         <Space>
           <Input
-            placeholder="Поиск по названию, коду или ИНН"
+            placeholder="Поиск по коду или наименованию"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onPressEnter={handleSearch}
-            style={{ width: 300 }}
+            style={{ width: 280 }}
             prefix={<SearchOutlined />}
           />
           <Button type="primary" onClick={handleSearch}>
@@ -94,7 +89,7 @@ export function OrganizationsList() {
 
       <Table
         columns={columns}
-        dataSource={organizations}
+        dataSource={accounts}
         loading={loading}
         rowKey="id"
         pagination={{

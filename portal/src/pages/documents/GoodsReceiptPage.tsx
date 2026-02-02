@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, message, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, WarehouseSelect, AccountSelect } from '../../components/forms';
+import { OrganizationSelect, WarehouseSelect, AccountingAccountSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
 import { parseDateSafe } from '../../utils/dateUtils';
@@ -14,6 +14,8 @@ const { TextArea } = Input;
 
 interface ReceiptItem {
   id?: string;
+  /** Стабильный ключ строки (для новых позиций без id), чтобы не терять фокус при вводе */
+  rowKey?: string;
   rowNumber?: number;
   nomenclatureName: string;
   quantity: number;
@@ -58,9 +60,14 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
 
           setSelectedOrganizationId(doc.organizationId);
           
-          // Загружаем позиции документа
+          // Загружаем позиции документа (добавляем rowKey для строк без id, чтобы не терять фокус при вводе)
           if (doc.items && Array.isArray(doc.items)) {
-            setItems(doc.items);
+            setItems(
+              doc.items.map((it: ReceiptItem, i: number) => ({
+                ...it,
+                rowKey: it.rowKey ?? it.id ?? `loaded-${i}-${documentId}`
+              }))
+            );
           }
         } catch (error: any) {
           message.error('Ошибка загрузки документа: ' + (error.message || 'Неизвестная ошибка'));
@@ -179,6 +186,7 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
 
   const addItem = () => {
     const newItem: ReceiptItem = {
+      rowKey: `row-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
       nomenclatureName: '',
       quantity: 1,
       unit: 'шт',
@@ -189,12 +197,9 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
   };
 
   const updateItem = (index: number, field: keyof ReceiptItem, value: any) => {
-    const updated = [...items];
-    updated[index] = { ...updated[index], [field]: value };
-    
+    const updated = items.map((it, i) => (i === index ? { ...it, [field]: value } : it));
     const item = updated[index];
     item.amount = (item.quantity || 0) * (item.price || 0);
-    
     setItems(updated);
   };
 
@@ -278,18 +283,14 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
       dataIndex: 'accountId',
       key: 'accountId',
       width: 150,
-      render: (_: any, record: ReceiptItem, index: number) => {
-        const organizationId = form.getFieldValue('organizationId');
-        return (
-          <AccountSelect
-            value={record.accountId}
-            onChange={(value) => updateItem(index, 'accountId', value)}
-            organizationId={organizationId}
-            placeholder="Выберите счет"
-            style={{ width: '100%' }}
-          />
-        );
-      }
+      render: (_: any, record: ReceiptItem, index: number) => (
+        <AccountingAccountSelect
+          value={record.accountId}
+          onChange={(value) => updateItem(index, 'accountId', value)}
+          placeholder="Выберите счет"
+          style={{ width: '100%' }}
+        />
+      )
     },
     {
       title: 'Действия',
@@ -386,7 +387,7 @@ export function GoodsReceiptPage({ documentId }: GoodsReceiptPageProps = {}) {
               <Table
                 columns={itemColumns}
                 dataSource={items}
-                rowKey={(record) => record.id || `item-${Math.random()}`}
+                rowKey={(record) => record.id ?? record.rowKey ?? `item-${record.nomenclatureName}-${record.quantity}-${record.unit}-${record.price}`}
                 pagination={false}
                 size="small"
                 summary={() => (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Select, Spin, message } from 'antd';
 import { api } from '../../services/api';
+import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
 
 const { Option } = Select;
@@ -51,39 +52,57 @@ export function AccountSelect({
     }
   }, [organizationId, type]);
 
+  const loadItems = async () => {
+    const response = await api.nsi.accounts(organizationId, type);
+    return (response.data || []) as Account[];
+  };
+
   return (
-    <Select
-      {...props}
-      value={value}
-      onChange={onChange}
-      showSearch
-      allowClear
-      placeholder="Выберите счет"
-      loading={loading}
-      filterOption={(input, option) =>
-        (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
-      }
-      notFoundContent={loading ? <Spin size="small" /> : organizationId ? 'Счета не найдены' : 'Сначала выберите организацию'}
-      optionLabelProp="label"
+    <ReferenceSelectWrapper<Account>
+      directoryTitle="Справочник счетов"
+      columns={[
+        { title: 'Наименование', dataIndex: 'name', key: 'name', ellipsis: true },
+        { title: 'Код', dataIndex: 'code', key: 'code', width: 120 },
+        { title: 'Тип', dataIndex: 'type', key: 'type', width: 100 },
+        { title: 'Организация', dataIndex: 'organizationName', key: 'organizationName', width: 180 },
+      ]}
+      loadItems={loadItems}
+      onSelect={(id) => onChange?.(id)}
+      disabled={!organizationId}
+      disabledHint="Сначала выберите организацию"
     >
-      {accounts.map(account => (
-        <Option key={account.id} value={account.id} label={account.name}>
-          <div>
-            <div style={{ fontWeight: 500 }}>{account.name}</div>
-            {account.code && (
-              <div style={{ fontSize: '12px', color: '#999' }}>Код: {account.code}</div>
-            )}
-            {account.type && (
-              <div style={{ fontSize: '12px', color: '#999' }}>Тип: {account.type}</div>
-            )}
-            {account.organizationName && (
-              <div style={{ fontSize: '12px', color: '#999' }}>
-                Орг: {account.organizationName}
-              </div>
-            )}
-          </div>
-        </Option>
-      ))}
-    </Select>
+      <Select
+        {...props}
+        value={value}
+        onChange={onChange}
+        showSearch
+        allowClear
+        placeholder="Выберите счет"
+        loading={loading}
+        filterOption={(input, option) =>
+          (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+        }
+        notFoundContent={loading ? <Spin size="small" /> : organizationId ? 'Счета не найдены' : 'Сначала выберите организацию'}
+        optionLabelProp="label"
+        style={{ width: '100%' }}
+      >
+        {accounts.map(account => (
+          <Option key={account.id} value={account.id} label={account.name}>
+            <div>
+              <div style={{ fontWeight: 500 }}>{account.name}</div>
+              {account.code && (
+                <div style={{ fontSize: '12px', color: '#999' }}>Код: {account.code}</div>
+              )}
+              {account.type && (
+                <div style={{ fontSize: '12px', color: '#999' }}>Тип: {account.type}</div>
+              )}
+              {account.organizationName && (
+                <div style={{ fontSize: '12px', color: '#999' }}>Орг: {account.organizationName}</div>
+              )}
+            </div>
+          </Option>
+        ))}
+      </Select>
+    </ReferenceSelectWrapper>
   );
 }

@@ -2,6 +2,8 @@ export { OrganizationSelect } from './OrganizationSelect';
 export { CounterpartySelect } from './CounterpartySelect';
 export { ContractSelect } from './ContractSelect';
 export { AccountSelect } from './AccountSelect';
+export { AccountingAccountSelect } from './AccountingAccountSelect';
 export { WarehouseSelect } from './WarehouseSelect';
+export { AnalyticsSection } from './AnalyticsSection';
 export { BaseDocumentForm } from './BaseDocumentForm';
 export { FileUploadSection } from './FileUploadSection';

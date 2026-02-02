@@ -35,6 +35,48 @@ async function request<T>(
   return response.json();
 }
 
+function normalizeDocumentPayload(payload: any) {
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  const normalized = { ...payload };
+  const amount = normalized.amount;
+  const totalAmount = normalized.totalAmount;
+  const totalVAT = normalized.totalVAT;
+  const invoiceRequired = normalized.invoiceRequired;
+  if (invoiceRequired === 'required') {
+    normalized.invoiceRequired = true;
+  } else if (invoiceRequired === 'notRequired') {
+    normalized.invoiceRequired = false;
+  } else if (invoiceRequired === 'true') {
+    normalized.invoiceRequired = true;
+  } else if (invoiceRequired === 'false') {
+    normalized.invoiceRequired = false;
+  }
+
+  if (normalized.type === 'ReceiptGoods' && !normalized.receiptOperationType) {
+    normalized.receiptOperationType = 'Товары';
+  }
+
+  if (typeof amount === 'string') {
+    const parsed = Number(amount.replace(',', '.'));
+    normalized.amount = Number.isFinite(parsed) ? parsed : amount;
+  }
+
+  if (typeof totalAmount === 'string') {
+    const parsed = Number(totalAmount.replace(',', '.'));
+    normalized.totalAmount = Number.isFinite(parsed) ? parsed : totalAmount;
+  }
+
+  if (typeof totalVAT === 'string') {
+    const parsed = Number(totalVAT.replace(',', '.'));
+    normalized.totalVAT = Number.isFinite(parsed) ? parsed : totalVAT;
+  }
+
+  return normalized;
+}
+
 export const api = {
   // Документы
   documents: {
@@ -59,12 +101,12 @@ export const api = {
 
     create: (document: any) => request<{ data: any }>('/documents', {
       method: 'POST',
-      body: JSON.stringify(document)
+      body: JSON.stringify(normalizeDocumentPayload(document))
     }),
 
     update: (id: string, updates: any) => request<{ data: any }>(`/documents/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(updates)
+      body: JSON.stringify(normalizeDocumentPayload(updates))
     }),
 
     freeze: (id: string) => request<{ data: any }>(`/documents/${id}/freeze`, {
@@ -219,10 +261,11 @@ export const api = {
     },
     getCounterparty: (id: string) => request<{ data: any }>(`/nsi/counterparties/${id}`),
 
-    contracts: (organizationId?: string, counterpartyName?: string) => {
+    contracts: (organizationId?: string, counterpartyName?: string, counterpartyId?: string) => {
       const params = new URLSearchParams();
       if (organizationId) params.append('organizationId', organizationId);
       if (counterpartyName) params.append('counterpartyName', counterpartyName);
+      if (counterpartyId) params.append('counterpartyId', counterpartyId);
       return request<{ data: any[] }>(`/nsi/contracts${params.toString() ? `?${params.toString()}` : ''}`);
     },
     getContract: (id: string) => request<{ data: any }>(`/nsi/contracts/${id}`),
@@ -240,7 +283,14 @@ export const api = {
       if (organizationId) params.append('organizationId', organizationId);
       return request<{ data: any[] }>(`/nsi/warehouses${params.toString() ? `?${params.toString()}` : ''}`);
     },
-    getWarehouse: (id: string) => request<{ data: any }>(`/nsi/warehouses/${id}`)
+    getWarehouse: (id: string) => request<{ data: any }>(`/nsi/warehouses/${id}`),
+
+    accountingAccounts: (search?: string) => {
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      return request<{ data: any[] }>(`/nsi/accounting-accounts${params.toString() ? `?${params.toString()}` : ''}`);
+    },
+    getAccountingAccount: (id: string) => request<{ data: any }>(`/nsi/accounting-accounts/${id}`)
   },
 
   // Подключение к БД 1С:УХ (проверка)
@@ -265,6 +315,39 @@ export const api = {
           : request<{
               data: Array<{ url: string; statusCode?: number; ok: boolean; error?: string; hint?: string }>;
             }>(`/uh/db/services-check?baseUrl=${encodeURIComponent(baseUrl)}`)
+      ,
+      authDebug: (payload: {
+        baseUrl?: string;
+        endpoint?: string;
+        method?: string;
+        username?: string;
+        password?: string;
+        payload?: Record<string, unknown>;
+      }) =>
+        request<{
+          data: {
+            url: string;
+            method: string;
+            statusCode: number;
+            wwwAuthenticate?: string | null;
+            responseBody?: string;
+            authUsed: { username: string; passwordSet: boolean };
+            insecureTls: boolean;
+          };
+        }>('/uh/db/auth-debug', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        })
+      ,
+      authInfo: () =>
+        request<{ data: { baseUrl: string; username: string; passwordSet: boolean; insecureTls: boolean } }>('/uh/db/auth-info'),
+      authOverride: (payload: { username: string; password: string }) =>
+        request<{ data: { ok: boolean; auth: { baseUrl: string; username: string; passwordSet: boolean; insecureTls: boolean } } }>('/uh/db/auth-override', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        }),
+      lastResponse: () =>
+        request<{ data: { url: string; method: string; statusCode: number; headers: Record<string, unknown>; bodyPreview: string; bodyLength: number; at: string } | null }>('/uh/db/uh-last-response')
     }
   },
 
@@ -289,10 +372,39 @@ export const api = {
           processedAt?: string;
           completedAt?: string;
         }> }>(`/admin/queue/items${params.toString() ? `?${params.toString()}` : ''}`);
-      }
+      },
+      retryItem: (queueItemId: string) =>
+        request<{ data: { success: boolean; message: string } }>(`/admin/queue/items/${queueItemId}/retry`, {
+          method: 'POST'
+        }),
+      resendDocument: (documentId: string) =>
+        request<{ data: { success: boolean; queueId: string; message: string } }>('/admin/queue/resend', {
+          method: 'POST',
+          body: JSON.stringify({ documentId })
+        })
     },
     nsi: {
-      sync: () => request<{ data: { success: boolean; message: string } }>('/admin/nsi/sync', { method: 'POST' })
+      sync: () =>
+        request<{
+          data: {
+            success: boolean;
+            synced: number;
+            total: number;
+            failed: number;
+            errors: Array<{ type: string; id: string; name?: string; message: string }>;
+            version?: number;
+            message?: string;
+          };
+        }>('/admin/nsi/sync', { method: 'POST' }),
+      clear: () =>
+        request<{
+          data: {
+            cleared: { contracts: number; accounts: number; warehouses: number; accountingAccounts: number; counterparties: number; organizations: number };
+            keptOrganizations: number;
+          };
+        }>('/admin/nsi/clear', { method: 'POST' }),
+      seedWarehouses: () =>
+        request<{ data: { added: number } }>('/admin/nsi/seed-warehouses', { method: 'POST' })
     }
   }
 };

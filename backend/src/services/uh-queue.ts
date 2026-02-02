@@ -2,6 +2,8 @@
 
 import { pool } from '../db/connection.js';
 import { uhIntegrationService } from './uh-integration.js';
+import { buildUHPayload } from './uh-payload.js';
+import { getUHDocumentConfig } from '../config/uh-document-types.js';
 import * as documentsRepo from '../repositories/documents.js';
 import { logger } from '../utils/logger.js';
 
@@ -49,30 +51,18 @@ export class UHQueueService {
       [documentId, document.current_version]
     );
 
-    const versionData = versionResult.rows.length > 0 
-      ? versionResult.rows[0].data 
+    const versionData = versionResult.rows.length > 0
+      ? (versionResult.rows[0].data as Record<string, unknown>)
       : {};
 
-    // Формируем payload для 1С
-    // Все поля должны быть на верхнем уровне, т.к. 1С обращается к Данные.counterpartyName, Данные.items и т.д.
-    const payload = {
-      portalDocId: document.id,
-      portalVersion: document.current_version,
-      idempotencyKey: `${document.id}-v${document.current_version}-${Date.now()}`,
-      sourceCompany: document.organization_name || '',
-      type: document.type,
-      number: document.number,
-      date: document.date.toISOString().split('T')[0],
-      counterpartyName: document.counterparty_name,
-      counterpartyInn: document.counterparty_inn,
-      amount: document.amount || versionData.totalAmount || versionData.amount || 0,
-      totalAmount: versionData.totalAmount || document.amount || versionData.amount || 0,
-      currency: document.currency || versionData.currency || 'RUB',
-      // Табличная часть должна быть на верхнем уровне
-      items: versionData.items || [],
-      // Остальные поля из versionData (warehouseId, contractId, dueDate и т.д.)
-      ...versionData
-    };
+    // Проверяем поддержку типа документа в интеграции
+    const docConfig = getUHDocumentConfig(document.type);
+    if (!docConfig) {
+      logger.warn('Document type not in UH config, sending generic payload', { documentType: document.type });
+    }
+
+    // Формируем payload для 1С по конфигу видов документов и НСИ (склад, счёт, нормализация items)
+    const payload = await buildUHPayload(document, versionData);
 
     const result = await pool.query(
       `INSERT INTO uh_integration_queue (
@@ -302,6 +292,33 @@ export class UHQueueService {
       completed: parseInt(result.rows.find(r => r.status === 'Completed')?.count || '0'),
       failed: parseInt(result.rows.find(r => r.status === 'Failed')?.count || '0')
     };
+  }
+
+  /**
+   * Повтор задачи в очереди: сброс в Pending, retry_count = 0, очистка ошибки.
+   * Для теста — не нужно создавать новый документ.
+   */
+  async retryQueueItem(queueItemId: string): Promise<void> {
+    const result = await pool.query(
+      `UPDATE uh_integration_queue
+       SET status = 'Pending', retry_count = 0, error_message = NULL,
+           processed_at = NULL, completed_at = NULL
+       WHERE id = $1
+       RETURNING id`,
+      [queueItemId]
+    );
+    if (result.rows.length === 0) {
+      throw new Error(`Queue item ${queueItemId} not found`);
+    }
+    logger.info('Queue item retry', { queueItemId });
+  }
+
+  /**
+   * Переотправить документ: добавить в очередь новую задачу (Создание/обновление).
+   * Для теста — один и тот же документ можно отправлять многократно.
+   */
+  async resendDocument(documentId: string): Promise<string> {
+    return this.enqueue(documentId, 'UpsertDocument');
   }
 }
 

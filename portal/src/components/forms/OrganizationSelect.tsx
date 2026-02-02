@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Select, Spin, message } from 'antd';
 import { api } from '../../services/api';
+import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
 
 const { Option } = Select;
@@ -38,6 +39,18 @@ export function OrganizationSelect({ value, onChange, ...props }: OrganizationSe
     loadOrganizations();
   }, []);
 
+  // Если значение задано (например, из сохранённого документа), но организации ещё нет в списке — подгрузить по id, чтобы отображалось наименование, а не GUID
+  useEffect(() => {
+    if (!value) return;
+    if (organizations.some((o) => o.id === value)) return;
+    api.nsi
+      .getOrganization(value)
+      .then((res) => {
+        if (res?.data) setOrganizations((prev) => [res.data, ...prev]);
+      })
+      .catch(() => {});
+  }, [value]);
+
   const handleSearch = (search: string) => {
     setSearchValue(search);
     if (search.length >= 2 || search.length === 0) {
@@ -45,33 +58,46 @@ export function OrganizationSelect({ value, onChange, ...props }: OrganizationSe
     }
   };
 
-  const selectedOrganization = useMemo(() => {
-    return organizations.find(org => org.id === value);
-  }, [organizations, value]);
+  const loadItems = async (search?: string) => {
+    const response = await api.nsi.organizations(search);
+    return (response.data || []) as Organization[];
+  };
 
   return (
-    <Select
-      {...props}
-      value={value}
-      onChange={onChange}
-      showSearch
-      allowClear
-      placeholder="Выберите организацию"
-      loading={loading}
-      filterOption={false}
-      onSearch={handleSearch}
-      notFoundContent={loading ? <Spin size="small" /> : null}
-      optionLabelProp="label"
+    <ReferenceSelectWrapper<Organization>
+      directoryTitle="Справочник организаций"
+      columns={[
+        { title: 'Наименование', dataIndex: 'name', key: 'name', ellipsis: true },
+        { title: 'Код', dataIndex: 'code', key: 'code', width: 120 },
+        { title: 'ИНН', dataIndex: 'inn', key: 'inn', width: 140 },
+      ]}
+      loadItems={loadItems}
+      onSelect={(id) => onChange?.(id)}
     >
-      {organizations.map(org => (
-        <Option key={org.id} value={org.id} label={org.name}>
-          <div>
-            <div style={{ fontWeight: 500 }}>{org.name}</div>
-            {org.code && <div style={{ fontSize: '12px', color: '#999' }}>Код: {org.code}</div>}
-            {org.inn && <div style={{ fontSize: '12px', color: '#999' }}>ИНН: {org.inn}</div>}
-          </div>
-        </Option>
-      ))}
-    </Select>
+      <Select
+        {...props}
+        value={value}
+        onChange={onChange}
+        showSearch
+        allowClear
+        placeholder="Выберите организацию"
+        loading={loading}
+        filterOption={false}
+        onSearch={handleSearch}
+        notFoundContent={loading ? <Spin size="small" /> : null}
+        optionLabelProp="label"
+        style={{ width: '100%' }}
+      >
+        {organizations.map(org => (
+          <Option key={org.id} value={org.id} label={org.name || 'Без наименования'}>
+            <div>
+              <div style={{ fontWeight: 500 }}>{org.name || 'Без наименования'}</div>
+              {org.code && <div style={{ fontSize: '12px', color: '#999' }}>Код: {org.code}</div>}
+              {org.inn && <div style={{ fontSize: '12px', color: '#999' }}>ИНН: {org.inn}</div>}
+            </div>
+          </Option>
+        ))}
+      </Select>
+    </ReferenceSelectWrapper>
   );
 }

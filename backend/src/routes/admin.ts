@@ -77,11 +77,61 @@ adminRouter.get('/queue/items', async (req: Request, res: Response) => {
   }
 });
 
-// Ручной запуск синхронизации НСИ (доступен всем авторизованным пользователям)
+// Повтор задачи в очереди (сброс в Pending, 0 попыток)
+adminRouter.post('/queue/items/:id/retry', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await uhQueueService.retryQueueItem(id);
+    res.json({ data: { success: true, message: 'Задача поставлена в очередь повторно' } });
+  } catch (error: any) {
+    res.status(error.message?.includes('not found') ? 404 : 500).json({ error: { message: error.message } });
+  }
+});
+
+// Переотправить документ в 1С (новая задача в очереди)
+adminRouter.post('/queue/resend', async (req: Request, res: Response) => {
+  try {
+    const { documentId } = req.body || {};
+    if (!documentId) {
+      return res.status(400).json({ error: { message: 'Укажите documentId в теле запроса' } });
+    }
+    const queueId = await uhQueueService.resendDocument(documentId);
+    res.json({ data: { success: true, queueId, message: 'Документ добавлен в очередь' } });
+  } catch (error: any) {
+    res.status(500).json({ error: { message: error.message } });
+  }
+});
+
+// Ручной запуск синхронизации НСИ (доступен всем авторизованным пользователям). Возвращает результат и ошибки.
 adminRouter.post('/nsi/sync', async (req: Request, res: Response) => {
   try {
-    await nsiSyncService.manualSync();
-    res.json({ data: { success: true, message: 'NSI sync started' } });
+    const result = await nsiSyncService.manualSync();
+    res.json({ data: result });
+  } catch (error: any) {
+    res.status(500).json({
+      error: {
+        message: error.message,
+        data: { success: false, synced: 0, total: 0, failed: 0, errors: [{ type: 'System', id: '', message: error.message }] }
+      }
+    });
+  }
+});
+
+// Очистка синхронизированных данных НСИ (договоры, счета, склады, контрагенты, организации). Организации, на которые ссылаются документы/пакеты/пользователи, не удаляются. После очистки можно запустить синхронизацию заново.
+adminRouter.post('/nsi/clear', async (req: Request, res: Response) => {
+  try {
+    const result = await nsiSyncService.clearNSIData();
+    res.json({ data: result });
+  } catch (error: any) {
+    res.status(500).json({ error: { message: error.message } });
+  }
+});
+
+// Добавить склады для организаций, у которых ещё нет складов (если 1С не вернула склады в НСИ).
+adminRouter.post('/nsi/seed-warehouses', async (req: Request, res: Response) => {
+  try {
+    const result = await nsiSyncService.seedWarehouses();
+    res.json({ data: result });
   } catch (error: any) {
     res.status(500).json({ error: { message: error.message } });
   }

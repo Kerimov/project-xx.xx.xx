@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, Checkbox, message, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, CounterpartySelect, ContractSelect, WarehouseSelect, AccountSelect } from '../../components/forms';
+import { OrganizationSelect, CounterpartySelect, AccountingAccountSelect, AnalyticsSection } from '../../components/forms';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
 import { parseDateSafe } from '../../utils/dateUtils';
@@ -295,18 +295,14 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
       dataIndex: 'accountId',
       key: 'accountId',
       width: 150,
-      render: (_: any, record: SaleGoodsItem, index: number) => {
-        const organizationId = form.getFieldValue('organizationId');
-        return (
-          <AccountSelect
-            value={record.accountId}
-            onChange={(value) => updateItem(index, 'accountId', value)}
-            organizationId={organizationId}
-            placeholder="Выберите счет"
-            style={{ width: '100%' }}
-          />
-        );
-      }
+      render: (_: any, record: SaleGoodsItem, index: number) => (
+        <AccountingAccountSelect
+          value={record.accountId}
+          onChange={(value) => updateItem(index, 'accountId', value)}
+          placeholder="Выберите счет"
+          style={{ width: '100%' }}
+        />
+      )
     },
     {
       title: 'Действия',
@@ -413,18 +409,14 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
               <Input />
             </Form.Item>
 
-            <Form.Item label="Договор" name="contractId">
-              <ContractSelect
-                organizationId={selectedOrganizationId}
-                counterpartyId={selectedCounterpartyId}
-              />
-            </Form.Item>
-
-            <Form.Item label="Склад" name="warehouseId" rules={[{ required: true, message: 'Выберите склад' }]}>
-              <WarehouseSelect
-                organizationId={selectedOrganizationId}
-              />
-            </Form.Item>
+            <AnalyticsSection
+              showContract
+              showWarehouse
+              showAccount={false}
+              organizationId={selectedOrganizationId}
+              counterpartyId={selectedCounterpartyId}
+              warehouseRequired
+            />
 
             <Form.Item label="Расчеты:" name="paymentTerms">
               <Input.TextArea
