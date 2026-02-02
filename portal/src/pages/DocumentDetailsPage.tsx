@@ -27,11 +27,17 @@ const uhStatusLabel: Record<string, { text: string; color: string }> = {
   Error: { text: 'Ошибка', color: 'error' }
 };
 
+/** Подписи для пунктов «Изменить статус»: действие или название статуса по-русски */
 const statusTransitionLabels: Record<string, string> = {
   Draft: 'Вернуть в черновик',
   Validated: 'Пометить как проверенный',
   Frozen: 'Заморозить',
-  Cancelled: 'Отменить'
+  Cancelled: 'Отменить',
+  QueuedToUH: 'В очереди в УХ',
+  SentToUH: 'Отправлен в УХ',
+  AcceptedByUH: 'Принят УХ',
+  PostedInUH: 'Проведен в УХ',
+  RejectedByUH: 'Отклонен УХ'
 };
 
 export function DocumentDetailsPage() {
@@ -738,7 +744,7 @@ export function DocumentDetailsPage() {
                 menu={{
                   items: availableTransitions.map(status => ({
                     key: status,
-                    label: statusTransitionLabels[status] || status,
+                    label: statusTransitionLabels[status] ?? portalStatusLabel[status]?.text ?? status,
                     onClick: () => handleStatusChange(status)
                   }))
                 }}
