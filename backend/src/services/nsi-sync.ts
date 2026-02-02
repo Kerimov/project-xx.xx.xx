@@ -135,8 +135,8 @@ export class NSISyncService {
 
       logger.info('Received NSI items from UH', { count: delta.items.length });
 
-      // Порядок обработки по зависимостям: Organization → Counterparty → Contract, Warehouse, Nomenclature, Account, AccountingAccount
-      const order: string[] = ['Organization', 'Counterparty', 'Contract', 'Warehouse', 'Nomenclature', 'Account', 'AccountingAccount'];
+      // Порядок обработки по зависимостям: Organization → Department → Counterparty → Contract, Warehouse, Nomenclature, Account, AccountingAccount
+      const order: string[] = ['Organization', 'Department', 'Counterparty', 'Contract', 'Warehouse', 'Nomenclature', 'Account', 'AccountingAccount'];
       const byType = new Map<string, typeof delta.items>();
       for (const t of order) byType.set(t, []);
       for (const item of delta.items) {
@@ -347,6 +347,9 @@ export class NSISyncService {
       case 'Organization':
         await this.syncOrganization(item);
         break;
+      case 'Department':
+        await this.syncDepartment(item);
+        break;
       case 'Contract':
         await this.syncContract(item);
         break;
@@ -404,6 +407,31 @@ export class NSISyncService {
         [item.id, name, inn, JSON.stringify(item.data)]
       );
     }
+  }
+
+  /**
+   * Синхронизация подразделения организации
+   */
+  private async syncDepartment(item: any) {
+    const code = item.code || item.data?.code || null;
+    const name = (this.fallbackName(item) || 'Подразделение без наименования').trim();
+    const organizationId = item.data?.organizationId || null;
+
+    if (organizationId) {
+      await this.ensureOrganizationExists(organizationId);
+    }
+
+    await pool.query(
+      `INSERT INTO organization_divisions (id, code, name, organization_id, data)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (id) DO UPDATE
+       SET code = COALESCE(EXCLUDED.code, organization_divisions.code), 
+           name = EXCLUDED.name, 
+           organization_id = EXCLUDED.organization_id, 
+           data = EXCLUDED.data, 
+           updated_at = NOW()`,
+      [item.id, code, name, organizationId, JSON.stringify(item.data ?? {})]
+    );
   }
 
   /**

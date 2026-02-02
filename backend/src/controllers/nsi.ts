@@ -324,6 +324,84 @@ export async function getAccountById(req: Request, res: Response, next: NextFunc
   }
 }
 
+// Получение списка подразделений организаций
+export async function getDepartments(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { organizationId, search } = req.query;
+
+    let query = `
+      SELECT d.id, d.code, d.name, d.organization_id, d.data,
+             o.name as organization_name
+      FROM organization_divisions d
+      LEFT JOIN organizations o ON d.organization_id = o.id
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (organizationId) {
+      query += ` AND d.organization_id = $${paramIndex++}`;
+      params.push(organizationId);
+    }
+
+    if (search) {
+      query += ` AND (d.name ILIKE $${paramIndex++} OR d.code ILIKE $${paramIndex - 1})`;
+      params.push(`%${search}%`);
+    }
+
+    query += ' ORDER BY d.name LIMIT 100';
+
+    const result = await pool.query(query, params);
+
+    res.json({
+      data: result.rows.map(row => ({
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        organizationId: row.organization_id,
+        organizationName: row.organization_name,
+        data: row.data
+      }))
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Получение подразделения по ID
+export async function getDepartmentById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(`
+      SELECT d.id, d.code, d.name, d.organization_id, d.data,
+             o.name as organization_name
+      FROM organization_divisions d
+      LEFT JOIN organizations o ON d.organization_id = o.id
+      WHERE d.id = $1
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Department not found' });
+    }
+
+    const dept = result.rows[0];
+
+    res.json({
+      data: {
+        id: dept.id,
+        code: dept.code,
+        name: dept.name,
+        organizationId: dept.organization_id,
+        organizationName: dept.organization_name,
+        data: dept.data
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 // Получение списка складов
 export async function getWarehouses(req: Request, res: Response, next: NextFunction) {
   try {

@@ -4,6 +4,7 @@ export { ContractSelect } from './ContractSelect';
 export { AccountSelect } from './AccountSelect';
 export { AccountingAccountSelect } from './AccountingAccountSelect';
 export { WarehouseSelect } from './WarehouseSelect';
+export { DepartmentSelect } from './DepartmentSelect';
 export { NomenclatureSelect } from './NomenclatureSelect';
 export { AnalyticsSection } from './AnalyticsSection';
 export { BaseDocumentForm } from './BaseDocumentForm';

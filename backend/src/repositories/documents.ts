@@ -109,6 +109,7 @@ export async function createDocument(data: {
   receiptOperationType?: string;
   hasDiscrepancies?: boolean;
   originalReceived?: boolean;
+  invoiceReceived?: boolean;
   isUPD?: boolean;
   invoiceRequired?: boolean;
   items?: any[]; // табличная часть (товары/услуги)
@@ -167,6 +168,7 @@ export async function createDocument(data: {
     receiptOperationType: data.receiptOperationType,
     hasDiscrepancies: data.hasDiscrepancies,
     originalReceived: data.originalReceived,
+    invoiceReceived: data.invoiceReceived,
     isUPD: data.isUPD,
     invoiceRequired: data.invoiceRequired,
     items: data.items || [],

@@ -278,6 +278,14 @@ export const api = {
     },
     getAccount: (id: string) => request<{ data: any }>(`/nsi/accounts/${id}`),
 
+    departments: (organizationId?: string, search?: string) => {
+      const params = new URLSearchParams();
+      if (organizationId) params.append('organizationId', organizationId);
+      if (search) params.append('search', search);
+      return request<{ data: any[] }>(`/nsi/departments${params.toString() ? `?${params.toString()}` : ''}`);
+    },
+    getDepartment: (id: string) => request<{ data: any }>(`/nsi/departments/${id}`),
+
     warehouses: (organizationId?: string, search?: string) => {
       const params = new URLSearchParams();
       if (organizationId) params.append('organizationId', organizationId);

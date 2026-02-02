@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, Checkbox, message, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, CounterpartySelect, AccountingAccountSelect, AnalyticsSection, NomenclatureSelect } from '../../components/forms';
+import { OrganizationSelect, CounterpartySelect, AccountingAccountSelect, AnalyticsSection, NomenclatureSelect, DepartmentSelect } from '../../components/forms';
 import { AccountSelect } from '../../components/forms/AccountSelect';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
@@ -59,6 +59,7 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
             documentNumber: doc.documentNumber || '',
             date: parseDateSafe(doc.date),
             originalReceived: doc.originalReceived || false,
+            invoiceReceived: doc.invoiceReceived || false,
             organizationId: doc.organizationId,
             counterpartyId: doc.counterpartyId,
             counterpartyName: doc.counterpartyName || '',
@@ -66,7 +67,7 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
             contractId: doc.contractId,
             warehouseId: doc.warehouseId,
             paymentAccountId: doc.paymentAccountId ?? doc.accountId,
-            department: doc.department || '',
+            departmentId: doc.departmentId ?? doc.department ?? '',
             paymentTerms: doc.paymentTerms || '',
             dueDate: doc.dueDate ? parseDateSafe(doc.dueDate) : undefined,
             vatOnTop: doc.vatOnTop ?? false,
@@ -110,13 +111,14 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
         waybillDate: values.waybillDate ? (typeof values.waybillDate === 'string' ? values.waybillDate : values.waybillDate.format('YYYY-MM-DD')) : undefined,
         documentNumber: values.documentNumber,
         originalReceived: values.originalReceived ?? false,
+        invoiceReceived: values.invoiceReceived ?? false,
         organizationId: values.organizationId,
         counterpartyName: values.counterpartyName,
         counterpartyInn: values.counterpartyInn,
         contractId: values.contractId,
         warehouseId: values.warehouseId,
         paymentAccountId: values.paymentAccountId,
-        department: values.department,
+        departmentId: values.departmentId ?? values.department,
         paymentTerms: values.paymentTerms,
         dueDate: values.dueDate ? (typeof values.dueDate === 'string' ? values.dueDate : values.dueDate.format('YYYY-MM-DD')) : undefined,
         vatOnTop: values.vatOnTop ?? false,
@@ -419,6 +421,7 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
               date: dayjs(),
               waybillDate: dayjs(),
               originalReceived: false,
+              invoiceReceived: false,
               vatOnTop: false,
               vatIncluded: false,
               hasDiscrepancies: false,
@@ -460,6 +463,9 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
               </Form.Item>
               <Form.Item name="originalReceived" valuePropName="checked">
                 <Checkbox>Оригинал: получен</Checkbox>
+              </Form.Item>
+              <Form.Item name="invoiceReceived" valuePropName="checked">
+                <Checkbox>СФ получен</Checkbox>
               </Form.Item>
 
               <Form.Item
@@ -507,8 +513,8 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
                 <AccountSelect organizationId={selectedOrganizationId} placeholder="Счет на оплату" />
               </Form.Item>
 
-              <Form.Item label="Подразделение" name="department">
-                <Input placeholder="Подразделение" />
+              <Form.Item label="Подразделение" name="departmentId">
+                <DepartmentSelect organizationId={selectedOrganizationId} placeholder="Выберите подразделение" />
               </Form.Item>
 
               <Form.Item label="Расчеты:" name="paymentTerms">

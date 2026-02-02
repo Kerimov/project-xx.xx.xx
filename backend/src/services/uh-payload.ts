@@ -212,7 +212,7 @@ export async function buildUHPayload(
 
   // Копируем опциональные поля из versionData, не перезатирая уже выставленные
   const optionalTopLevel = [
-    'contractId', 'dueDate', 'vatOnTop', 'vatIncluded', 'purpose', 'receiptOperationType',
+    'contractId', 'departmentId', 'dueDate', 'vatOnTop', 'vatIncluded', 'purpose', 'receiptOperationType',
     'servicePeriod', 'serviceStartDate', 'serviceEndDate',
     'warehouseIdFrom', 'warehouseNameFrom', 'warehouseIdTo', 'warehouseNameTo',
     // УПД и НДС
@@ -220,7 +220,7 @@ export async function buildUHPayload(
     // Номер и дата счёта-фактуры
     'invoiceNumber', 'invoiceDate',
     // Прочие реквизиты
-    'originalReceived', 'invoiceRequired'
+    'originalReceived', 'invoiceReceived', 'invoiceRequired'
   ];
   for (const key of optionalTopLevel) {
     if (versionData[key] !== undefined && payload[key] === undefined) {
@@ -264,6 +264,8 @@ export async function buildUHPayload(
     docId: document.id,
     type: document.type,
     isUPD: payload.isUPD,
+    originalReceived: payload.originalReceived,
+    invoiceReceived: payload.invoiceReceived,
     totalVAT: payload.totalVAT,
     itemsCount: payload.items?.length || 0,
     firstItem: payload.items?.[0] ? {

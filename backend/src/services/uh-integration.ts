@@ -103,24 +103,58 @@ export class UHIntegrationService {
         port: u.port || (isHttps ? 443 : 80),
         path: u.pathname + u.search,
         method: options.method || 'GET',
-        headers,
+        headers: {
+          ...headers,
+          'Connection': 'close' // Отключаем keep-alive
+        },
         timeout: this.timeout,
+        agent: false, // Не использовать глобальный агент (отключает keep-alive)
         ...(isHttps && this.insecureTls && { rejectUnauthorized: false })
       };
 
       const result = await new Promise<{ statusCode: number; body: string; headers: Record<string, unknown> }>((resolve, reject) => {
+        let resolved = false;
+        const safeResolve = (val: { statusCode: number; body: string; headers: Record<string, unknown> }) => {
+          if (!resolved) { resolved = true; resolve(val); }
+        };
+        const safeReject = (err: Error) => {
+          if (!resolved) { resolved = true; reject(err); }
+        };
+
         const req = (isHttps ? https : http).request(requestOptions, (res) => {
           const chunks: Buffer[] = [];
           res.on('data', (chunk: Buffer) => chunks.push(chunk));
-          res.on('end', () => resolve({
+          res.on('end', () => safeResolve({
             statusCode: res.statusCode!,
             body: Buffer.concat(chunks).toString('utf8'),
             headers: res.headers as Record<string, unknown>
           }));
+          res.on('error', safeReject);
+          // Таймаут на чтение ответа
+          res.setTimeout(this.timeout, () => {
+            res.destroy();
+            safeReject(new Error('Response timeout'));
+          });
         });
-        req.on('error', reject);
-        req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+        
+        req.on('error', safeReject);
+        req.on('timeout', () => { 
+          req.destroy(); 
+          safeReject(new Error('Request timeout')); 
+        });
+        
+        // Устанавливаем таймаут на запрос
         req.setTimeout(this.timeout);
+        
+        // Принудительный таймаут через setTimeout (на случай если другие не сработают)
+        const forceTimeout = setTimeout(() => {
+          req.destroy();
+          safeReject(new Error('Force timeout'));
+        }, this.timeout + 5000); // +5 секунд для надёжности
+        
+        // Очищаем таймаут при завершении
+        req.on('close', () => clearTimeout(forceTimeout));
+        
         if (body) req.write(body, 'utf8');
         req.end();
       });

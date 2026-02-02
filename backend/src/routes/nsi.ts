@@ -10,6 +10,8 @@ import {
   getContractById,
   getAccounts,
   getAccountById,
+  getDepartments,
+  getDepartmentById,
   getWarehouses,
   getWarehouseById,
   getNomenclature,
@@ -28,6 +30,8 @@ nsiRouter.get('/contracts', getContracts);
 nsiRouter.get('/contracts/:id', getContractById);
 nsiRouter.get('/accounts', getAccounts);
 nsiRouter.get('/accounts/:id', getAccountById);
+nsiRouter.get('/departments', getDepartments);
+nsiRouter.get('/departments/:id', getDepartmentById);
 nsiRouter.get('/warehouses', getWarehouses);
 nsiRouter.get('/warehouses/:id', getWarehouseById);
 nsiRouter.get('/nomenclature', getNomenclature);
