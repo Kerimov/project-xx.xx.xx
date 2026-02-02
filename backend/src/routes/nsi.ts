@@ -12,6 +12,8 @@ import {
   getAccountById,
   getWarehouses,
   getWarehouseById,
+  getNomenclature,
+  getNomenclatureById,
   getAccountingAccounts,
   getAccountingAccountById
 } from '../controllers/nsi.js';
@@ -28,5 +30,7 @@ nsiRouter.get('/accounts', getAccounts);
 nsiRouter.get('/accounts/:id', getAccountById);
 nsiRouter.get('/warehouses', getWarehouses);
 nsiRouter.get('/warehouses/:id', getWarehouseById);
+nsiRouter.get('/nomenclature', getNomenclature);
+nsiRouter.get('/nomenclature/:id', getNomenclatureById);
 nsiRouter.get('/accounting-accounts', getAccountingAccounts);
 nsiRouter.get('/accounting-accounts/:id', getAccountingAccountById);

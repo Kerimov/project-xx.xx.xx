@@ -114,8 +114,8 @@ export class NSISyncService {
 
       logger.info('Received NSI items from UH', { count: delta.items.length });
 
-      // Порядок обработки по зависимостям: Organization → Counterparty → Contract, Warehouse, Account, AccountingAccount
-      const order: string[] = ['Organization', 'Counterparty', 'Contract', 'Warehouse', 'Account', 'AccountingAccount'];
+      // Порядок обработки по зависимостям: Organization → Counterparty → Contract, Warehouse, Nomenclature, Account, AccountingAccount
+      const order: string[] = ['Organization', 'Counterparty', 'Contract', 'Warehouse', 'Nomenclature', 'Account', 'AccountingAccount'];
       const byType = new Map<string, typeof delta.items>();
       for (const t of order) byType.set(t, []);
       for (const item of delta.items) {
@@ -268,6 +268,9 @@ export class NSISyncService {
       case 'Warehouse':
         await this.syncWarehouse(item);
         break;
+      case 'Nomenclature':
+        await this.syncNomenclature(item);
+        break;
       case 'Account':
         await this.syncAccount(item);
         break;
@@ -414,6 +417,22 @@ export class NSISyncService {
   }
 
   /**
+   * Синхронизация номенклатуры
+   */
+  private async syncNomenclature(item: any) {
+    const code = item.code || item.data?.code || null;
+    const name = this.fallbackName(item);
+
+    await pool.query(
+      `INSERT INTO nomenclature (id, code, name, data)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (id) DO UPDATE
+       SET code = COALESCE(EXCLUDED.code, nomenclature.code), name = EXCLUDED.name, data = EXCLUDED.data, updated_at = NOW()`,
+      [item.id, code, name, JSON.stringify(item.data ?? {})]
+    );
+  }
+
+  /**
    * Синхронизация счёта (банк/касса). При отсутствии организации в портале создаётся заглушка.
    */
   private async syncAccount(item: any) {
@@ -488,6 +507,7 @@ export class NSISyncService {
       const rContracts = await client.query('DELETE FROM contracts');
       const rAccounts = await client.query('DELETE FROM accounts');
       const rWarehouses = await client.query('DELETE FROM warehouses');
+      const rNomenclature = await client.query('DELETE FROM nomenclature');
       const rAccountingAccounts = await client.query('DELETE FROM accounting_accounts');
       const rCounterparties = await client.query('DELETE FROM counterparties');
       const rOrgBefore = await client.query('SELECT COUNT(*) AS c FROM organizations');
@@ -507,6 +527,7 @@ export class NSISyncService {
           contracts: rContracts.rowCount ?? 0,
           accounts: rAccounts.rowCount ?? 0,
           warehouses: rWarehouses.rowCount ?? 0,
+          nomenclature: rNomenclature.rowCount ?? 0,
           accountingAccounts: rAccountingAccounts.rowCount ?? 0,
           counterparties: rCounterparties.rowCount ?? 0,
           organizations: (rOrgBefore.rows[0]?.c ?? 0) - (rOrgAfter.rows[0]?.c ?? 0)
@@ -531,6 +552,7 @@ export class NSISyncService {
       const rContracts = await client.query('DELETE FROM contracts');
       const rAccounts = await client.query('DELETE FROM accounts');
       const rWarehouses = await client.query('DELETE FROM warehouses');
+      const rNomenclature = await client.query('DELETE FROM nomenclature');
       const rAccountingAccounts = await client.query('DELETE FROM accounting_accounts');
       const rCounterparties = await client.query('DELETE FROM counterparties');
       const rOrgBefore = await client.query('SELECT COUNT(*) AS c FROM organizations');
@@ -552,6 +574,7 @@ export class NSISyncService {
         contracts: rContracts.rowCount ?? 0,
         accounts: rAccounts.rowCount ?? 0,
         warehouses: rWarehouses.rowCount ?? 0,
+        nomenclature: rNomenclature.rowCount ?? 0,
         accountingAccounts: rAccountingAccounts.rowCount ?? 0,
         counterparties: rCounterparties.rowCount ?? 0,
         organizations: (rOrgBefore.rows[0]?.c ?? 0) - (rOrgAfter.rows[0]?.c ?? 0)

@@ -8,13 +8,15 @@ import {
   CreditCardOutlined,
   ShopOutlined,
   ApartmentOutlined,
-  UnorderedListOutlined
+  UnorderedListOutlined,
+  InboxOutlined
 } from '@ant-design/icons';
 import { OrganizationsList } from './nsi/OrganizationsList';
 import { CounterpartiesList } from './nsi/CounterpartiesList';
 import { ContractsList } from './nsi/ContractsList';
 import { AccountsList } from './nsi/AccountsList';
 import { WarehousesList } from './nsi/WarehousesList';
+import { NomenclatureList } from './nsi/NomenclatureList';
 import { AccountingAccountsList } from './nsi/AccountingAccountsList';
 
 function AnalyticsTabContent({ onSelectTab }: { onSelectTab: (key: string) => void }) {
@@ -37,6 +39,11 @@ function AnalyticsTabContent({ onSelectTab }: { onSelectTab: (key: string) => vo
         <Col xs={24} sm={12} lg={8}>
           <Card size="small" title={<><CreditCardOutlined /> Банковские счета</>} extra={<Button type="link" onClick={() => onSelectTab('accounts')}>Открыть</Button>}>
             Банковские счета организаций.
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={8}>
+          <Card size="small" title={<><InboxOutlined /> Номенклатура</>} extra={<Button type="link" onClick={() => onSelectTab('nomenclature')}>Открыть</Button>}>
+            Номенклатура (товары и услуги) из 1С УХ.
           </Card>
         </Col>
       </Row>
@@ -107,6 +114,16 @@ export function NSIPage() {
         </span>
       ),
       children: <WarehousesList />,
+    },
+    {
+      key: 'nomenclature',
+      label: (
+        <span>
+          <InboxOutlined />
+          Номенклатура
+        </span>
+      ),
+      children: <NomenclatureList />,
     },
     {
       key: 'accounting-accounts',

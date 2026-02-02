@@ -129,7 +129,7 @@ export function IntegrationMonitorPage() {
           const res = await api.admin.nsi.clear();
           const { cleared, keptOrganizations } = res.data;
           message.success(
-            `Очищено: договоров ${cleared.contracts}, счетов ${cleared.accounts}, складов ${cleared.warehouses}, счетов учета ${cleared.accountingAccounts ?? 0}, контрагентов ${cleared.counterparties}, организаций ${cleared.organizations}. Оставлено организаций: ${keptOrganizations}. Запустите синхронизацию НСИ.`
+            `Очищено: договоров ${cleared.contracts}, счетов ${cleared.accounts}, складов ${cleared.warehouses}, номенклатуры ${cleared.nomenclature ?? 0}, счетов учета ${cleared.accountingAccounts ?? 0}, контрагентов ${cleared.counterparties}, организаций ${cleared.organizations}. Оставлено организаций: ${keptOrganizations}. Запустите синхронизацию НСИ.`
           );
         } catch (error: any) {
           message.error('Ошибка очистки НСИ: ' + (error.message || 'Неизвестная ошибка'));
@@ -143,7 +143,7 @@ export function IntegrationMonitorPage() {
   const handleClearPortalData = () => {
     Modal.confirm({
       title: 'Очистить все данные портала?',
-      content: 'Будут удалены: очередь УХ, все документы (и версии, файлы, проверки, история), все пакеты, вся НСИ (договоры, счета, склады, счета учёта, контрагенты). Организации, привязанные к пользователям, останутся. Пользователи не удаляются. Действие необратимо.',
+      content: 'Будут удалены: очередь УХ, все документы (и версии, файлы, проверки, история), все пакеты, вся НСИ (договоры, счета, склады, номенклатура, счета учёта, контрагенты). Организации, привязанные к пользователям, останутся. Пользователи не удаляются. Действие необратимо.',
       okText: 'Очистить всё',
       okType: 'danger',
       cancelText: 'Отмена',
@@ -155,7 +155,7 @@ export function IntegrationMonitorPage() {
           const d = res.data;
           const n = d.nsi;
           message.success(
-            `Очищено: очередь ${d.queue}, документов ${d.documents}, пакетов ${d.packages}; НСИ: договоров ${n.contracts}, счетов ${n.accounts}, складов ${n.warehouses}, счетов учёта ${n.accountingAccounts}, контрагентов ${n.counterparties}, организаций ${n.organizations}. Оставлено организаций: ${d.keptOrganizations}.`
+            `Очищено: очередь ${d.queue}, документов ${d.documents}, пакетов ${d.packages}; НСИ: договоров ${n.contracts}, счетов ${n.accounts}, складов ${n.warehouses}, номенклатуры ${n.nomenclature ?? 0}, счетов учёта ${n.accountingAccounts}, контрагентов ${n.counterparties}, организаций ${n.organizations}. Оставлено организаций: ${d.keptOrganizations}.`
           );
           loadData();
         } catch (error: any) {

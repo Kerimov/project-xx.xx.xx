@@ -7,6 +7,7 @@ BEGIN;
 DELETE FROM contracts;
 DELETE FROM accounts;
 DELETE FROM warehouses;
+DELETE FROM nomenclature;
 DELETE FROM accounting_accounts;
 DELETE FROM counterparties;
 

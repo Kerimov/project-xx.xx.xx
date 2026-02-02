@@ -286,6 +286,13 @@ export const api = {
     },
     getWarehouse: (id: string) => request<{ data: any }>(`/nsi/warehouses/${id}`),
 
+    nomenclature: (search?: string) => {
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      return request<{ data: any[] }>(`/nsi/nomenclature${params.toString() ? `?${params.toString()}` : ''}`);
+    },
+    getNomenclature: (id: string) => request<{ data: any }>(`/nsi/nomenclature/${id}`),
+
     accountingAccounts: (search?: string) => {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
@@ -421,7 +428,7 @@ export const api = {
       clear: () =>
         request<{
           data: {
-            cleared: { contracts: number; accounts: number; warehouses: number; accountingAccounts: number; counterparties: number; organizations: number };
+            cleared: { contracts: number; accounts: number; warehouses: number; nomenclature?: number; accountingAccounts: number; counterparties: number; organizations: number };
             keptOrganizations: number;
           };
         }>('/admin/nsi/clear', { method: 'POST' }),
@@ -447,7 +454,7 @@ export const api = {
           queue: number;
           documents: number;
           packages: number;
-          nsi: { contracts: number; accounts: number; warehouses: number; accountingAccounts: number; counterparties: number; organizations: number };
+          nsi: { contracts: number; accounts: number; warehouses: number; nomenclature?: number; accountingAccounts: number; counterparties: number; organizations: number };
           keptOrganizations: number;
         };
       }>('/admin/clear-portal-data', { method: 'POST' })

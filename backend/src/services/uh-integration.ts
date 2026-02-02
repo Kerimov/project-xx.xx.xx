@@ -364,6 +364,33 @@ export class UHIntegrationService {
   }
 
   /**
+   * Получение номенклатуры НСИ из УХ (отдельный сервис /nsi/nomenclature)
+   */
+  async getNSINomenclature(request: Pick<NSIDeltaRequest, 'version'> = {}): Promise<NSIDeltaResponse> {
+    try {
+      const params = new URLSearchParams();
+      if (request.version) params.append('version', request.version.toString());
+
+      const response = await this.requestWithRetry<NSIDeltaResponse>(
+        `${this.baseUrl}/nsi/nomenclature${params.toString() ? `?${params.toString()}` : ''}`,
+        { method: 'GET' }
+      );
+
+      if (response?.items?.length) {
+        console.log(`✅ NSI nomenclature received: ${response.items.length} items`);
+      }
+      return response;
+    } catch (error: any) {
+      console.error('❌ Failed to fetch NSI nomenclature from UH', error?.message);
+      return {
+        items: [],
+        version: request.version || 0,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
    * Получение статуса документа в УХ
    */
   async getDocumentStatus(uhDocumentRef: string): Promise<UHOperationResponse> {

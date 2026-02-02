@@ -99,6 +99,7 @@ export async function check1CServices(
     { path: '/hs/ecof/health', label: 'ПорталЕЦОФ /health (GET)' },
     { path: '/hs/ecof/nsi/delta', label: 'ПорталЕЦОФ /nsi/delta (GET)' },
     { path: '/hs/ecof/nsi/warehouses', label: 'ПорталЕЦОФ /nsi/warehouses (GET)' },
+    { path: '/hs/ecof/nsi/nomenclature', label: 'ПорталЕЦОФ /nsi/nomenclature (GET)' },
     { path: '/hs/ecof/documents', label: 'ПорталЕЦОФ /documents (POST, проверим доступность)' },
     { path: '/hs/ecof/documents/test/status', label: 'ПорталЕЦОФ /documents/{ref}/status (GET, тестовый ref)' }
   ];

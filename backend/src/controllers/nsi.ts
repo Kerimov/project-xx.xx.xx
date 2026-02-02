@@ -406,6 +406,70 @@ export async function getWarehouseById(req: Request, res: Response, next: NextFu
   }
 }
 
+// Получение списка номенклатуры
+export async function getNomenclature(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { search } = req.query;
+
+    let query = `
+      SELECT id, code, name, data
+      FROM nomenclature
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (search) {
+      query += ` AND (name ILIKE $${paramIndex++} OR code ILIKE $${paramIndex - 1})`;
+      params.push(`%${search}%`);
+    }
+
+    query += ' ORDER BY name LIMIT 500';
+
+    const result = await pool.query(query, params);
+
+    res.json({
+      data: result.rows.map(row => ({
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        data: row.data
+      }))
+    });
+  } catch (error) {
+    console.error('❌ Error fetching nomenclature:', error);
+    next(error);
+  }
+}
+
+// Получение номенклатуры по ID
+export async function getNomenclatureById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      'SELECT id, code, name, data FROM nomenclature WHERE id = $1',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Nomenclature not found' });
+    }
+
+    const row = result.rows[0];
+    res.json({
+      data: {
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        data: row.data
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 // Получение списка счетов учета (план счетов из 1С УХ)
 export async function getAccountingAccounts(req: Request, res: Response, next: NextFunction) {
   try {
