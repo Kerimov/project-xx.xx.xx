@@ -95,7 +95,7 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
       type: row.type,
       organizationId: row.organization_id,
       organizationName: row.organization_name || '',
-      counterpartyId: row.counterparty_id || versionData?.data?.counterpartyId || null,
+      counterpartyId: versionData?.data?.counterpartyId || null,
       counterpartyName: row.counterparty_name || versionData?.data?.counterpartyName || '',
       counterpartyInn: row.counterparty_inn || versionData?.data?.counterpartyInn || null,
       contractId: versionData?.data?.contractId || null,
@@ -168,6 +168,7 @@ export async function createDocument(req: Request, res: Response, next: NextFunc
       date: documentData.date,
       type: documentData.type,
       organizationId: documentData.organizationId,
+      counterpartyId: documentData.counterpartyId,
       counterpartyName: documentData.counterpartyName,
       counterpartyInn: documentData.counterpartyInn,
       amount: documentData.amount,
@@ -270,26 +271,9 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
       });
     }
 
-    // Получаем текущую версию документа (нужно до updateDocument для counterpartyId)
+    // Получаем текущую версию документа для сравнения
     const currentVersionData = await documentsRepo.getDocumentVersion(id, document.current_version);
     const oldData = currentVersionData?.data || {};
-    
-    // Обновляем базовую таблицу documents (по аналогии с organization_id — counterparty_id тоже в documents)
-    const counterpartyId = updates.counterpartyId ?? oldData.counterpartyId ?? document.counterparty_id;
-    const updated = await documentsRepo.updateDocument(id, {
-      number: updates.number,
-      date: updates.date ? new Date(updates.date) : undefined,
-      type: updates.type,
-      counterparty_id: counterpartyId ?? null,
-      counterparty_name: updates.counterpartyName,
-      counterparty_inn: updates.counterpartyInn,
-      amount: updates.totalAmount || updates.amount,
-      currency: updates.currency
-    } as any);
-    
-    if (!updated) {
-      return res.status(404).json({ error: { message: 'Документ не найден' } });
-    }
 
     // Создаём новую версию документа с полными данными
     const versionData = {
@@ -379,6 +363,28 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
           newValue: newValue ?? null
         });
       }
+    }
+
+    // Если изменений нет — не создаём новую версию и не увеличиваем номер версии
+    if (changedFields.length === 0) {
+      logger.info('Document update skipped: no changes', { documentId: id, currentVersion: document.current_version });
+      const currentDoc = await documentsRepo.getDocumentById(id);
+      return res.json({ data: currentDoc ?? document });
+    }
+
+    // Обновляем базовую таблицу documents
+    const updated = await documentsRepo.updateDocument(id, {
+      number: updates.number,
+      date: updates.date ? new Date(updates.date) : undefined,
+      type: updates.type,
+      counterparty_name: updates.counterpartyName,
+      counterparty_inn: updates.counterpartyInn,
+      amount: updates.totalAmount || updates.amount,
+      currency: updates.currency
+    } as any);
+    
+    if (!updated) {
+      return res.status(404).json({ error: { message: 'Документ не найден' } });
     }
 
     // Создаём новую версию вместо обновления существующей

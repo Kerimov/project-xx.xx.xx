@@ -7,7 +7,6 @@ export interface DocumentRow {
   date: Date;
   type: string;
   organization_id: string;
-  counterparty_id: string | null;
   counterparty_name: string | null;
   counterparty_inn: string | null;
   amount: number | null;
@@ -135,9 +134,9 @@ export async function createDocument(data: {
   const result = await pool.query(
     `INSERT INTO documents (
       package_id, number, date, type, organization_id,
-      counterparty_id, counterparty_name, counterparty_inn, amount, currency,
+      counterparty_name, counterparty_inn, amount, currency,
       portal_status, current_version, created_by
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     RETURNING *`,
     [
       data.packageId || null,
@@ -145,7 +144,6 @@ export async function createDocument(data: {
       data.date,
       data.type,
       data.organizationId,
-      data.counterpartyId || null,
       data.counterpartyName || null,
       data.counterpartyInn || null,
       data.amount || data.totalAmount || null,
