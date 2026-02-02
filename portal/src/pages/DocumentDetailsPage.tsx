@@ -2,7 +2,7 @@ import { Card, Col, Descriptions, Row, Space, Tabs, Tag, Typography, Button, mes
 import type { TabsProps } from 'antd';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { StopOutlined, CheckCircleOutlined, LockOutlined, EditOutlined, DeleteOutlined, UploadOutlined, DownloadOutlined, CopyOutlined } from '@ant-design/icons';
+import { StopOutlined, CheckCircleOutlined, LockOutlined, EditOutlined, DeleteOutlined, UploadOutlined, DownloadOutlined, CopyOutlined, SyncOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
 import dayjs from 'dayjs';
 
@@ -58,6 +58,7 @@ export function DocumentDetailsPage() {
   const [uploading, setUploading] = useState(false);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [copying, setCopying] = useState(false);
+  const [syncingUHStatus, setSyncingUHStatus] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -183,6 +184,30 @@ export function DocumentDetailsPage() {
       message.error('Ошибка при изменении статуса: ' + (error.message || 'Неизвестная ошибка'));
     } finally {
       setChangingStatus(false);
+    }
+  };
+
+  /** Синхронизация статуса проведения из 1С УХ (получение «Проведен в УХ») */
+  const handleSyncUHStatus = async () => {
+    if (!id || !doc) return;
+    try {
+      setSyncingUHStatus(true);
+      const res = await api.documents.syncUHStatus(id);
+      if (res.data.synced) {
+        message.success(res.data.uhStatus === 'Posted' ? 'Статус УХ: Проведен в УХ' : 'Статус УХ обновлён');
+      } else {
+        message.warning(res.data.errorMessage || 'Не удалось получить статус из 1С УХ');
+      }
+      const [docResponse, transitionsResponse] = await Promise.all([
+        api.documents.getById(id),
+        api.documents.getStatusTransitions(id)
+      ]);
+      setDoc(docResponse.data);
+      setStatusTransitions(transitionsResponse.data);
+    } catch (error: any) {
+      message.error('Ошибка при получении статуса из УХ: ' + (error.message || 'Неизвестная ошибка'));
+    } finally {
+      setSyncingUHStatus(false);
     }
   };
 
@@ -409,6 +434,13 @@ export function DocumentDetailsPage() {
                 <Descriptions.Item label="Статус УХ">
                   <Tag color={uh.color}>{uh.text}</Tag>
                 </Descriptions.Item>
+                {doc.uhDocumentRef && (
+                  <Descriptions.Item label="Ссылка на документ в 1С УХ">
+                    <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: '12px' }} copyable>
+                      {doc.uhDocumentRef}
+                    </Text>
+                  </Descriptions.Item>
+                )}
               </Descriptions>
             </Card>
           </Col>
@@ -757,6 +789,15 @@ export function DocumentDetailsPage() {
                   Изменить статус
                 </Button>
               </Dropdown>
+            )}
+            {doc?.uhDocumentRef && (
+              <Button
+                icon={<SyncOutlined />}
+                onClick={handleSyncUHStatus}
+                loading={syncingUHStatus}
+              >
+                Обновить статус из УХ
+              </Button>
             )}
             {canCancel && (
               <Button 

@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import * as documentsRepo from '../repositories/documents.js';
+import { pool } from '../db/connection.js';
 import { uhQueueService } from '../services/uh-queue.js';
+import { uhIntegrationService } from '../services/uh-integration.js';
 import { logger } from '../utils/logger.js';
 import {
   transitionStatus,
@@ -105,6 +107,7 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
       currency: row.currency || versionData?.data?.currency || 'RUB',
       portalStatus: row.portal_status,
       uhStatus: row.uh_status || 'None',
+      uhDocumentRef: row.uh_document_ref || null,
       version: `v${row.current_version}`,
       packageId: row.package_id,
       // Для обратной совместимости
@@ -759,6 +762,88 @@ export async function addDocumentCheck(req: Request, res: Response, next: NextFu
         field: check.field,
         message: check.message,
         createdAt: check.created_at
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Синхронизация статуса документа из 1С УХ (получение «Проведен в УХ» и др.).
+ * Связь: документ портала имеет uh_document_ref = ссылка на документ в 1С.
+ */
+export async function syncDocumentUHStatus(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+
+    const document = await documentsRepo.getDocumentById(id);
+    if (!document) {
+      return res.status(404).json({ error: { message: 'Документ не найден' } });
+    }
+
+    const uhRef = document.uh_document_ref;
+    if (!uhRef || typeof uhRef !== 'string' || uhRef.trim() === '') {
+      return res.status(400).json({
+        error: { message: 'Документ ещё не отправлен в 1С УХ или ссылка на документ в УХ отсутствует' }
+      });
+    }
+
+    const response = await uhIntegrationService.getDocumentStatus(uhRef.trim());
+
+    if (!response.success) {
+      await pool.query(
+        `UPDATE documents SET uh_status = 'Error', uh_error_message = COALESCE($1, uh_error_message), updated_at = NOW() WHERE id = $2`,
+        [response.errorMessage ?? null, id]
+      );
+      const updated = await documentsRepo.getDocumentById(id);
+      return res.json({
+        data: {
+          id: updated!.id,
+          uhStatus: updated!.uh_status,
+          portalStatus: updated!.portal_status,
+          uhDocumentRef: updated!.uh_document_ref,
+          synced: false,
+          errorMessage: response.errorMessage
+        }
+      });
+    }
+
+    const uhStatus = response.status || 'Accepted';
+    const portalStatus: PortalStatus =
+      uhStatus === 'Posted'
+        ? 'PostedInUH'
+        : uhStatus === 'Accepted'
+          ? 'AcceptedByUH'
+          : (document.portal_status as PortalStatus);
+
+    await pool.query(
+      `UPDATE documents 
+       SET uh_status = $1, portal_status = $2, uh_error_message = NULL, updated_at = NOW() 
+       WHERE id = $3`,
+      [uhStatus, portalStatus, id]
+    );
+
+    const updated = await documentsRepo.getDocumentById(id);
+    const user = req.user;
+    await documentsRepo.addDocumentHistory(
+      id,
+      `Статус УХ обновлён: ${uhStatus === 'Posted' ? 'Проведен в УХ' : uhStatus === 'Accepted' ? 'Принят УХ' : uhStatus}`,
+      user?.id || user?.username || 'system',
+      user?.username || 'Система',
+      document.current_version,
+      { uhStatus, portalStatus }
+    );
+
+    logger.info('Document UH status synced', { documentId: id, uhStatus, portalStatus });
+
+    res.json({
+      data: {
+        id: updated!.id,
+        uhStatus: updated!.uh_status,
+        portalStatus: updated!.portal_status,
+        uhDocumentRef: updated!.uh_document_ref,
+        synced: true
       }
     });
   } catch (error) {

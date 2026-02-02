@@ -9,7 +9,8 @@ import {
   deleteDocument,
   changeDocumentStatus,
   getDocumentStatusTransitions,
-  addDocumentCheck
+  addDocumentCheck,
+  syncDocumentUHStatus
 } from '../controllers/documents.js';
 import { validate, validateQuery, validateParams } from '../middleware/validate.js';
 import {
@@ -55,4 +56,5 @@ documentsRouter.post('/:id/freeze', validateParams(documentIdSchema), freezeDocu
 documentsRouter.post('/:id/cancel', validateParams(documentIdSchema), cancelDocument);
 documentsRouter.delete('/:id', validateParams(documentIdSchema), deleteDocument);
 documentsRouter.post('/:id/status', validateParams(documentIdSchema), validate(changeStatusSchema), changeDocumentStatus);
+documentsRouter.post('/:id/sync-uh-status', validateParams(documentIdSchema), syncDocumentUHStatus);
 documentsRouter.post('/:id/checks', validateParams(documentIdSchema), validate(createDocumentCheckSchema), addDocumentCheck);

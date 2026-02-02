@@ -425,16 +425,16 @@ export class UHIntegrationService {
   }
 
   /**
-   * Получение статуса документа в УХ
+   * Получение статуса документа в УХ.
+   * ref передаётся и в path, и в query: 1С ожидает ref в Запрос.ПараметрыURL (часто заполняется из query).
    */
   async getDocumentStatus(uhDocumentRef: string): Promise<UHOperationResponse> {
     try {
-      const response = await this.requestWithRetry<UHOperationResponse>(
-        `${this.baseUrl}/documents/${uhDocumentRef}/status`,
-        {
-          method: 'GET'
-        }
-      );
+      const refEncoded = encodeURIComponent(uhDocumentRef.trim());
+      const url = `${this.baseUrl}/documents/${refEncoded}/status?ref=${refEncoded}`;
+      const response = await this.requestWithRetry<UHOperationResponse>(url, {
+        method: 'GET'
+      });
 
       return response;
     } catch (error: any) {

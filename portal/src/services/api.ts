@@ -125,6 +125,11 @@ export const api = {
     getStatusTransitions: (id: string) => request<{ data: { currentStatus: string; editable: boolean; availableTransitions: string[] } }>(
       `/documents/${id}/status/transitions`
     ),
+    /** Синхронизация статуса из 1С УХ (получение «Проведен в УХ» по ссылке uh_document_ref) */
+    syncUHStatus: (id: string) => request<{ data: { id: string; uhStatus: string; portalStatus: string; uhDocumentRef: string | null; synced: boolean; errorMessage?: string } }>(
+      `/documents/${id}/sync-uh-status`,
+      { method: 'POST' }
+    ),
     addCheck: (id: string, check: { source: string; level: 'error' | 'warning' | 'info'; message: string; field?: string; version?: number }) => 
       request<{ data: any }>(`/documents/${id}/checks`, {
         method: 'POST',
