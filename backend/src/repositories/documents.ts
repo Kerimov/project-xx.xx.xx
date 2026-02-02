@@ -25,6 +25,7 @@ export interface DocumentRow {
 
 export async function getDocuments(filters?: {
   packageId?: string;
+  notInPackageId?: string;
   organizationId?: string;
   portalStatus?: string;
   uhStatus?: string;
@@ -43,6 +44,10 @@ export async function getDocuments(filters?: {
   if (filters?.packageId) {
     query += ` AND d.package_id = $${paramIndex++}`;
     params.push(filters.packageId);
+  }
+  if (filters?.notInPackageId) {
+    query += ` AND (d.package_id IS NULL OR d.package_id != $${paramIndex++})`;
+    params.push(filters.notInPackageId);
   }
   if (filters?.organizationId) {
     query += ` AND d.organization_id = $${paramIndex++}`;
@@ -74,9 +79,11 @@ export async function getDocuments(filters?: {
 
 export async function getDocumentById(id: string) {
   const result = await pool.query(
-    `SELECT d.*, o.name as organization_name
+    `SELECT d.*, o.name as organization_name,
+       p.name as package_name
      FROM documents d
      LEFT JOIN organizations o ON d.organization_id = o.id
+     LEFT JOIN packages p ON d.package_id = p.id
      WHERE d.id = $1`,
     [id]
   );
@@ -227,6 +234,17 @@ export async function updateDocument(id: string, updates: Partial<DocumentRow>) 
   );
 
   return result.rows[0] || null;
+}
+
+/** Массовая привязка документов к пакету */
+export async function setDocumentsPackage(documentIds: string[], packageId: string | null): Promise<number> {
+  if (documentIds.length === 0) return 0;
+  const result = await pool.query(
+    `UPDATE documents SET package_id = $1, updated_at = CURRENT_TIMESTAMP
+     WHERE id = ANY($2::uuid[])`,
+    [packageId, documentIds]
+  );
+  return result.rowCount ?? 0;
 }
 
 export async function freezeDocumentVersion(documentId: string, version: number) {

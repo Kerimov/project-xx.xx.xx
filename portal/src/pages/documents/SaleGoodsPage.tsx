@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, Checkbox, message, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, CounterpartySelect, AccountingAccountSelect, AnalyticsSection, NomenclatureSelect } from '../../components/forms';
+import { OrganizationSelect, CounterpartySelect, AccountingAccountSelect, AnalyticsSection, NomenclatureSelect, PackageSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
 import { parseDateSafe } from '../../utils/dateUtils';
@@ -57,6 +57,7 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
             date: parseDateSafe(doc.date),
             documentNumber: doc.documentNumber || '',
             organizationId: doc.organizationId,
+            packageId: doc.packageId,
             counterpartyId: doc.counterpartyId,
             counterpartyName: doc.counterpartyName || '',
             counterpartyInn: doc.counterpartyInn || '',
@@ -96,6 +97,7 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
         date: values.date ? (typeof values.date === 'string' ? values.date : values.date.format('YYYY-MM-DD')) : undefined,
         type: 'SaleGoods',
         organizationId: values.organizationId,
+        packageId: values.packageId || null,
         counterpartyName: values.counterpartyName,
         counterpartyInn: values.counterpartyInn,
         contractId: values.contractId,
@@ -389,6 +391,10 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
                   form.setFieldsValue({ contractId: undefined, warehouseId: undefined });
                 }}
               />
+            </Form.Item>
+
+            <Form.Item label="Пакет" name="packageId">
+              <PackageSelect organizationId={selectedOrganizationId} placeholder="Выберите пакет (опционально)" />
             </Form.Item>
 
             <Form.Item

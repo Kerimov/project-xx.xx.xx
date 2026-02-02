@@ -5,9 +5,11 @@ import * as documentsRepo from '../repositories/documents.js';
 export async function getPackages(req: Request, res: Response, next: NextFunction) {
   try {
     const filters = {
+      search: req.query.search as string | undefined,
       organizationId: req.query.organizationId as string | undefined,
       status: req.query.status as string | undefined,
       period: req.query.period as string | undefined,
+      type: req.query.type as string | undefined,
       limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
       offset: req.query.offset ? parseInt(req.query.offset as string) : undefined
     };
@@ -17,10 +19,11 @@ export async function getPackages(req: Request, res: Response, next: NextFunctio
     const packages = rows.map(row => ({
       id: row.id,
       name: row.name,
+      organizationId: row.organization_id,
       company: row.organization_name || '',
       period: row.period,
       type: row.type || '',
-      documentCount: row.document_count,
+      documentCount: row.document_count ?? 0,
       status: row.status,
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString()
@@ -47,10 +50,11 @@ export async function getPackageById(req: Request, res: Response, next: NextFunc
     const packageData = {
       id: row.id,
       name: row.name,
+      organizationId: row.organization_id,
       company: row.organization_name || '',
       period: row.period,
       type: row.type || '',
-      documentCount: row.document_count,
+      documentCount: row.document_count ?? documents.length,
       status: row.status,
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString(),
@@ -65,6 +69,27 @@ export async function getPackageById(req: Request, res: Response, next: NextFunc
     };
 
     res.json({ data: packageData });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function addDocumentsToPackage(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id: packageId } = req.params;
+    const { documentIds } = req.body as { documentIds: string[] };
+
+    if (!Array.isArray(documentIds) || documentIds.length === 0) {
+      return res.status(400).json({ error: { message: 'Укажите документы для добавления (documentIds)' } });
+    }
+
+    const row = await packagesRepo.getPackageById(packageId);
+    if (!row) {
+      return res.status(404).json({ error: { message: 'Пакет не найден' } });
+    }
+
+    const updated = await documentsRepo.setDocumentsPackage(documentIds, packageId);
+    res.json({ data: { added: updated, packageId } });
   } catch (error) {
     next(error);
   }

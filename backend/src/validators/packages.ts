@@ -20,11 +20,17 @@ export const updatePackageSchema = createPackageSchema.partial().extend({
 });
 
 export const listPackagesSchema = z.object({
+  search: z.string().optional(),
   organizationId: uuidSchema.optional(),
   status: z.enum(['New', 'InProcessing', 'Done', 'Failed', 'PartiallyFailed']).optional(),
   period: periodSchema.optional(),
+  type: z.string().optional(),
   limit: z.number().int().positive().max(1000).default(50),
   offset: z.number().int().nonnegative().default(0)
+});
+
+export const addDocumentsToPackageSchema = z.object({
+  documentIds: z.array(z.string().uuid()).min(1, 'Укажите хотя бы один документ')
 });
 
 export type CreatePackageInput = z.infer<typeof createPackageSchema>;

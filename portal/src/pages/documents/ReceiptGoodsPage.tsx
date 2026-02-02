@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, Checkbox, message, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, CounterpartySelect, AccountingAccountSelect, AnalyticsSection, NomenclatureSelect, DepartmentSelect } from '../../components/forms';
+import { OrganizationSelect, CounterpartySelect, AccountingAccountSelect, AnalyticsSection, NomenclatureSelect, DepartmentSelect, PackageSelect } from '../../components/forms';
 import { AccountSelect } from '../../components/forms/AccountSelect';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
@@ -61,6 +61,7 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
             originalReceived: doc.originalReceived || false,
             invoiceReceived: doc.invoiceReceived || false,
             organizationId: doc.organizationId,
+            packageId: doc.packageId,
             counterpartyId: doc.counterpartyId,
             counterpartyName: doc.counterpartyName || '',
             counterpartyInn: doc.counterpartyInn || '',
@@ -113,6 +114,7 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
         originalReceived: values.originalReceived ?? false,
         invoiceReceived: values.invoiceReceived ?? false,
         organizationId: values.organizationId,
+        packageId: values.packageId || null,
         counterpartyId: values.counterpartyId,
         counterpartyName: values.counterpartyName,
         counterpartyInn: values.counterpartyInn,
@@ -180,6 +182,7 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
         originalReceived: values.originalReceived ?? false,
         invoiceReceived: values.invoiceReceived ?? false,
         organizationId: values.organizationId,
+        packageId: values.packageId || null,
         counterpartyId: values.counterpartyId,
         counterpartyName: values.counterpartyName,
         counterpartyInn: values.counterpartyInn,
@@ -535,6 +538,10 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
                     form.setFieldsValue({ contractId: undefined, warehouseId: undefined, paymentAccountId: undefined });
                   }}
                 />
+              </Form.Item>
+
+              <Form.Item label="Пакет" name="packageId">
+                <PackageSelect organizationId={selectedOrganizationId} placeholder="Выберите пакет (опционально)" />
               </Form.Item>
 
               <AnalyticsSection

@@ -64,6 +64,7 @@ export const freezeDocumentSchema = z.object({
 // Схема для получения списка документов
 export const listDocumentsSchema = z.object({
   packageId: uuidSchema.optional(),
+  notInPackageId: uuidSchema.optional(),
   organizationId: uuidSchema.optional(),
   portalStatus: z.enum(['Draft', 'Validated', 'Frozen', 'QueuedToUH', 'SentToUH']).optional(),
   uhStatus: z.enum(['None', 'Accepted', 'Posted', 'Error']).optional(),

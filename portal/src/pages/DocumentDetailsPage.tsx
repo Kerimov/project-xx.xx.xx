@@ -435,7 +435,15 @@ export function DocumentDetailsPage() {
                   </Text>
                 </Descriptions.Item>
                 <Descriptions.Item label="Версия">{doc.version}</Descriptions.Item>
-                <Descriptions.Item label="Пакет">{doc.packageId || '—'}</Descriptions.Item>
+                <Descriptions.Item label="Пакет">
+                  {doc.packageId ? (
+                    <a onClick={() => navigate(`/packages/${doc.packageId}`)} style={{ cursor: 'pointer' }}>
+                      {doc.packageName || doc.packageId}
+                    </a>
+                  ) : (
+                    '—'
+                  )}
+                </Descriptions.Item>
                 <Descriptions.Item label="Статус портала">
                   <Tag color={portal.color}>{portal.text}</Tag>
                 </Descriptions.Item>

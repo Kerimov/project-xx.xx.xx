@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { getPackages, getPackageById, createPackage } from '../controllers/packages.js';
+import { getPackages, getPackageById, createPackage, addDocumentsToPackage } from '../controllers/packages.js';
 import { validate, validateQuery, validateParams } from '../middleware/validate.js';
 import {
   createPackageSchema,
-  listPackagesSchema
+  listPackagesSchema,
+  addDocumentsToPackageSchema
 } from '../validators/packages.js';
 import { z } from 'zod';
 
@@ -16,3 +17,4 @@ const packageIdSchema = z.object({
 packagesRouter.get('/', validateQuery(listPackagesSchema), getPackages);
 packagesRouter.get('/:id', validateParams(packageIdSchema), getPackageById);
 packagesRouter.post('/', validate(createPackageSchema), createPackage);
+packagesRouter.post('/:id/documents', validateParams(packageIdSchema), validate(addDocumentsToPackageSchema), addDocumentsToPackage);

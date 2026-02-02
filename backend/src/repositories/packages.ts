@@ -14,14 +14,17 @@ export interface PackageRow {
 }
 
 export async function getPackages(filters?: {
+  search?: string;
   organizationId?: string;
   status?: string;
   period?: string;
+  type?: string;
   limit?: number;
   offset?: number;
 }) {
   let query = `
-    SELECT p.*, o.name as organization_name
+    SELECT p.*, o.name as organization_name,
+      (SELECT COUNT(*)::int FROM documents d WHERE d.package_id = p.id) as document_count
     FROM packages p
     LEFT JOIN organizations o ON p.organization_id = o.id
     WHERE 1=1
@@ -29,6 +32,10 @@ export async function getPackages(filters?: {
   const params: any[] = [];
   let paramIndex = 1;
 
+  if (filters?.search && filters.search.trim()) {
+    query += ` AND p.name ILIKE $${paramIndex++}`;
+    params.push(`%${filters.search.trim()}%`);
+  }
   if (filters?.organizationId) {
     query += ` AND p.organization_id = $${paramIndex++}`;
     params.push(filters.organizationId);
@@ -40,6 +47,10 @@ export async function getPackages(filters?: {
   if (filters?.period) {
     query += ` AND p.period = $${paramIndex++}`;
     params.push(filters.period);
+  }
+  if (filters?.type) {
+    query += ` AND p.type = $${paramIndex++}`;
+    params.push(filters.type);
   }
 
   query += ` ORDER BY p.created_at DESC`;
@@ -59,7 +70,8 @@ export async function getPackages(filters?: {
 
 export async function getPackageById(id: string) {
   const result = await pool.query(
-    `SELECT p.*, o.name as organization_name
+    `SELECT p.*, o.name as organization_name,
+      (SELECT COUNT(*)::int FROM documents d WHERE d.package_id = p.id) as document_count
      FROM packages p
      LEFT JOIN organizations o ON p.organization_id = o.id
      WHERE p.id = $1`,

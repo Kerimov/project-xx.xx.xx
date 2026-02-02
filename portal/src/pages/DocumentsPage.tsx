@@ -1,11 +1,12 @@
-import { Table, Tag, Typography, Button, Space, Tabs, Popconfirm } from 'antd';
+import { Table, Tag, Typography, Button, Space, Tabs, Popconfirm, Modal } from 'antd';
 import type { TabsProps } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, InboxOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { api } from '../services/api';
 import { message } from 'antd';
 import { documentGroups } from '../config/documentGroups';
+import { PackageSelect } from '../components/forms';
 
 // Маппинг типов документов на названия
 const getDocumentTypeLabel = (type: string): string => {
@@ -26,11 +27,19 @@ export function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<string>('all');
+  const [packageFilter, setPackageFilter] = useState<string | undefined>();
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [addToPackageModal, setAddToPackageModal] = useState(false);
+  const [addToPackageId, setAddToPackageId] = useState<string | null>(null);
+  const [addingToPackage, setAddingToPackage] = useState(false);
 
   const loadDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.documents.list();
+      const response = await api.documents.list({
+        packageId: packageFilter || undefined,
+        limit: 1000
+      });
       setDocuments(response.data || []);
     } catch (error) {
       console.error('Error loading documents:', error);
@@ -38,7 +47,7 @@ export function DocumentsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [packageFilter]);
 
   const columns = useMemo(() => [
     { title: '№', dataIndex: 'number', key: 'number', width: 120 },
@@ -171,9 +180,31 @@ export function DocumentsPage() {
     }
   ], [navigate, deletingIds, loadDocuments]);
 
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (keys: React.Key[]) => setSelectedRowKeys(keys)
+  };
+
+  const handleAddToPackage = async () => {
+    if (!addToPackageId || selectedRowKeys.length === 0) return;
+    try {
+      setAddingToPackage(true);
+      await api.packages.addDocuments(addToPackageId, selectedRowKeys as string[]);
+      message.success(`Добавлено в пакет: ${selectedRowKeys.length} документов`);
+      setAddToPackageModal(false);
+      setAddToPackageId(null);
+      setSelectedRowKeys([]);
+      loadDocuments();
+    } catch (e: any) {
+      message.error('Ошибка: ' + (e?.message || 'Неизвестная ошибка'));
+    } finally {
+      setAddingToPackage(false);
+    }
+  };
+
   useEffect(() => {
     loadDocuments();
-  }, []);
+  }, [loadDocuments]);
 
   // Группировка документов по группам и подгруппам
   const documentsByGroupAndSubgroup = useMemo(() => {
@@ -282,6 +313,7 @@ export function DocumentsPage() {
             dataSource={(documentsByGroupAndSubgroup[group.id]?.all || []).map(doc => ({ ...doc, key: doc.id }))}
             size="middle"
             loading={loading}
+            rowSelection={rowSelection}
             onRow={(record) => ({
               onClick: () => navigate(`/documents/${record.id}`)
             })}
@@ -301,6 +333,7 @@ export function DocumentsPage() {
             dataSource={(documentsByGroupAndSubgroup[group.id]?.[subgroup.id] || []).map(doc => ({ ...doc, key: doc.id }))}
             size="middle"
             loading={loading}
+            rowSelection={rowSelection}
             onRow={(record) => ({
               onClick: () => navigate(`/documents/${record.id}`)
             })}
@@ -323,6 +356,7 @@ export function DocumentsPage() {
           dataSource={documents.map(doc => ({ ...doc, key: doc.id }))}
           size="middle"
           loading={loading}
+          rowSelection={rowSelection}
           onRow={(record) => ({
             onClick: () => navigate(`/documents/${record.id}`)
           })}
@@ -350,17 +384,36 @@ export function DocumentsPage() {
 
   return (
     <div className="page">
-      <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          Документы
-        </Typography.Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => navigate('/documents/new')}
-        >
-          Создать документ
-        </Button>
+      <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }} wrap>
+        <Space wrap>
+          <Typography.Title level={3} style={{ margin: 0 }}>
+            Документы
+          </Typography.Title>
+          <PackageSelect
+            placeholder="Фильтр по пакету"
+            style={{ width: 220 }}
+            value={packageFilter || undefined}
+            onChange={(v) => setPackageFilter(v || undefined)}
+            allowClear
+          />
+        </Space>
+        <Space>
+          {selectedRowKeys.length > 0 && (
+            <Button
+              icon={<InboxOutlined />}
+              onClick={() => setAddToPackageModal(true)}
+            >
+              Добавить в пакет ({selectedRowKeys.length})
+            </Button>
+          )}
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/documents/new')}
+          >
+            Создать документ
+          </Button>
+        </Space>
       </Space>
       <Tabs
         activeKey={activeTab}
@@ -368,6 +421,26 @@ export function DocumentsPage() {
         items={tabItems}
         type="card"
       />
+
+      <Modal
+        title="Добавить документы в пакет"
+        open={addToPackageModal}
+        onOk={handleAddToPackage}
+        onCancel={() => {
+          setAddToPackageModal(false);
+          setAddToPackageId(null);
+        }}
+        okText="Добавить"
+        okButtonProps={{ disabled: !addToPackageId }}
+        confirmLoading={addingToPackage}
+      >
+        <p style={{ marginBottom: 12 }}>Выберите пакет для {selectedRowKeys.length} документов:</p>
+        <PackageSelect
+          placeholder="Выберите пакет"
+          value={addToPackageId || undefined}
+          onChange={(v) => setAddToPackageId(v || null)}
+        />
+      </Modal>
     </div>
   );
 }

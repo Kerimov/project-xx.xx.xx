@@ -82,15 +82,21 @@ export const api = {
   documents: {
     list: (filters?: {
       packageId?: string;
+      notInPackageId?: string;
       organizationId?: string;
       portalStatus?: string;
       uhStatus?: string;
+      limit?: number;
+      offset?: number;
     }) => {
       const params = new URLSearchParams();
       if (filters?.packageId) params.append('packageId', filters.packageId);
+      if (filters?.notInPackageId) params.append('notInPackageId', filters.notInPackageId);
       if (filters?.organizationId) params.append('organizationId', filters.organizationId);
       if (filters?.portalStatus) params.append('portalStatus', filters.portalStatus);
       if (filters?.uhStatus) params.append('uhStatus', filters.uhStatus);
+      if (filters?.limit != null) params.append('limit', String(filters.limit));
+      if (filters?.offset != null) params.append('offset', String(filters.offset));
       const query = params.toString();
       return request<{ data: any[] }>(`/documents${query ? `?${query}` : ''}`, {
         method: 'GET'
@@ -140,14 +146,22 @@ export const api = {
   // Пакеты
   packages: {
     list: (filters?: {
+      search?: string;
       organizationId?: string;
       status?: string;
       period?: string;
+      type?: string;
+      limit?: number;
+      offset?: number;
     }) => {
       const params = new URLSearchParams();
+      if (filters?.search) params.append('search', filters.search);
       if (filters?.organizationId) params.append('organizationId', filters.organizationId);
       if (filters?.status) params.append('status', filters.status);
       if (filters?.period) params.append('period', filters.period);
+      if (filters?.type) params.append('type', filters.type);
+      if (filters?.limit != null) params.append('limit', String(filters.limit));
+      if (filters?.offset != null) params.append('offset', String(filters.offset));
       const query = params.toString();
       return request<{ data: any[] }>(`/packages${query ? `?${query}` : ''}`, {
         method: 'GET'
@@ -155,6 +169,12 @@ export const api = {
     },
 
     getById: (id: string) => request<{ data: any }>(`/packages/${id}`),
+
+    addDocuments: (packageId: string, documentIds: string[]) =>
+      request<{ data: { added: number; packageId: string } }>(`/packages/${packageId}/documents`, {
+        method: 'POST',
+        body: JSON.stringify({ documentIds })
+      }),
 
     create: (pkg: any) => request<{ data: any }>('/packages', {
       method: 'POST',

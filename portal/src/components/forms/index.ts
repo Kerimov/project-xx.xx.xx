@@ -1,4 +1,5 @@
 export { OrganizationSelect } from './OrganizationSelect';
+export { PackageSelect } from './PackageSelect';
 export { CounterpartySelect } from './CounterpartySelect';
 export { ContractSelect } from './ContractSelect';
 export { AccountSelect } from './AccountSelect';

@@ -9,6 +9,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { PackagesPage } from './pages/PackagesPage';
+import { PackageDetailsPage } from './pages/PackageDetailsPage';
 import { DocumentsPage } from './pages/DocumentsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { IntegrationMonitorPage } from './pages/IntegrationMonitorPage';
@@ -47,6 +48,7 @@ function AppLayout() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/packages" element={<PackagesPage />} />
+            <Route path="/packages/:id" element={<PackageDetailsPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/documents/new" element={<SelectDocumentTypePage />} />
             <Route path="/documents/new/:type" element={<CreateDocumentPage />} />

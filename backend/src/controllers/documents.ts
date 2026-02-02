@@ -30,6 +30,7 @@ export async function getDocuments(req: Request, res: Response, next: NextFuncti
   try {
     const filters = {
       packageId: req.query.packageId as string | undefined,
+      notInPackageId: req.query.notInPackageId as string | undefined,
       organizationId: req.query.organizationId as string | undefined,
       portalStatus: req.query.portalStatus as string | undefined,
       uhStatus: req.query.uhStatus as string | undefined,
@@ -124,6 +125,7 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
       uhDocumentDisplayUrl: buildUhDocumentDisplayUrl(row.uh_document_ref),
       version: `v${row.current_version}`,
       packageId: row.package_id,
+      packageName: row.package_name || null,
       // Для обратной совместимости
       company: row.organization_name || '',
       counterparty: row.counterparty_name || versionData?.data?.counterpartyName || '',
@@ -377,6 +379,7 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
       number: updates.number,
       date: updates.date ? new Date(updates.date) : undefined,
       type: updates.type,
+      package_id: updates.packageId !== undefined ? (updates.packageId || null) : undefined,
       counterparty_name: updates.counterpartyName,
       counterparty_inn: updates.counterpartyInn,
       amount: updates.totalAmount || updates.amount,
