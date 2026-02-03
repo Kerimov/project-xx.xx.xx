@@ -48,15 +48,26 @@ export class AnalyticsWebhooksService {
   }
 
   private async processResyncJobs() {
-    // Выбираем несколько джобов, которые пора выполнять, и блокируем их, чтобы не было параллельной обработки
+    /**
+     * Важно: FOR UPDATE SKIP LOCKED имеет смысл только если «захват» происходит атомарно.
+     * Здесь мы «захватываем» джобы одним запросом (CTE + UPDATE ... RETURNING),
+     * чтобы параллельные инстансы сервиса не обработали одну и ту же джобу.
+     */
     const jobs = await pool.query(
-      `SELECT id, org_id, type_id, status, cursor_updated_at, cursor_id, batch_size, fail_count, next_retry_at
-       FROM analytics_resync_jobs
-       WHERE status IN ('Pending', 'Processing')
-         AND next_retry_at <= now()
-       ORDER BY created_at ASC
-       LIMIT 5
-       FOR UPDATE SKIP LOCKED`
+      `WITH picked AS (
+         SELECT id
+         FROM analytics_resync_jobs
+         WHERE status = 'Pending'
+           AND next_retry_at <= now()
+         ORDER BY created_at ASC
+         LIMIT 5
+         FOR UPDATE SKIP LOCKED
+       )
+       UPDATE analytics_resync_jobs j
+       SET status = 'Processing'
+       FROM picked
+       WHERE j.id = picked.id
+       RETURNING j.id, j.org_id, j.type_id, j.status, j.cursor_updated_at, j.cursor_id, j.batch_size, j.fail_count, j.next_retry_at`
     );
 
     for (const job of jobs.rows as ResyncJobRow[]) {
@@ -68,10 +79,7 @@ export class AnalyticsWebhooksService {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      await client.query(
-        `UPDATE analytics_resync_jobs SET status = 'Processing' WHERE id = $1`,
-        [job.id]
-      );
+      // Джоба уже переведена в Processing на этапе захвата (processResyncJobs).
 
       // Проверяем, что тип подписан
       const sub = await client.query(
@@ -187,15 +195,25 @@ export class AnalyticsWebhooksService {
   }
 
   private async deliverEvents() {
-    // Выбираем активные вебхуки, которые пора доставлять, и блокируем строки, чтобы доставка по одной организации не шла параллельно
+    /**
+     * «Захватываем» вебхуки атомарно: переносим next_retry_at вперёд на короткое время,
+     * чтобы параллельные инстансы не начали доставку для той же org одновременно.
+     */
     const hooksRes = await pool.query(
-      `SELECT org_id, url, secret, last_delivered_seq, fail_count
-       FROM org_webhooks
-       WHERE is_active = true
-         AND next_retry_at <= now()
-       ORDER BY updated_at ASC
-       LIMIT 10
-       FOR UPDATE SKIP LOCKED`
+      `WITH picked AS (
+         SELECT org_id
+         FROM org_webhooks
+         WHERE is_active = true
+           AND next_retry_at <= now()
+         ORDER BY updated_at ASC
+         LIMIT 10
+         FOR UPDATE SKIP LOCKED
+       )
+       UPDATE org_webhooks h
+       SET next_retry_at = now() + interval '30 seconds'
+       FROM picked
+       WHERE h.org_id = picked.org_id
+       RETURNING h.org_id, h.url, h.secret, h.last_delivered_seq, h.fail_count`
     );
 
     for (const hook of hooksRes.rows as Array<{ org_id: string; url: string; secret: string; last_delivered_seq: number; fail_count: number }>) {

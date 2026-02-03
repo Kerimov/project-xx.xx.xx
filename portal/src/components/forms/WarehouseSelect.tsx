@@ -20,14 +20,13 @@ interface Warehouse {
 interface WarehouseSelectProps extends Omit<SelectProps, 'options' | 'loading'> {
   value?: string;
   onChange?: (value: string) => void;
-  /** @deprecated Не используется, склады не фильтруются по организации */
   organizationId?: string;
 }
 
 export function WarehouseSelect({ 
   value, 
   onChange,
-  organizationId: _organizationId, // деструктурируем, чтобы не передавать в DOM
+  organizationId,
   ...props 
 }: WarehouseSelectProps) {
   const { isEnabled } = useAnalyticsAccess();
@@ -45,8 +44,7 @@ export function WarehouseSelect({
   const loadWarehouses = async () => {
     setLoading(true);
     try {
-      // Всегда загружаем все склады без фильтра по организации
-      const response = await api.nsi.warehouses(undefined, undefined);
+      const response = await api.nsi.warehouses(organizationId, undefined);
       setWarehouses(response.data || []);
     } catch (error: any) {
       message.error('Ошибка загрузки складов: ' + (error.message || 'Неизвестная ошибка'));
@@ -56,19 +54,25 @@ export function WarehouseSelect({
   };
 
   useEffect(() => {
+    if (!enabled) return;
+    if (!organizationId) {
+      setWarehouses([]);
+      return;
+    }
     loadWarehouses();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, organizationId]);
 
   const loadItems = useCallback(async (search?: string): Promise<Warehouse[]> => {
     try {
-      // Всегда загружаем все склады без фильтра по организации
-      const response = await api.nsi.warehouses(undefined, search);
+      if (!organizationId) return [];
+      const response = await api.nsi.warehouses(organizationId, search);
       const list = response?.data;
       return Array.isArray(list) ? list : [];
     } catch {
       return [];
     }
-  }, []);
+  }, [organizationId]);
 
   if (!enabled) {
     return (
@@ -105,6 +109,8 @@ export function WarehouseSelect({
       ]}
       loadItems={loadItems}
       onSelect={(id) => onChange?.(id)}
+      disabled={!organizationId}
+      disabledHint="Сначала выберите организацию"
     >
       <Select
         {...props}
@@ -114,13 +120,16 @@ export function WarehouseSelect({
         allowClear
         placeholder="Выберите склад"
         loading={loading}
+        disabled={!organizationId}
         filterOption={(input, option) => {
           const label = (option?.label ?? option?.value ?? '')?.toString?.() ?? '';
           return label.toLowerCase().includes((input ?? '').toLowerCase());
         }}
         notFoundContent={
           loading ? <Spin size="small" /> :
-          'Склады не найдены. Запустите синхронизацию НСИ на странице «Интеграция с УХ».'
+          organizationId
+            ? 'Склады не найдены. Запустите синхронизацию НСИ на странице «Интеграция с УХ».'
+            : 'Сначала выберите организацию'
         }
         optionLabelProp="label"
         style={{ width: '100%' }}

@@ -47,12 +47,8 @@ export function ContractSelect({
   const loadContracts = async () => {
     setLoading(true);
     try {
-      const response = await api.nsi.contracts(organizationId, undefined);
-      let data = response.data || [];
-      if (counterpartyId) {
-        data = data.filter((c: Contract) => c.counterpartyId === counterpartyId);
-      }
-      setContracts(data);
+      const response = await api.nsi.contracts(organizationId, undefined, counterpartyId);
+      setContracts(response.data || []);
     } catch (error: any) {
       message.error('Ошибка загрузки договоров: ' + (error.message || 'Неизвестная ошибка'));
     } finally {
