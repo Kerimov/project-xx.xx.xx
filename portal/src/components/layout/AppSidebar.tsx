@@ -23,6 +23,7 @@ export function AppSidebar() {
     { key: '/dashboard', icon: <AppstoreOutlined />, label: 'Дашборд' },
     { key: '/packages', icon: <FileDoneOutlined />, label: 'Пакеты' },
     { key: '/documents', icon: <FileTextOutlined />, label: 'Документы' },
+    { key: '/organization/cabinet', icon: <SettingOutlined />, label: 'Личный кабинет' },
     { key: '/analytics', icon: <ApartmentOutlined />, label: 'Аналитики' },
     { key: '/nsi', icon: <DatabaseOutlined />, label: 'Справочники' },
     { key: '/reports', icon: <LineChartOutlined />, label: 'Отчётность' },
@@ -41,6 +42,7 @@ export function AppSidebar() {
     if (path.startsWith('/nsi')) return '/nsi';
     if (path.startsWith('/uh-db-connection')) return '/uh-db-connection';
     if (path.startsWith('/analytics/admin')) return '/analytics/admin';
+    if (path.startsWith('/organization/cabinet')) return '/organization/cabinet';
     return path;
   };
 

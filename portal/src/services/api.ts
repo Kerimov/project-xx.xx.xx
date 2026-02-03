@@ -216,6 +216,27 @@ export const api = {
       request<{ data: any }>(`/analytics/admin/values`, { method: 'POST', body: JSON.stringify(payload) })
   },
 
+  organization: {
+    getMyOrganization: () =>
+      request<{ data: { id: string; code: string; name: string; inn: string | null; directionId: string | null; createdAt: string; updatedAt: string } }>(
+        `/organization/me`
+      ),
+    getEmployees: () =>
+      request<{ data: Array<{ id: string; username: string; email: string | null; role: string; organizationId: string | null; isActive: boolean; createdAt: string; updatedAt: string }> }>(
+        `/organization/employees`
+      ),
+    searchUsers: (query: string) =>
+      request<{ data: Array<{ id: string; username: string; email: string | null; role: string; organizationId: string | null }> }>(
+        `/organization/employees/search?query=${encodeURIComponent(query)}`
+      ),
+    assignEmployee: (payload: { userId: string }) =>
+      request<{ data: any }>(`/organization/employees`, { method: 'POST', body: JSON.stringify(payload) }),
+    updateEmployeeRole: (employeeId: string, payload: { role: string }) =>
+      request<{ data: any }>(`/organization/employees/${employeeId}/role`, { method: 'PUT', body: JSON.stringify(payload) }),
+    unassignEmployee: (employeeId: string) =>
+      request<{ data: { success: boolean } }>(`/organization/employees/${employeeId}`, { method: 'DELETE' })
+  },
+
   // Аутентификация
   auth: {
     login: (username: string, password: string) =>

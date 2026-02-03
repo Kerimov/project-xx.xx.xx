@@ -9,6 +9,7 @@ import { nsiRouter } from './routes/nsi.js';
 import { adminRouter } from './routes/admin.js';
 import { uhDbRouter } from './routes/uh-db.js';
 import { analyticsRouter } from './routes/analytics.js';
+import { organizationRouter } from './routes/organization.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { testConnection } from './db/connection.js';
 import { waitForDb } from './db/waitForDb.js';
@@ -82,6 +83,7 @@ app.use('/api/nsi', nsiRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/uh/db', uhDbRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/organization', organizationRouter);
 
 // Error handling
 app.use(errorHandler);
