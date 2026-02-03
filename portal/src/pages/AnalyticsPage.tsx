@@ -31,15 +31,17 @@ import dayjs from 'dayjs';
 
 const { TextArea } = Input;
 
-/** Типы объектов, для которых можно заполнить данные из справочника НСИ */
+/** Типы объектов, для которых можно заполнить данные из справочника НСИ (Организации, Контрагенты, Договоры, Счета, Склады, Номенклатура, План счетов, Подразделения) */
 const OBJECT_TYPE_REFERENCE: Record<string, { label: string; load: (search?: string) => Promise<Array<{ id: string; code?: string | null; name: string; [k: string]: unknown }>> }> = {
+  ORG: { label: 'Организации', load: (search) => api.nsi.organizations(search).then((r) => r.data || []) },
   ITEM: { label: 'Номенклатура', load: (search) => api.nsi.nomenclature(search).then((r) => r.data || []) },
   NOMENCLATURE: { label: 'Номенклатура', load: (search) => api.nsi.nomenclature(search).then((r) => r.data || []) },
   COUNTERPARTY: { label: 'Контрагенты', load: (search) => api.nsi.counterparties(search).then((r) => r.data || []) },
   CONTRACT: { label: 'Договоры', load: () => api.nsi.contracts(undefined, undefined).then((r) => r.data || []) },
+  BANK_ACCOUNT: { label: 'Счета', load: () => api.nsi.accounts(undefined, undefined).then((r) => r.data || []) },
   WAREHOUSE: { label: 'Склады', load: (search) => api.nsi.warehouses(undefined, search).then((r) => r.data || []) },
-  DEPARTMENT: { label: 'Подразделения', load: (search) => api.nsi.departments(undefined, search).then((r) => r.data || []) },
   ACCOUNTING_ACCOUNT: { label: 'План счетов', load: (search) => api.nsi.accountingAccounts(search).then((r) => r.data || []) },
+  DEPARTMENT: { label: 'Подразделения', load: (search) => api.nsi.departments(undefined, search).then((r) => r.data || []) },
   ACCOUNT: { label: 'Счета (банк/касса)', load: () => api.nsi.accounts(undefined, undefined).then((r) => r.data || []) }
 };
 
