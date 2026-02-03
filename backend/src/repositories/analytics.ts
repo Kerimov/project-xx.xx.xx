@@ -194,6 +194,9 @@ export async function listSubscribedValues(params: {
   orgId: string;
   typeCode: string;
   search?: string;
+  organizationId?: string;
+  counterpartyId?: string;
+  type?: string;
   limit?: number;
   cursorUpdatedAt?: string;
   cursorId?: string;
@@ -210,6 +213,210 @@ export async function listSubscribedValues(params: {
   );
   if (!subRes.rowCount) return { type, rows: [] as AnalyticsValueRow[] };
 
+  const typeCode = String(type.code || '').toUpperCase();
+
+  /**
+   * Вариант B: единый источник /analytics/values
+   * Для ряда типов (CONTRACT/WAREHOUSE/ACCOUNT/...) значения берём из НСИ таблиц,
+   * а не из analytics_values. Для остальных — оставляем MDM analytics_values.
+   */
+  const NSI_TYPES = new Set([
+    'ORG',
+    'COUNTERPARTY',
+    'CONTRACT',
+    'WAREHOUSE',
+    'ACCOUNT',
+    'BANK_ACCOUNT',
+    'DEPARTMENT',
+    'ACCOUNTING_ACCOUNT',
+  ]);
+
+  const limit = Math.min(Math.max(params.limit ?? 100, 1), 1000);
+
+  if (NSI_TYPES.has(typeCode)) {
+    const p: any[] = [];
+    let i = 1;
+    const where: string[] = [];
+
+    // keyset pagination
+    if (params.cursorUpdatedAt && params.cursorId) {
+      where.push(`(x.updated_at, x.id) > ($${i++}::timestamptz, $${i++}::uuid)`);
+      p.push(params.cursorUpdatedAt, params.cursorId);
+    }
+
+    // search
+    if (params.search && params.search.trim()) {
+      where.push(`(x.code ILIKE $${i} OR x.name ILIKE $${i + 1})`);
+      const s = `%${params.search.trim()}%`;
+      p.push(s, s);
+      i += 2;
+    }
+
+    // type-specific filters (organizationId/counterpartyId/type)
+    const orgFilter = params.organizationId ?? null;
+    const cpFilter = params.counterpartyId ?? null;
+    const accTypeFilter = params.type ?? null;
+
+    let baseSql = '';
+
+    if (typeCode === 'ORG') {
+      // organizations: id, code, name, inn
+      baseSql = `
+        SELECT
+          o.id,
+          COALESCE(o.code, o.id::text) AS code,
+          o.name,
+          jsonb_build_object('inn', o.inn) AS attrs,
+          true AS is_active,
+          o.updated_at
+        FROM organizations o
+      `;
+    } else if (typeCode === 'COUNTERPARTY') {
+      baseSql = `
+        SELECT
+          cp.id,
+          COALESCE(cp.inn, cp.id::text) AS code,
+          cp.name,
+          (COALESCE(cp.data, '{}'::jsonb) || jsonb_build_object('inn', cp.inn)) AS attrs,
+          true AS is_active,
+          cp.updated_at
+        FROM counterparties cp
+      `;
+    } else if (typeCode === 'CONTRACT') {
+      // contracts: filterable by organization/counterparty
+      if (orgFilter) {
+        where.push(`x.organization_id = $${i++}::uuid`);
+        p.push(orgFilter);
+      }
+      if (cpFilter) {
+        where.push(`x.counterparty_id = $${i++}::uuid`);
+        p.push(cpFilter);
+      }
+      baseSql = `
+        SELECT
+          c.id,
+          COALESCE(c.data->>'code', c.data->>'number', c.id::text) AS code,
+          c.name,
+          (
+            COALESCE(c.data, '{}'::jsonb)
+            || jsonb_build_object(
+              'organizationId', c.organization_id,
+              'organizationName', o.name,
+              'counterpartyId', c.counterparty_id,
+              'counterpartyName', cp.name
+            )
+          ) AS attrs,
+          true AS is_active,
+          c.updated_at,
+          c.organization_id,
+          c.counterparty_id
+        FROM contracts c
+        LEFT JOIN organizations o ON o.id = c.organization_id
+        LEFT JOIN counterparties cp ON cp.id = c.counterparty_id
+      `;
+    } else if (typeCode === 'WAREHOUSE') {
+      if (orgFilter) {
+        where.push(`x.organization_id = $${i++}::uuid`);
+        p.push(orgFilter);
+      }
+      baseSql = `
+        SELECT
+          w.id,
+          COALESCE(w.code, w.id::text) AS code,
+          w.name,
+          (
+            COALESCE(w.data, '{}'::jsonb)
+            || jsonb_build_object(
+              'organizationId', w.organization_id,
+              'organizationName', o.name
+            )
+          ) AS attrs,
+          true AS is_active,
+          w.updated_at,
+          w.organization_id
+        FROM warehouses w
+        LEFT JOIN organizations o ON o.id = w.organization_id
+      `;
+    } else if (typeCode === 'ACCOUNT' || typeCode === 'BANK_ACCOUNT') {
+      if (orgFilter) {
+        where.push(`x.organization_id = $${i++}::uuid`);
+        p.push(orgFilter);
+      }
+      if (accTypeFilter) {
+        where.push(`x.type = $${i++}`);
+        p.push(accTypeFilter);
+      }
+      baseSql = `
+        SELECT
+          a.id,
+          COALESCE(a.code, a.id::text) AS code,
+          a.name,
+          (
+            COALESCE(a.data, '{}'::jsonb)
+            || jsonb_build_object(
+              'organizationId', a.organization_id,
+              'organizationName', o.name,
+              'type', a.type
+            )
+          ) AS attrs,
+          true AS is_active,
+          a.updated_at,
+          a.organization_id,
+          a.type
+        FROM accounts a
+        LEFT JOIN organizations o ON o.id = a.organization_id
+      `;
+    } else if (typeCode === 'DEPARTMENT') {
+      if (orgFilter) {
+        where.push(`x.organization_id = $${i++}::uuid`);
+        p.push(orgFilter);
+      }
+      baseSql = `
+        SELECT
+          d.id,
+          COALESCE(d.code, d.id::text) AS code,
+          d.name,
+          (
+            COALESCE(d.data, '{}'::jsonb)
+            || jsonb_build_object(
+              'organizationId', d.organization_id,
+              'organizationName', o.name
+            )
+          ) AS attrs,
+          true AS is_active,
+          d.updated_at,
+          d.organization_id
+        FROM organization_divisions d
+        LEFT JOIN organizations o ON o.id = d.organization_id
+      `;
+    } else if (typeCode === 'ACCOUNTING_ACCOUNT') {
+      baseSql = `
+        SELECT
+          aa.id,
+          COALESCE(aa.code, aa.id::text) AS code,
+          aa.name,
+          COALESCE(aa.data, '{}'::jsonb) AS attrs,
+          true AS is_active,
+          aa.updated_at
+        FROM accounting_accounts aa
+      `;
+    }
+
+    // оборачиваем базовый запрос, чтобы унифицировать where/order по алиасу x
+    const q = `
+      SELECT x.id, x.code, x.name, x.attrs, x.is_active, x.updated_at
+      FROM (${baseSql}) x
+      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+      ORDER BY x.updated_at ASC, x.id ASC
+      LIMIT $${i++}
+    `;
+    p.push(limit);
+
+    const r = await pool.query(q, p);
+    return { type, rows: r.rows as AnalyticsValueRow[] };
+  }
+
+  // MDM: analytics_values
   let q = `SELECT * FROM analytics_values WHERE type_id = $1`;
   const p: any[] = [type.id];
   let i = 2;
@@ -228,7 +435,6 @@ export async function listSubscribedValues(params: {
   }
 
   q += ` ORDER BY updated_at ASC, id ASC`;
-  const limit = Math.min(Math.max(params.limit ?? 100, 1), 1000);
   q += ` LIMIT $${i++}`;
   p.push(limit);
 

@@ -12,6 +12,11 @@ export const setSubscriptionSchema = z.object({
 export const listSubscribedValuesSchema = z.object({
   typeCode: z.string().min(1),
   search: z.string().optional(),
+  // Доп. фильтры для НСИ-аналитик (вариант B: единый /analytics/values)
+  organizationId: z.string().uuid().optional(),
+  counterpartyId: z.string().uuid().optional(),
+  // Например, для счетов: расчетный/валютный/касса и т.п.
+  type: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(1000).optional(),
   cursorUpdatedAt: z.string().optional(),
   cursorId: z.string().uuid().optional(),

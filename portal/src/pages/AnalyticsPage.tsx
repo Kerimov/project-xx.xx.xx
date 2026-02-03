@@ -85,7 +85,6 @@ export function AnalyticsPage() {
 
   // Объекты учета
   const [objectTypes, setObjectTypes] = useState<ObjectType[]>([]);
-  const [objectSubs, setObjectSubs] = useState<Array<{ typeId: string; typeCode: string; typeName: string; isEnabled: boolean }>>([]);
   const [objectCards, setObjectCards] = useState<ObjectCard[]>([]);
   const [objectCardsLoading, setObjectCardsLoading] = useState(false);
   const [selectedObjectTypeCode, setSelectedObjectTypeCode] = useState<string | null>(null);
@@ -106,9 +105,15 @@ export function AnalyticsPage() {
   // Администрирование аналитик (для ecof_admin)
   const [adminCreateForm] = Form.useForm();
   const [adminValueForm] = Form.useForm();
+  const [webhookForm] = Form.useForm();
+  const [webhookLoading, setWebhookLoading] = useState(false);
+  const [webhookInfo, setWebhookInfo] = useState<any | null>(null);
 
   const enabledSet = useMemo(() => new Set(subs.filter((s) => s.isEnabled).map((s) => s.typeId)), [subs]);
-  const objectEnabledSet = useMemo(() => new Set(objectSubs.filter((s) => s.isEnabled).map((s) => s.typeId)), [objectSubs]);
+  const enabledCodeSet = useMemo(
+    () => new Set(subs.filter((s) => s.isEnabled).map((s) => String(s.typeCode || '').toUpperCase())),
+    [subs]
+  );
   
   // Для сотрудников показываем только подписанные аналитики
   const displayedTypes = useMemo(() => {
@@ -124,9 +129,9 @@ export function AnalyticsPage() {
     if (isOrgAdmin) {
       return objectTypes.filter((t) => t.isActive);
     } else {
-      return objectTypes.filter((t) => t.isActive && objectEnabledSet.has(t.id));
+      return objectTypes.filter((t) => t.isActive && enabledCodeSet.has(String(t.code || '').toUpperCase()));
     }
-  }, [objectTypes, objectEnabledSet, isOrgAdmin]);
+  }, [objectTypes, enabledCodeSet, isOrgAdmin]);
 
   const loadAnalytics = async () => {
     try {
@@ -141,14 +146,31 @@ export function AnalyticsPage() {
     }
   };
 
+  const loadWebhook = async () => {
+    if (!isOrgAdmin) return;
+    setWebhookLoading(true);
+    try {
+      const res = await api.analytics.getWebhook();
+      setWebhookInfo(res.data || null);
+      webhookForm.setFieldsValue({
+        url: res.data?.url || '',
+        secret: '',
+        isActive: res.data?.isActive ?? true,
+      });
+    } catch (e: any) {
+      // не блокируем страницу
+      setWebhookInfo(null);
+    } finally {
+      setWebhookLoading(false);
+    }
+  };
+
   const loadObjectTypes = async () => {
     try {
-      const [tRes, sRes] = await Promise.all([
+      const [tRes] = await Promise.all([
         api.objects.types.list({ activeOnly: false }),
-        api.objects.subscriptions.list()
       ]);
       setObjectTypes(tRes.data || []);
-      setObjectSubs(sRes.data || []);
     } catch (e: any) {
       message.error(e?.message || 'Ошибка загрузки объектов учета');
     }
@@ -171,6 +193,7 @@ export function AnalyticsPage() {
     try {
       setLoading(true);
       await Promise.all([loadAnalytics(), loadObjectTypes()]);
+      await loadWebhook();
     } finally {
       setLoading(false);
     }
@@ -218,11 +241,19 @@ export function AnalyticsPage() {
     }
   };
 
-  const toggleObjectSubscription = async (typeId: string, isEnabled: boolean) => {
+  // Подписка на тип объекта учета = подписка на аналитику с тем же code (вариант B)
+  const toggleObjectSubscription = async (objectTypeCode: string, isEnabled: boolean) => {
     try {
-      setSavingObjectTypeId(typeId);
-      await api.objects.subscriptions.set({ typeId, isEnabled });
-      await loadObjectTypes();
+      setSavingObjectTypeId(objectTypeCode);
+      const at = types.find((t) => String(t.code || '').toUpperCase() === String(objectTypeCode || '').toUpperCase());
+      if (!at) {
+        message.error(`Не найден тип аналитики для кода ${objectTypeCode}. Примените миграцию seed analytics_types из object_types.`);
+        return;
+      }
+      await api.analytics.setSubscription({ typeId: at.id, isEnabled });
+      const sRes = await api.analytics.listSubscriptions();
+      setSubs(sRes.data || []);
+      await refreshAccess();
       message.success(isEnabled ? 'Подписка включена' : 'Подписка отключена');
     } catch (e: any) {
       message.error(e?.message || 'Ошибка сохранения подписки');
@@ -598,41 +629,121 @@ export function AnalyticsPage() {
       key: 'analytics',
       label: 'Аналитики',
       children: (
-        <Card size="small" title="Подписки на виды аналитик" loading={loading}>
-          <Typography.Paragraph type="secondary" style={{ marginTop: 0, marginBottom: 16 }}>
-            {isOrgAdmin
-              ? 'Включите аналитики, которые организация будет использовать в документах.'
-              : 'Аналитики, на которые подписана ваша организация.'}
-          </Typography.Paragraph>
-          {loading ? (
-            <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: 24 }}>Загрузка...</Typography.Paragraph>
-          ) : displayedTypes.length === 0 ? (
-            <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: 24 }}>
-              {isOrgAdmin ? 'Нет доступных аналитик. Добавьте тип во вкладке «Администрирование».' : 'Нет подписок. Обратитесь к администратору организации.'}
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <Card size="small" title="Подписки на виды аналитик" loading={loading}>
+            <Typography.Paragraph type="secondary" style={{ marginTop: 0, marginBottom: 16 }}>
+              {isOrgAdmin
+                ? 'Включите аналитики, которые организация будет использовать в документах и объектах учета.'
+                : 'Аналитики, на которые подписана ваша организация.'}
             </Typography.Paragraph>
-          ) : (
-            <List
-              size="small"
-              dataSource={displayedTypes}
-              renderItem={(t) => (
-                <List.Item
-                  extra={!isOrgAdmin && enabledSet.has(t.id) ? <Tag color="green">Подписана</Tag> : null}
-                >
-                  <Checkbox
-                    checked={enabledSet.has(t.id)}
-                    disabled={!isOrgAdmin || savingTypeId === t.id}
-                    onChange={(e) => toggleSubscription(t.id, e.target.checked)}
+            {loading ? (
+              <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: 24 }}>Загрузка...</Typography.Paragraph>
+            ) : displayedTypes.length === 0 ? (
+              <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: 24 }}>
+                {isOrgAdmin ? 'Нет доступных аналитик. Добавьте тип во вкладке «Администрирование».' : 'Нет подписок. Обратитесь к администратору организации.'}
+              </Typography.Paragraph>
+            ) : (
+              <List
+                size="small"
+                dataSource={displayedTypes}
+                renderItem={(t) => (
+                  <List.Item
+                    extra={!isOrgAdmin && enabledSet.has(t.id) ? <Tag color="green">Подписана</Tag> : null}
                   >
-                    <Space size={4}>
-                      <Typography.Text strong>{t.name}</Typography.Text>
-                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>({t.code})</Typography.Text>
-                    </Space>
-                  </Checkbox>
-                </List.Item>
-              )}
-            />
+                    <Checkbox
+                      checked={enabledSet.has(t.id)}
+                      disabled={!isOrgAdmin || savingTypeId === t.id}
+                      onChange={(e) => toggleSubscription(t.id, e.target.checked)}
+                    >
+                      <Space size={4}>
+                        <Typography.Text strong>{t.name}</Typography.Text>
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>({t.code})</Typography.Text>
+                      </Space>
+                    </Checkbox>
+                  </List.Item>
+                )}
+              />
+            )}
+          </Card>
+
+          {isOrgAdmin && (
+            <Card size="small" title="Webhook для доставки аналитик" loading={webhookLoading}>
+              <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+                Настройте URL и секрет для получения событий (Upsert/Deactivate/Snapshot) по подписанным аналитикам.
+              </Typography.Paragraph>
+              <Form layout="vertical" form={webhookForm}>
+                <Row gutter={12}>
+                  <Col xs={24} md={16}>
+                    <Form.Item name="url" label="URL" rules={[{ required: true, message: 'Укажите URL' }]}>
+                      <Input placeholder="https://example.com/ecof/webhook" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={8}>
+                    <Form.Item name="isActive" label="Активен" initialValue={true}>
+                      <Select>
+                        <Select.Option value={true}>Да</Select.Option>
+                        <Select.Option value={false}>Нет</Select.Option>
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={12}>
+                  <Col xs={24} md={16}>
+                    <Form.Item
+                      name="secret"
+                      label="Secret (HMAC)"
+                      tooltip="Секрет используется для подписи x-ecof-signature. При сохранении обязателен."
+                    >
+                      <Input.Password placeholder="Минимум 8 символов" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={8} style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+                    <Button
+                      type="primary"
+                      onClick={async () => {
+                        try {
+                          const v = await webhookForm.validateFields();
+                          if (!v.secret || String(v.secret).length < 8) {
+                            message.error('Укажите secret (минимум 8 символов)');
+                            return;
+                          }
+                          await api.analytics.upsertWebhook({ url: v.url, secret: v.secret, isActive: v.isActive });
+                          message.success('Webhook сохранён');
+                          webhookForm.setFieldValue('secret', '');
+                          await loadWebhook();
+                        } catch (e: any) {
+                          if (e?.errorFields) return;
+                          message.error(e?.message || 'Ошибка сохранения webhook');
+                        }
+                      }}
+                    >
+                      Сохранить
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          await api.analytics.resync();
+                          message.success('Ресинк запущен (Snapshot события будут отправлены в webhook)');
+                        } catch (e: any) {
+                          message.error(e?.message || 'Ошибка запуска ресинка');
+                        }
+                      }}
+                    >
+                      Ресинк
+                    </Button>
+                  </Col>
+                </Row>
+
+                {webhookInfo?.url && (
+                  <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                    Текущий webhook: <b>{webhookInfo.url}</b>{' '}
+                    {webhookInfo.isActive ? <Tag color="green">активен</Tag> : <Tag>выключен</Tag>}
+                  </Typography.Paragraph>
+                )}
+              </Form>
+            </Card>
           )}
-        </Card>
+        </Space>
       )
     },
     {
@@ -654,12 +765,12 @@ export function AnalyticsPage() {
                 dataSource={displayedObjectTypes}
                 renderItem={(t) => (
                   <List.Item
-                    extra={!isOrgAdmin && objectEnabledSet.has(t.id) ? <Tag color="green">Подписана</Tag> : null}
+                    extra={!isOrgAdmin && enabledCodeSet.has(String(t.code || '').toUpperCase()) ? <Tag color="green">Подписана</Tag> : null}
                   >
                     <Checkbox
-                      checked={objectEnabledSet.has(t.id)}
-                      disabled={!isOrgAdmin || savingObjectTypeId === t.id}
-                      onChange={(e) => toggleObjectSubscription(t.id, e.target.checked)}
+                      checked={enabledCodeSet.has(String(t.code || '').toUpperCase())}
+                      disabled={!isOrgAdmin || savingObjectTypeId === t.code}
+                      onChange={(e) => toggleObjectSubscription(t.code, e.target.checked)}
                     >
                       <Space size={4}>
                         <Typography.Text strong>{t.name}</Typography.Text>
@@ -695,7 +806,7 @@ export function AnalyticsPage() {
                   else setObjectCards([]);
                 }}
                 options={displayedObjectTypes
-                  .filter((t) => objectEnabledSet.has(t.id))
+                  .filter((t) => enabledCodeSet.has(String(t.code || '').toUpperCase()))
                   .map((t) => ({ label: `${t.name} (${t.code})`, value: t.code }))}
                 notFoundContent="Включите подписку в шаге 1"
               />

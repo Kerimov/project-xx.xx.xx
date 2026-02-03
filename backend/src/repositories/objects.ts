@@ -678,11 +678,14 @@ export async function listSubscribedObjectCards(params: {
   const type = await getObjectTypeByCode(params.typeCode);
   if (!type) return { type: null, rows: [], total: 0 };
 
-  // Проверяем подписку
+  // Проверяем подписку на аналитику (analytics_types.code == object_types.code)
   const subRes = await pool.query(
-    `SELECT 1 FROM org_object_subscriptions
-     WHERE org_id = $1 AND type_id = $2 AND is_enabled = true`,
-    [params.orgId, type.id]
+    `SELECT 1
+     FROM org_analytics_subscriptions s
+     JOIN analytics_types t ON t.id = s.type_id
+     WHERE s.org_id = $1 AND s.is_enabled = true AND UPPER(t.code) = UPPER($2)
+     LIMIT 1`,
+    [params.orgId, type.code]
   );
   if (!subRes.rowCount) return { type, rows: [], total: 0 };
 

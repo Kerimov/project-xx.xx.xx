@@ -47,17 +47,13 @@ export function ObjectCardSelect({
     const checkSubscription = async () => {
       try {
         setCheckingSubscription(true);
-        const subsResponse = await api.objects.subscriptions.list();
-        const typeResponse = await api.objects.types.list({ activeOnly: true });
-        const type = typeResponse.data.find((t) => t.code === objectTypeCode);
-        if (type) {
-          const hasSubscription = subsResponse.data.some(
-            (s) => s.typeCode === objectTypeCode && s.isEnabled
-          );
-          setEnabled(hasSubscription);
-        } else {
-          setEnabled(false);
-        }
+        // Вариант B: подписки только на аналитики (analytics_types). Считаем тип объекта доступным,
+        // если организация подписана на аналитику с тем же code.
+        const subsResponse = await api.analytics.listSubscriptions();
+        const hasSubscription = (subsResponse.data || []).some(
+          (s) => String(s.typeCode || '').toUpperCase() === String(objectTypeCode || '').toUpperCase() && s.isEnabled
+        );
+        setEnabled(hasSubscription);
       } catch (e: any) {
         console.error('Ошибка проверки подписки на объекты учета:', e);
         setEnabled(false);

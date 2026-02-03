@@ -8,9 +8,7 @@ import React from 'react';
 import { Card, Form, Alert, Space } from 'antd';
 import { Link } from 'react-router-dom';
 import { InfoCircleOutlined } from '@ant-design/icons';
-import { ContractSelect } from './ContractSelect';
-import { WarehouseSelect } from './WarehouseSelect';
-import { AccountSelect } from './AccountSelect';
+import { AnalyticsValueSelect } from './AnalyticsValueSelect';
 import { useAnalyticsAccess } from '../../contexts/AnalyticsAccessContext';
 
 export interface AnalyticsSectionProps {
@@ -55,6 +53,7 @@ export function AnalyticsSection({
   const contractEnabled = showContract && isEnabled('CONTRACT');
   const warehouseEnabled = showWarehouse && isEnabled('WAREHOUSE');
   const accountEnabled = showAccount && (isEnabled('ACCOUNT') || isEnabled('BANK_ACCOUNT'));
+  const accountTypeCode = isEnabled('ACCOUNT') ? 'ACCOUNT' : 'BANK_ACCOUNT';
 
   // Собираем список недоступных аналитик для подсказки
   const missing: string[] = [];
@@ -111,7 +110,8 @@ export function AnalyticsSection({
           <>
             {contractEnabled && (
               <Form.Item label="Договор" name={contractName}>
-                <ContractSelect
+                <AnalyticsValueSelect
+                  typeCode="CONTRACT"
                   organizationId={organizationId}
                   counterpartyId={counterpartyId}
                   placeholder="Договор контрагента (субконто)"
@@ -124,14 +124,17 @@ export function AnalyticsSection({
                 name={warehouseName}
                 rules={warehouseRequired ? [{ required: true, message: 'Выберите склад' }] : undefined}
               >
-                <WarehouseSelect
+                <AnalyticsValueSelect
+                  typeCode="WAREHOUSE"
+                  organizationId={organizationId}
                   placeholder="Склад (субконто)"
                 />
               </Form.Item>
             )}
             {accountEnabled && (
               <Form.Item label="Счёт" name={accountName}>
-                <AccountSelect
+                <AnalyticsValueSelect
+                  typeCode={accountTypeCode}
                   organizationId={organizationId}
                   placeholder="Банковский счёт / касса (субконто)"
                 />

@@ -347,16 +347,24 @@ export async function createObjectCard(req: Request, res: Response, next: NextFu
     const data = req.body;
     const userId = getUserId(req);
 
-    // Проверяем подписку организации на тип объекта (если указана организация)
+    // Проверяем подписку организации на аналитику (typeCode == object_type.code)
+    // Вариант B: подписки должны быть на конкретные аналитики (analytics_types), а не на object_types.
     const orgId = data.organizationId ?? getOrgId(req);
     if (orgId) {
       const type = await objectsRepo.getObjectTypeById(data.typeId);
       if (type) {
-        const subscriptions = await objectsRepo.listOrgObjectSubscriptions(orgId);
-        const hasSubscription = subscriptions.some((s) => s.type_id === data.typeId && s.is_enabled);
+        const subRes = await pool.query(
+          `SELECT 1
+           FROM org_analytics_subscriptions s
+           JOIN analytics_types t ON t.id = s.type_id
+           WHERE s.org_id = $1 AND s.is_enabled = true AND UPPER(t.code) = UPPER($2)
+           LIMIT 1`,
+          [orgId, type.code]
+        );
+        const hasSubscription = (subRes.rowCount ?? 0) > 0;
         if (!hasSubscription) {
           return res.status(403).json({
-            error: { message: 'Организация не подписана на данный тип объекта учета' }
+            error: { message: 'Организация не подписана на данную аналитику (тип объекта учета)' }
           });
         }
       }

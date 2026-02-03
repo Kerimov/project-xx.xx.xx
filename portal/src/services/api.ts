@@ -198,6 +198,32 @@ export const api = {
         `/analytics/types${qs ? `?${qs}` : ''}`
       );
     },
+    listValues: (params: {
+      typeCode: string;
+      search?: string;
+      organizationId?: string;
+      counterpartyId?: string;
+      type?: string;
+      limit?: number;
+      cursorUpdatedAt?: string;
+      cursorId?: string;
+      activeOnly?: boolean;
+    }) => {
+      const sp = new URLSearchParams();
+      sp.append('typeCode', params.typeCode);
+      if (params.search) sp.append('search', params.search);
+      if (params.organizationId) sp.append('organizationId', params.organizationId);
+      if (params.counterpartyId) sp.append('counterpartyId', params.counterpartyId);
+      if (params.type) sp.append('type', params.type);
+      if (params.limit != null) sp.append('limit', String(params.limit));
+      if (params.cursorUpdatedAt) sp.append('cursorUpdatedAt', params.cursorUpdatedAt);
+      if (params.cursorId) sp.append('cursorId', params.cursorId);
+      if (params.activeOnly === false) sp.append('activeOnly', 'false');
+      return request<{
+        data: Array<{ id: string; code: string; name: string; attrs: Record<string, unknown>; isActive: boolean; updatedAt: string }>;
+        meta?: { typeCode: string; nextCursor?: { cursorUpdatedAt: string; cursorId: string } | null };
+      }>(`/analytics/values?${sp.toString()}`);
+    },
     listSubscriptions: () =>
       request<{ data: Array<{ typeId: string; typeCode: string; typeName: string; isEnabled: boolean }> }>(
         `/analytics/subscriptions`

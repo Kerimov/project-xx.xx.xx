@@ -88,6 +88,9 @@ export async function listSubscribedAnalyticsValues(req: Request, res: Response,
     const cursorUpdatedAt = (req.query.cursorUpdatedAt as string | undefined) ?? undefined;
     const cursorId = (req.query.cursorId as string | undefined) ?? undefined;
     const search = (req.query.search as string | undefined) ?? undefined;
+    const organizationId = (req.query.organizationId as string | undefined) ?? undefined;
+    const counterpartyId = (req.query.counterpartyId as string | undefined) ?? undefined;
+    const nsiType = (req.query.type as string | undefined) ?? undefined;
     const activeOnly = (String(req.query.activeOnly || 'true').toLowerCase() !== 'false');
 
     const { type, rows } = await analyticsRepo.listSubscribedValues({
@@ -97,6 +100,9 @@ export async function listSubscribedAnalyticsValues(req: Request, res: Response,
       cursorUpdatedAt,
       cursorId,
       search,
+      organizationId,
+      counterpartyId,
+      type: nsiType,
       activeOnly
     });
 

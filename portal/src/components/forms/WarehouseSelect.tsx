@@ -44,8 +44,19 @@ export function WarehouseSelect({
   const loadWarehouses = async () => {
     setLoading(true);
     try {
-      const response = await api.nsi.warehouses(organizationId, undefined);
-      setWarehouses(response.data || []);
+      const response = await api.analytics.listValues({
+        typeCode: 'WAREHOUSE',
+        organizationId,
+        limit: 500
+      });
+      const list = (response.data || []).map((v) => ({
+        id: v.id,
+        code: v.code,
+        name: v.name,
+        organizationId: (v.attrs?.organizationId as string | undefined),
+        organizationName: (v.attrs?.organizationName as string | undefined),
+      })) as Warehouse[];
+      setWarehouses(list);
     } catch (error: any) {
       message.error('Ошибка загрузки складов: ' + (error.message || 'Неизвестная ошибка'));
     } finally {
@@ -66,9 +77,19 @@ export function WarehouseSelect({
   const loadItems = useCallback(async (search?: string): Promise<Warehouse[]> => {
     try {
       if (!organizationId) return [];
-      const response = await api.nsi.warehouses(organizationId, search);
-      const list = response?.data;
-      return Array.isArray(list) ? list : [];
+      const response = await api.analytics.listValues({
+        typeCode: 'WAREHOUSE',
+        organizationId,
+        search,
+        limit: 500
+      });
+      return (response.data || []).map((v) => ({
+        id: v.id,
+        code: v.code,
+        name: v.name,
+        organizationId: (v.attrs?.organizationId as string | undefined),
+        organizationName: (v.attrs?.organizationName as string | undefined),
+      })) as Warehouse[];
     } catch {
       return [];
     }

@@ -34,7 +34,10 @@ export function AccountSelect({
 }: AccountSelectProps) {
   const { isEnabled } = useAnalyticsAccess();
   // В старых настройках может быть BANK_ACCOUNT вместо ACCOUNT
-  const enabled = isEnabled('ACCOUNT') || isEnabled('BANK_ACCOUNT');
+  const hasAccount = isEnabled('ACCOUNT');
+  const hasBankAccount = isEnabled('BANK_ACCOUNT');
+  const enabled = hasAccount || hasBankAccount;
+  const analyticsTypeCode = hasAccount ? 'ACCOUNT' : 'BANK_ACCOUNT';
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
 
@@ -48,8 +51,21 @@ export function AccountSelect({
   const loadAccounts = async () => {
     setLoading(true);
     try {
-      const response = await api.nsi.accounts(organizationId, type);
-      setAccounts(response.data || []);
+      const response = await api.analytics.listValues({
+        typeCode: analyticsTypeCode,
+        organizationId,
+        type,
+        limit: 500
+      });
+      const list = (response.data || []).map((v) => ({
+        id: v.id,
+        code: v.code,
+        name: v.name,
+        organizationId: (v.attrs?.organizationId as string | undefined),
+        organizationName: (v.attrs?.organizationName as string | undefined),
+        type: (v.attrs?.type as string | undefined),
+      })) as Account[];
+      setAccounts(list);
     } catch (error: any) {
       message.error('Ошибка загрузки счетов: ' + (error.message || 'Неизвестная ошибка'));
     } finally {
@@ -65,9 +81,22 @@ export function AccountSelect({
     }
   }, [organizationId, type]);
 
-  const loadItems = async () => {
-    const response = await api.nsi.accounts(organizationId, type);
-    return (response.data || []) as Account[];
+  const loadItems = async (search?: string) => {
+    const response = await api.analytics.listValues({
+      typeCode: analyticsTypeCode,
+      organizationId,
+      type,
+      search,
+      limit: 500
+    });
+    return (response.data || []).map((v) => ({
+      id: v.id,
+      code: v.code,
+      name: v.name,
+      organizationId: (v.attrs?.organizationId as string | undefined),
+      organizationName: (v.attrs?.organizationName as string | undefined),
+      type: (v.attrs?.type as string | undefined),
+    })) as Account[];
   };
 
   if (!enabled) {

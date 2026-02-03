@@ -47,8 +47,21 @@ export function ContractSelect({
   const loadContracts = async () => {
     setLoading(true);
     try {
-      const response = await api.nsi.contracts(organizationId, undefined, counterpartyId);
-      setContracts(response.data || []);
+      const response = await api.analytics.listValues({
+        typeCode: 'CONTRACT',
+        organizationId,
+        counterpartyId,
+        limit: 500
+      });
+      const list = (response.data || []).map((v) => ({
+        id: v.id,
+        name: v.name,
+        organizationId: (v.attrs?.organizationId as string | undefined),
+        organizationName: (v.attrs?.organizationName as string | undefined),
+        counterpartyId: (v.attrs?.counterpartyId as string | undefined),
+        counterpartyName: (v.attrs?.counterpartyName as string | undefined),
+      })) as Contract[];
+      setContracts(list);
     } catch (error: any) {
       message.error('Ошибка загрузки договоров: ' + (error.message || 'Неизвестная ошибка'));
     } finally {
@@ -64,9 +77,22 @@ export function ContractSelect({
     }
   }, [organizationId, counterpartyId]);
 
-  const loadItems = async () => {
-    const response = await api.nsi.contracts(organizationId, undefined, counterpartyId);
-    return (response.data || []) as Contract[];
+  const loadItems = async (search?: string) => {
+    const response = await api.analytics.listValues({
+      typeCode: 'CONTRACT',
+      organizationId,
+      counterpartyId,
+      search,
+      limit: 500
+    });
+    return (response.data || []).map((v) => ({
+      id: v.id,
+      name: v.name,
+      organizationId: (v.attrs?.organizationId as string | undefined),
+      organizationName: (v.attrs?.organizationName as string | undefined),
+      counterpartyId: (v.attrs?.counterpartyId as string | undefined),
+      counterpartyName: (v.attrs?.counterpartyName as string | undefined),
+    })) as Contract[];
   };
 
   if (!enabled) {

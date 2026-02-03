@@ -59,7 +59,8 @@ export function ObjectAccountingSection({
   useEffect(() => {
     const loadSubscriptions = async () => {
       try {
-        const response = await api.objects.subscriptions.list();
+        // Вариант B: подписки только на аналитики (analytics_types)
+        const response = await api.analytics.listSubscriptions();
         setSubscriptions(response.data || []);
       } catch (e) {
         console.error('Ошибка загрузки подписок на объекты учета:', e);

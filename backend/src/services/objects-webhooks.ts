@@ -77,8 +77,10 @@ export class ObjectsWebhooksService {
        JOIN object_types t ON t.id = e.type_id
        WHERE e.seq > $1
          AND EXISTS (
-           SELECT 1 FROM org_object_subscriptions s
-           WHERE s.org_id = $2 AND s.type_id = e.type_id AND s.is_enabled = true
+           SELECT 1
+           FROM org_analytics_subscriptions s
+           JOIN analytics_types at ON at.id = s.type_id
+           WHERE s.org_id = $2 AND s.is_enabled = true AND UPPER(at.code) = UPPER(t.code)
          )
        ORDER BY e.seq ASC
        LIMIT $3`,
