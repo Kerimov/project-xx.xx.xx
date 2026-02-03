@@ -8,12 +8,14 @@ import { filesRouter } from './routes/files.js';
 import { nsiRouter } from './routes/nsi.js';
 import { adminRouter } from './routes/admin.js';
 import { uhDbRouter } from './routes/uh-db.js';
+import { analyticsRouter } from './routes/analytics.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { testConnection } from './db/connection.js';
 import { waitForDb } from './db/waitForDb.js';
 import { runMigrations } from './db/migrate.js';
 import { uhQueueService } from './services/uh-queue.js';
 import { nsiSyncService } from './services/nsi-sync.js';
+import { analyticsWebhooksService } from './services/analytics-webhooks.js';
 import { logger } from './utils/logger.js';
 
 dotenv.config();
@@ -48,6 +50,11 @@ const PORT = process.env.PORT || 3000;
     const nsiSyncInterval = parseInt(process.env.UH_SYNC_INTERVAL || '60000');
     nsiSyncService.startSync(nsiSyncInterval);
     logger.info('NSI sync service started');
+
+    // Запускаем доставку аналитик по webhook (MDM холдинга)
+    const analyticsWebhookInterval = parseInt(process.env.ANALYTICS_WEBHOOK_INTERVAL || '5000');
+    analyticsWebhooksService.start(analyticsWebhookInterval);
+    logger.info('Analytics webhook processor started');
   } catch (e: any) {
     logger.error('Failed to initialize database', e);
   }
@@ -74,6 +81,7 @@ app.use('/api', filesRouter);
 app.use('/api/nsi', nsiRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/uh/db', uhDbRouter);
+app.use('/api/analytics', analyticsRouter);
 
 // Error handling
 app.use(errorHandler);

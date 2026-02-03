@@ -19,6 +19,8 @@ import { DocumentDetailsPage } from './pages/DocumentDetailsPage';
 import CreateDocumentPage from './pages/CreateDocumentPage';
 import { SelectDocumentTypePage } from './pages/SelectDocumentTypePage';
 import { NSIPage } from './pages/NSIPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
+import { AnalyticsAdminPage } from './pages/AnalyticsAdminPage';
 import { OrganizationDetailsPage } from './pages/nsi/OrganizationDetailsPage';
 import { CounterpartyDetailsPage } from './pages/nsi/CounterpartyDetailsPage';
 import { ContractDetailsPage } from './pages/nsi/ContractDetailsPage';
@@ -59,6 +61,8 @@ function AppLayout() {
             <Route path="/logs" element={<LogsPage />} />
             <Route path="/uh-db-connection" element={<UHDbConnectionPage />} />
             <Route path="/nsi" element={<NSIPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/analytics/admin" element={<AnalyticsAdminPage />} />
             <Route path="/nsi/organizations/:id" element={<OrganizationDetailsPage />} />
             <Route path="/nsi/counterparties/:id" element={<CounterpartyDetailsPage />} />
             <Route path="/nsi/contracts/:id" element={<ContractDetailsPage />} />

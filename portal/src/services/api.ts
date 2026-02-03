@@ -188,6 +188,34 @@ export const api = {
     })
   },
 
+  // Аналитики (MDM холдинга)
+  analytics: {
+    listTypes: (params?: { search?: string }) => {
+      const sp = new URLSearchParams();
+      if (params?.search) sp.append('search', params.search);
+      const qs = sp.toString();
+      return request<{ data: Array<{ id: string; code: string; name: string; directionId: string | null; isActive: boolean }> }>(
+        `/analytics/types${qs ? `?${qs}` : ''}`
+      );
+    },
+    listSubscriptions: () =>
+      request<{ data: Array<{ typeId: string; typeCode: string; typeName: string; isEnabled: boolean }> }>(
+        `/analytics/subscriptions`
+      ),
+    setSubscription: (payload: { typeId: string; isEnabled: boolean }) =>
+      request<{ data: any }>(`/analytics/subscriptions`, { method: 'POST', body: JSON.stringify(payload) }),
+    getWebhook: () => request<{ data: any }>(`/analytics/webhook`),
+    upsertWebhook: (payload: { url: string; secret: string; isActive?: boolean }) =>
+      request<{ data: any }>(`/analytics/webhook`, { method: 'PUT', body: JSON.stringify(payload) }),
+    resync: () => request<{ data: { created: number } }>(`/analytics/webhook/resync`, { method: 'POST' }),
+
+    // ADMIN
+    adminCreateType: (payload: { code: string; name: string; directionId?: string | null; isActive?: boolean }) =>
+      request<{ data: any }>(`/analytics/admin/types`, { method: 'POST', body: JSON.stringify(payload) }),
+    adminUpsertValue: (payload: { typeCode: string; code: string; name: string; attrs?: Record<string, unknown>; isActive?: boolean }) =>
+      request<{ data: any }>(`/analytics/admin/values`, { method: 'POST', body: JSON.stringify(payload) })
+  },
+
   // Аутентификация
   auth: {
     login: (username: string, password: string) =>
