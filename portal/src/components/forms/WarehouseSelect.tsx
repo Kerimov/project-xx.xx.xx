@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Select, Spin, message } from 'antd';
+import { Select, Spin, message, Alert } from 'antd';
+import { Link } from 'react-router-dom';
+import { InfoCircleOutlined } from '@ant-design/icons';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
@@ -68,6 +70,31 @@ export function WarehouseSelect({
     }
   }, []);
 
+  if (!enabled) {
+    return (
+      <>
+        <Alert
+          type="info"
+          icon={<InfoCircleOutlined />}
+          message={
+            <span>
+              Аналитика <strong>Склад</strong> недоступна. <Link to="/analytics" target="_blank" rel="noopener noreferrer">Подключить подписку →</Link>
+            </span>
+          }
+          style={{ marginBottom: 8 }}
+        />
+        <Select
+          {...props}
+          value={value}
+          onChange={onChange}
+          disabled
+          placeholder="Недоступно (нет подписки на аналитику)"
+          style={{ width: '100%' }}
+        />
+      </>
+    );
+  }
+
   return (
     <ReferenceSelectWrapper<Warehouse>
       directoryTitle="Справочник складов"
@@ -85,16 +112,14 @@ export function WarehouseSelect({
         onChange={onChange}
         showSearch
         allowClear
-        placeholder={enabled ? 'Выберите склад' : 'Недоступно (нет подписки на аналитику)'}
+        placeholder="Выберите склад"
         loading={loading}
-        disabled={!enabled}
         filterOption={(input, option) => {
           const label = (option?.label ?? option?.value ?? '')?.toString?.() ?? '';
           return label.toLowerCase().includes((input ?? '').toLowerCase());
         }}
         notFoundContent={
           loading ? <Spin size="small" /> :
-          !enabled ? 'Недоступно (нет подписки на аналитику)' :
           'Склады не найдены. Запустите синхронизацию НСИ на странице «Интеграция с УХ».'
         }
         optionLabelProp="label"

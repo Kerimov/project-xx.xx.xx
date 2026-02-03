@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Select, Spin, message } from 'antd';
+import { Select, Spin, message, Alert } from 'antd';
+import { Link } from 'react-router-dom';
+import { InfoCircleOutlined } from '@ant-design/icons';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
@@ -66,6 +68,31 @@ export function AccountingAccountSelect({
     return (response.data || []) as AccountingAccount[];
   };
 
+  if (!enabled) {
+    return (
+      <>
+        <Alert
+          type="info"
+          icon={<InfoCircleOutlined />}
+          message={
+            <span>
+              Аналитика <strong>Счет учета (план счетов)</strong> недоступна. <Link to="/analytics" target="_blank" rel="noopener noreferrer">Подключить подписку →</Link>
+            </span>
+          }
+          style={{ marginBottom: 8 }}
+        />
+        <Select
+          {...props}
+          value={value}
+          onChange={onChange}
+          disabled
+          placeholder="Недоступно (нет подписки на аналитику)"
+          style={{ width: '100%' }}
+        />
+      </>
+    );
+  }
+
   return (
     <ReferenceSelectWrapper<AccountingAccount>
       directoryTitle="План счетов"
@@ -82,16 +109,11 @@ export function AccountingAccountSelect({
         onChange={onChange}
         showSearch
         allowClear
-        disabled={!enabled}
-        placeholder={enabled ? 'Выберите счет' : 'Недоступно (нет подписки на аналитику)'}
+        placeholder="Выберите счет"
         loading={loading}
         onSearch={handleSearch}
         filterOption={false}
-        notFoundContent={
-          loading ? <Spin size="small" /> :
-          !enabled ? 'Недоступно (нет подписки на аналитику)' :
-          'Счета не найдены'
-        }
+        notFoundContent={loading ? <Spin size="small" /> : 'Счета не найдены'}
         optionLabelProp="label"
         style={{ width: '100%' }}
       >

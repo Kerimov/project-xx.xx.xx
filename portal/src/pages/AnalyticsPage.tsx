@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, Checkbox, Col, Divider, Form, Input, Row, Space, Typography, message, Button, Tag } from 'antd';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useAnalyticsAccess } from '../contexts/AnalyticsAccessContext';
 
 type TypeRow = { id: string; code: string; name: string; directionId: string | null; isActive: boolean };
 type SubRow = { typeId: string; typeCode: string; typeName: string; isEnabled: boolean };
 
 export function AnalyticsPage() {
   const { user } = useAuth();
+  const { refresh: refreshAccess } = useAnalyticsAccess();
   const [types, setTypes] = useState<TypeRow[]>([]);
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +57,8 @@ export function AnalyticsPage() {
       await api.analytics.setSubscription({ typeId, isEnabled });
       const sRes = await api.analytics.listSubscriptions();
       setSubs(sRes.data || []);
+      // Обновляем контекст доступа, чтобы формы документов сразу увидели изменения
+      await refreshAccess();
       message.success(isEnabled ? 'Подписка включена' : 'Подписка отключена');
     } catch (e: any) {
       message.error(e?.message || 'Ошибка сохранения подписки');

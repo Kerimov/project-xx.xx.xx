@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Select, Spin, message } from 'antd';
+import { Select, Spin, message, Alert } from 'antd';
+import { Link } from 'react-router-dom';
+import { InfoCircleOutlined } from '@ant-design/icons';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
@@ -75,6 +77,31 @@ export function NomenclatureSelect({
     onChange?.(id, record?.name ?? '');
   };
 
+  if (!enabled) {
+    return (
+      <>
+        <Alert
+          type="info"
+          icon={<InfoCircleOutlined />}
+          message={
+            <span>
+              Аналитика <strong>Номенклатура</strong> недоступна. <Link to="/analytics" target="_blank" rel="noopener noreferrer">Подключить подписку →</Link>
+            </span>
+          }
+          style={{ marginBottom: 8 }}
+        />
+        <Select
+          {...props}
+          value={value || undefined}
+          onChange={handleChange}
+          disabled
+          placeholder="Недоступно (нет подписки на аналитику)"
+          style={{ width: '100%' }}
+        />
+      </>
+    );
+  }
+
   return (
     <ReferenceSelectWrapper<NomenclatureItem>
       directoryTitle="Справочник номенклатуры"
@@ -91,8 +118,7 @@ export function NomenclatureSelect({
         onChange={handleChange}
         showSearch
         allowClear
-        disabled={!enabled}
-        placeholder={enabled ? 'Наименование' : 'Недоступно (нет подписки на аналитику)'}
+        placeholder="Наименование"
         loading={loading}
         filterOption={(input, option) => {
           const label = (option?.label ?? option?.value ?? '')?.toString?.() ?? '';
@@ -100,7 +126,6 @@ export function NomenclatureSelect({
         }}
         notFoundContent={
           loading ? <Spin size="small" /> :
-          !enabled ? 'Недоступно (нет подписки на аналитику)' :
           'Номенклатура не найдена. Запустите синхронизацию НСИ на странице «Интеграция с УХ».'
         }
         optionLabelProp="label"

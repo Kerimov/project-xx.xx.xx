@@ -5,7 +5,9 @@
  */
 
 import React from 'react';
-import { Card, Form } from 'antd';
+import { Card, Form, Alert, Space } from 'antd';
+import { Link } from 'react-router-dom';
+import { InfoCircleOutlined } from '@ant-design/icons';
 import { ContractSelect } from './ContractSelect';
 import { WarehouseSelect } from './WarehouseSelect';
 import { AccountSelect } from './AccountSelect';
@@ -47,18 +49,63 @@ export function AnalyticsSection({
   warehouseName = defaultWarehouseName,
   accountName = defaultAccountName
 }: AnalyticsSectionProps) {
-  const { isEnabled } = useAnalyticsAccess();
+  const { isEnabled, loading } = useAnalyticsAccess();
 
-  // Гейт по подпискам организации: показываем только доступные аналитики
+  // Проверяем доступность аналитик
   const contractEnabled = showContract && isEnabled('CONTRACT');
   const warehouseEnabled = showWarehouse && isEnabled('WAREHOUSE');
   const accountEnabled = showAccount && (isEnabled('ACCOUNT') || isEnabled('BANK_ACCOUNT'));
 
+  // Собираем список недоступных аналитик для подсказки
+  const missing: string[] = [];
+  if (showContract && !contractEnabled) missing.push('Договор');
+  if (showWarehouse && !warehouseEnabled) missing.push('Склад');
+  if (showAccount && !accountEnabled) missing.push('Счёт (банк/касса)');
+
   const showAny = contractEnabled || warehouseEnabled || accountEnabled;
+  const showMissingHint = missing.length > 0 && !loading;
+
+  // Если ничего не доступно и есть недоступные — показываем только подсказку
+  if (!showAny && showMissingHint) {
+    return (
+      <Card size="small" title="Аналитики" style={{ marginBottom: 16 }}>
+        <Alert
+          type="info"
+          icon={<InfoCircleOutlined />}
+          message={
+            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <span>
+                Для использования аналитик <strong>{missing.join(', ')}</strong> необходимо подключить подписки в настройках организации.
+              </span>
+              <Link to="/analytics" target="_blank" rel="noopener noreferrer">
+                Перейти в настройки аналитик →
+              </Link>
+            </Space>
+          }
+        />
+      </Card>
+    );
+  }
+
+  // Если ничего не доступно и нет недоступных — не показываем секцию
   if (!showAny) return null;
 
   return (
     <Card size="small" title="Аналитики" style={{ marginBottom: 16 }}>
+      {showMissingHint && (
+        <Alert
+          type="info"
+          icon={<InfoCircleOutlined />}
+          message={
+            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <span>
+                Аналитики <strong>{missing.join(', ')}</strong> недоступны. <Link to="/analytics" target="_blank" rel="noopener noreferrer">Подключить подписки →</Link>
+              </span>
+            </Space>
+          }
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <Form.Item noStyle shouldUpdate>
         {() => (
           <>

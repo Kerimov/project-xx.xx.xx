@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Select, Spin, message } from 'antd';
+import { Select, Spin, message, Alert } from 'antd';
+import { Link } from 'react-router-dom';
+import { InfoCircleOutlined } from '@ant-design/icons';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
@@ -71,6 +73,31 @@ export function ContractSelect({
     return (response.data || []) as Contract[];
   };
 
+  if (!enabled) {
+    return (
+      <>
+        <Alert
+          type="info"
+          icon={<InfoCircleOutlined />}
+          message={
+            <span>
+              Аналитика <strong>Договор</strong> недоступна. <Link to="/analytics" target="_blank" rel="noopener noreferrer">Подключить подписку →</Link>
+            </span>
+          }
+          style={{ marginBottom: 8 }}
+        />
+        <Select
+          {...props}
+          value={value}
+          onChange={onChange}
+          disabled
+          placeholder="Недоступно (нет подписки на аналитику)"
+          style={{ width: '100%' }}
+        />
+      </>
+    );
+  }
+
   return (
     <ReferenceSelectWrapper<Contract>
       directoryTitle="Справочник договоров"
@@ -81,8 +108,8 @@ export function ContractSelect({
       ]}
       loadItems={loadItems}
       onSelect={(id) => onChange?.(id)}
-      disabled={!enabled || !organizationId}
-      disabledHint={!enabled ? 'Нет подписки на аналитику' : 'Сначала выберите организацию'}
+      disabled={!organizationId}
+      disabledHint="Сначала выберите организацию"
     >
       <Select
         {...props}
@@ -90,15 +117,14 @@ export function ContractSelect({
         onChange={onChange}
         showSearch
         allowClear
-        placeholder={enabled ? 'Выберите договор' : 'Недоступно (нет подписки на аналитику)'}
+        placeholder="Выберите договор"
         loading={loading}
-        disabled={!enabled || !organizationId}
+        disabled={!organizationId}
         filterOption={(input, option) =>
           (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
         }
         notFoundContent={
           loading ? <Spin size="small" /> :
-          !enabled ? 'Недоступно (нет подписки на аналитику)' :
           organizationId ? 'Договоры не найдены' : 'Сначала выберите организацию'
         }
         optionLabelProp="label"

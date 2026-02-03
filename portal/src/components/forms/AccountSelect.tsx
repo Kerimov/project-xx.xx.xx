@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Select, Spin, message } from 'antd';
+import { Select, Spin, message, Alert } from 'antd';
+import { Link } from 'react-router-dom';
+import { InfoCircleOutlined } from '@ant-design/icons';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
@@ -68,6 +70,31 @@ export function AccountSelect({
     return (response.data || []) as Account[];
   };
 
+  if (!enabled) {
+    return (
+      <>
+        <Alert
+          type="info"
+          icon={<InfoCircleOutlined />}
+          message={
+            <span>
+              Аналитика <strong>Счёт (банк/касса)</strong> недоступна. <Link to="/analytics" target="_blank" rel="noopener noreferrer">Подключить подписку →</Link>
+            </span>
+          }
+          style={{ marginBottom: 8 }}
+        />
+        <Select
+          {...props}
+          value={value}
+          onChange={onChange}
+          disabled
+          placeholder="Недоступно (нет подписки на аналитику)"
+          style={{ width: '100%' }}
+        />
+      </>
+    );
+  }
+
   return (
     <ReferenceSelectWrapper<Account>
       directoryTitle="Справочник счетов"
@@ -79,8 +106,8 @@ export function AccountSelect({
       ]}
       loadItems={loadItems}
       onSelect={(id) => onChange?.(id)}
-      disabled={!enabled || !organizationId}
-      disabledHint={!enabled ? 'Нет подписки на аналитику' : 'Сначала выберите организацию'}
+      disabled={!organizationId}
+      disabledHint="Сначала выберите организацию"
     >
       <Select
         {...props}
@@ -88,15 +115,14 @@ export function AccountSelect({
         onChange={onChange}
         showSearch
         allowClear
-        placeholder={enabled ? 'Выберите счет' : 'Недоступно (нет подписки на аналитику)'}
+        placeholder="Выберите счет"
         loading={loading}
         filterOption={(input, option) =>
           (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
         }
-        disabled={!enabled || !organizationId}
+        disabled={!organizationId}
         notFoundContent={
           loading ? <Spin size="small" /> :
-          !enabled ? 'Недоступно (нет подписки на аналитику)' :
           organizationId ? 'Счета не найдены' : 'Сначала выберите организацию'
         }
         optionLabelProp="label"

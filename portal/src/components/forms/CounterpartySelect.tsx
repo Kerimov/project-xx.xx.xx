@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Select, Spin, message, Input } from 'antd';
+import { Select, Spin, message, Input, Alert } from 'antd';
+import { Link } from 'react-router-dom';
+import { InfoCircleOutlined } from '@ant-design/icons';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
@@ -88,6 +90,31 @@ export function CounterpartySelect({ value, onChange, onNameChange, ...props }: 
     if (record && onNameChange) onNameChange(record.name);
   };
 
+  if (!enabled) {
+    return (
+      <>
+        <Alert
+          type="info"
+          icon={<InfoCircleOutlined />}
+          message={
+            <span>
+              Аналитика <strong>Контрагент</strong> недоступна. <Link to="/analytics" target="_blank" rel="noopener noreferrer">Подключить подписку →</Link>
+            </span>
+          }
+          style={{ marginBottom: 8 }}
+        />
+        <Select
+          {...props}
+          value={value}
+          onChange={handleChange}
+          disabled
+          placeholder="Недоступно (нет подписки на аналитику)"
+          style={{ width: '100%' }}
+        />
+      </>
+    );
+  }
+
   return (
     <ReferenceSelectWrapper<Counterparty>
       directoryTitle="Справочник контрагентов"
@@ -102,10 +129,9 @@ export function CounterpartySelect({ value, onChange, onNameChange, ...props }: 
         {...props}
         value={value}
         onChange={handleChange}
-        disabled={!enabled}
         showSearch
         allowClear
-        placeholder={enabled ? 'Выберите контрагента' : 'Недоступно (нет подписки на аналитику)'}
+        placeholder="Выберите контрагента"
         loading={loading}
         filterOption={false}
         onSearch={handleSearch}
@@ -115,26 +141,24 @@ export function CounterpartySelect({ value, onChange, onNameChange, ...props }: 
         popupRender={(menu) => (
           <>
             {menu}
-            {enabled && (
-              <div style={{ padding: '8px', borderTop: '1px solid #f0f0f0' }}>
-                <Input
-                  placeholder="Или введите название вручную"
-                  value={searchValue}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setSearchValue(val);
-                    if (onNameChange && !counterparties.find(cp => cp.name === val)) {
-                      onNameChange(val);
-                    }
-                  }}
-                  onPressEnter={() => {
-                    if (onNameChange && searchValue) {
-                      onNameChange(searchValue);
-                    }
-                  }}
-                />
-              </div>
-            )}
+            <div style={{ padding: '8px', borderTop: '1px solid #f0f0f0' }}>
+              <Input
+                placeholder="Или введите название вручную"
+                value={searchValue}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSearchValue(val);
+                  if (onNameChange && !counterparties.find(cp => cp.name === val)) {
+                    onNameChange(val);
+                  }
+                }}
+                onPressEnter={() => {
+                  if (onNameChange && searchValue) {
+                    onNameChange(searchValue);
+                  }
+                }}
+              />
+            </div>
           </>
         )}
       >

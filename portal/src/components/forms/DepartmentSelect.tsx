@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Select, Spin, message } from 'antd';
+import { Select, Spin, message, Alert } from 'antd';
+import { Link } from 'react-router-dom';
+import { InfoCircleOutlined } from '@ant-design/icons';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
@@ -67,6 +69,31 @@ export function DepartmentSelect({
     }
   }, [organizationId]);
 
+  if (!enabled) {
+    return (
+      <>
+        <Alert
+          type="info"
+          icon={<InfoCircleOutlined />}
+          message={
+            <span>
+              Аналитика <strong>Подразделение</strong> недоступна. <Link to="/analytics" target="_blank" rel="noopener noreferrer">Подключить подписку →</Link>
+            </span>
+          }
+          style={{ marginBottom: 8 }}
+        />
+        <Select
+          {...props}
+          value={value}
+          onChange={onChange}
+          disabled
+          placeholder="Недоступно (нет подписки на аналитику)"
+          style={{ width: '100%' }}
+        />
+      </>
+    );
+  }
+
   return (
     <ReferenceSelectWrapper<Department>
       directoryTitle="Справочник подразделений"
@@ -84,12 +111,9 @@ export function DepartmentSelect({
         onChange={onChange}
         showSearch
         allowClear
-        placeholder={
-          !enabled ? 'Недоступно (нет подписки на аналитику)' :
-          organizationId ? 'Выберите подразделение' : 'Сначала выберите организацию'
-        }
+        placeholder={organizationId ? 'Выберите подразделение' : 'Сначала выберите организацию'}
         loading={loading}
-        disabled={!enabled || !organizationId}
+        disabled={!organizationId}
         filterOption={(input, option) => {
           const label = (option?.label ?? option?.value ?? '')?.toString?.() ?? '';
           return label.toLowerCase().includes((input ?? '').toLowerCase());
@@ -97,8 +121,6 @@ export function DepartmentSelect({
         notFoundContent={
           loading ? (
             <Spin size="small" />
-          ) : !enabled ? (
-            'Недоступно (нет подписки на аналитику)'
           ) : !organizationId ? (
             'Сначала выберите организацию'
           ) : (
