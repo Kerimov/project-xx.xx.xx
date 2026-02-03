@@ -869,5 +869,50 @@ export const api = {
         }>(`/objects/subscribed-cards?${queryParams.toString()}`);
       }
     }
+  },
+
+  // Файлы карточек объектов учета (роуты в /api/objects/cards/...)
+  objectFiles: {
+    list: (cardId: string) =>
+      request<{
+        data: Array<{ id: string; name: string; size: number; mimeType: string; uploadedAt: string; hash: string }>;
+      }>(`/objects/cards/${cardId}/files`),
+    upload: async (cardId: string, file: File) => {
+      const url = `${API_BASE_URL}/objects/cards/${cardId}/files`;
+      const token = localStorage.getItem('auth_token');
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: { message: 'Ошибка загрузки' } }));
+        throw new Error(err.error?.message || 'Ошибка загрузки файла');
+      }
+      return res.json();
+    },
+    download: async (fileId: string, fileName?: string) => {
+      const url = `${API_BASE_URL}/objects/cards/files/${fileId}`;
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (!res.ok) throw new Error('Ошибка скачивания');
+      const blob = await res.blob();
+      const name =
+        fileName ||
+        decodeURIComponent(res.headers.get('Content-Disposition')?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/)?.[1] || '') ||
+        res.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1] ||
+        `file-${fileId}`;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    },
+    delete: (fileId: string) =>
+      request<{ data?: { success?: boolean } }>(`/objects/cards/files/${fileId}`, { method: 'DELETE' })
   }
 };

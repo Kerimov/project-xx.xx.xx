@@ -19,16 +19,18 @@ const objectsRouter = Router();
 // Все routes требуют аутентификации
 objectsRouter.use(authenticateToken);
 
-// ========== Object Types (только для ecof_admin) ==========
+// ========== Object Types ==========
+// Чтение типов и схем — всем авторизованным (для вкладки «Объекты учета», подписок, создания карточек).
+// Создание/изменение/удаление — только ecof_admin.
 
-objectsRouter.get('/types', requireAdmin, objectsController.listObjectTypes);
-objectsRouter.get('/types/:id', requireAdmin, objectsController.getObjectTypeById);
+objectsRouter.get('/types', objectsController.listObjectTypes);
+objectsRouter.get('/types/:id', objectsController.getObjectTypeById);
 objectsRouter.post('/types', requireAdmin, validate(createObjectTypeSchema), objectsController.createObjectType);
 objectsRouter.put('/types/:id', requireAdmin, validate(updateObjectTypeSchema), objectsController.updateObjectType);
 
-// ========== Object Type Schemas (только для ecof_admin) ==========
+// ========== Object Type Schemas ==========
 
-objectsRouter.get('/types/:typeId/schemas', requireAdmin, objectsController.getObjectTypeSchemas);
+objectsRouter.get('/types/:typeId/schemas', objectsController.getObjectTypeSchemas);
 objectsRouter.post(
   '/types/:typeId/schemas',
   requireAdmin,

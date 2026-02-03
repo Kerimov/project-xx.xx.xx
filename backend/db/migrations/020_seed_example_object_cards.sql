@@ -33,13 +33,13 @@ ON CONFLICT (type_id, code) DO NOTHING;
 
 -- DEPARTMENT
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'DEPT-EX-01', 'Пример: Отдел продаж', 'Active', '{}'::jsonb
+SELECT id, 'DEPT-EX-01', 'Пример: Отдел продаж', 'Active', '{"address": "г. Москва, ул. Примерная, 1"}'::jsonb
 FROM object_types WHERE code = 'DEPARTMENT'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- COST_CENTER
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'CC-EX-01', 'Пример: МВЗ Продажи регион Москва', 'Active', '{}'::jsonb
+SELECT id, 'CC-EX-01', 'Пример: МВЗ Продажи регион Москва', 'Active', '{"description": "МВЗ для учёта затрат по региону"}'::jsonb
 FROM object_types WHERE code = 'COST_CENTER'
 ON CONFLICT (type_id, code) DO NOTHING;
 
@@ -51,67 +51,67 @@ ON CONFLICT (type_id, code) DO NOTHING;
 
 -- BANK
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'BANK-EX-01', 'Пример: ПАО Сбербанк', 'Active', '{}'::jsonb
+SELECT id, 'BANK-EX-01', 'Пример: ПАО Сбербанк', 'Active', '{"bik": "044525225", "description": "Крупнейший банк РФ"}'::jsonb
 FROM object_types WHERE code = 'BANK'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- BANK_ACCOUNT
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'BA-EX-01', 'Пример: Р/с 40702810000000000001', 'Active', '{}'::jsonb
+SELECT id, 'BA-EX-01', 'Пример: Р/с 40702810000000000001', 'Active', '{"currency": "RUB", "accountType": "settlement", "isActive": true}'::jsonb
 FROM object_types WHERE code = 'BANK_ACCOUNT'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- ITEM (Номенклатура)
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'ITEM-EX-01', 'Пример: Товар Канцтовары блок А4', 'Active', '{}'::jsonb
+SELECT id, 'ITEM-EX-01', 'Пример: Товар Канцтовары блок А4', 'Active', '{"description": "Канцтовары для офиса"}'::jsonb
 FROM object_types WHERE code = 'ITEM'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- ITEM_GROUP
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'IG-EX-01', 'Пример: Канцтовары', 'Active', '{}'::jsonb
+SELECT id, 'IG-EX-01', 'Пример: Канцтовары', 'Active', '{"description": "Группа номенклатуры"}'::jsonb
 FROM object_types WHERE code = 'ITEM_GROUP'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- ORDER (Заказ)
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'ORD-EX-01', 'Пример: Заказ на поставку №100', 'Active', '{}'::jsonb
+SELECT id, 'ORD-EX-01', 'Пример: Заказ на поставку №100', 'Active', '{"description": "Заказ на поставку товаров"}'::jsonb
 FROM object_types WHERE code = 'ORDER'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- COST_ITEM (Статья затрат)
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'COST-EX-01', 'Пример: Зарплата', 'Active', '{}'::jsonb
+SELECT id, 'COST-EX-01', 'Пример: Зарплата', 'Active', '{"costType": "direct", "isDirect": true}'::jsonb
 FROM object_types WHERE code = 'COST_ITEM'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- CASHFLOW_ITEM (Статья ДДС)
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'CF-EX-01', 'Пример: Поступление от покупателей', 'Active', '{}'::jsonb
+SELECT id, 'CF-EX-01', 'Пример: Поступление от покупателей', 'Active', '{"direction": "inflow", "category": "operating"}'::jsonb
 FROM object_types WHERE code = 'CASHFLOW_ITEM'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- UOM (Единица измерения)
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'UOM-EX-01', 'Пример: шт (штука)', 'Active', '{}'::jsonb
+SELECT id, 'UOM-EX-01', 'Пример: шт (штука)', 'Active', '{"description": "Штука"}'::jsonb
 FROM object_types WHERE code = 'UOM'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- INTANGIBLE_ASSET (НМА)
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'NMA-EX-01', 'Пример: Программа 1С:Бухгалтерия', 'Active', '{}'::jsonb
+SELECT id, 'NMA-EX-01', 'Пример: Программа 1С:Бухгалтерия', 'Active', '{"description": "Лицензия на ПО"}'::jsonb
 FROM object_types WHERE code = 'INTANGIBLE_ASSET'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- CONSTRUCTION_OBJECT
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'CO-EX-01', 'Пример: Строительство склада №2', 'Active', '{}'::jsonb
+SELECT id, 'CO-EX-01', 'Пример: Строительство склада №2', 'Active', '{"description": "Объект незавершённого строительства"}'::jsonb
 FROM object_types WHERE code = 'CONSTRUCTION_OBJECT'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- ACTIVITY_DIRECTION
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'AD-EX-01', 'Пример: Оптовая торговля', 'Active', '{}'::jsonb
+SELECT id, 'AD-EX-01', 'Пример: Оптовая торговля', 'Active', '{"description": "Направление деятельности"}'::jsonb
 FROM object_types WHERE code = 'ACTIVITY_DIRECTION'
 ON CONFLICT (type_id, code) DO NOTHING;
 
@@ -123,60 +123,60 @@ ON CONFLICT (type_id, code) DO NOTHING;
 
 -- ORG (Организация)
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'ORG-EX-01', 'Пример: Дочка 1', 'Active', '{}'::jsonb
+SELECT id, 'ORG-EX-01', 'Пример: Дочка 1', 'Active', '{"description": "Дочерняя организация холдинга"}'::jsonb
 FROM object_types WHERE code = 'ORG'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- SETTLEMENT_DOCUMENT
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'SD-EX-01', 'Пример: Счёт №45 от 01.02.2024', 'Active', '{}'::jsonb
+SELECT id, 'SD-EX-01', 'Пример: Счёт №45 от 01.02.2024', 'Active', '{"description": "Счёт на оплату"}'::jsonb
 FROM object_types WHERE code = 'SETTLEMENT_DOCUMENT'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- STORAGE_CELL
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'SC-EX-01', 'Пример: Стеллаж А-1, ярус 2', 'Active', '{}'::jsonb
+SELECT id, 'SC-EX-01', 'Пример: Стеллаж А-1, ярус 2', 'Active', '{"description": "Ячейка хранения на складе"}'::jsonb
 FROM object_types WHERE code = 'STORAGE_CELL'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- BATCH
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'BATCH-EX-01', 'Пример: Партия канцтоваров 01.2024', 'Active', '{}'::jsonb
+SELECT id, 'BATCH-EX-01', 'Пример: Партия канцтоваров 01.2024', 'Active', '{"description": "Партия товара"}'::jsonb
 FROM object_types WHERE code = 'BATCH'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- SERIES
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'SER-EX-01', 'Пример: Серия товара 2024', 'Active', '{}'::jsonb
+SELECT id, 'SER-EX-01', 'Пример: Серия товара 2024', 'Active', '{"description": "Серия выпуска"}'::jsonb
 FROM object_types WHERE code = 'SERIES'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- OKOF
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'OKOF-EX-01', 'Пример: 310.29.10.42.111 Автомобили легковые', 'Active', '{}'::jsonb
+SELECT id, 'OKOF-EX-01', 'Пример: 310.29.10.42.111 Автомобили легковые', 'Active', '{"depreciationGroup": "3"}'::jsonb
 FROM object_types WHERE code = 'OKOF'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- OKTMO
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'OKTMO-EX-01', 'Пример: 45000000 Москва', 'Active', '{}'::jsonb
+SELECT id, 'OKTMO-EX-01', 'Пример: 45000000 Москва', 'Active', '{"description": "Код территории ОКТМО"}'::jsonb
 FROM object_types WHERE code = 'OKTMO'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- KBK
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'KBK-EX-01', 'Пример: 182 1 01 01000 01 1000 110', 'Active', '{}'::jsonb
+SELECT id, 'KBK-EX-01', 'Пример: 182 1 01 01000 01 1000 110', 'Active', '{"description": "Код бюджетной классификации"}'::jsonb
 FROM object_types WHERE code = 'KBK'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- TAX_AUTHORITY (ИФНС)
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'IFNS-EX-01', 'Пример: ИФНС России №1 по г. Москве', 'Active', '{}'::jsonb
+SELECT id, 'IFNS-EX-01', 'Пример: ИФНС России №1 по г. Москве', 'Active', '{"description": "Инспекция по месту учёта"}'::jsonb
 FROM object_types WHERE code = 'TAX_AUTHORITY'
 ON CONFLICT (type_id, code) DO NOTHING;
 
 -- VAT_OPERATION_TYPE
 INSERT INTO object_cards (type_id, code, name, status, attrs)
-SELECT id, 'VAT-OP-01', 'Пример: Реализация облагаемая НДС', 'Active', '{}'::jsonb
+SELECT id, 'VAT-OP-01', 'Пример: Реализация облагаемая НДС', 'Active', '{"description": "Вид операции для НДС"}'::jsonb
 FROM object_types WHERE code = 'VAT_OPERATION_TYPE'
 ON CONFLICT (type_id, code) DO NOTHING;

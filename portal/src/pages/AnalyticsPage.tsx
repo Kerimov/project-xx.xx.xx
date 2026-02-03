@@ -383,7 +383,10 @@ export function AnalyticsPage() {
     techSpecs: 'Технические характеристики',
     insurance: 'Страхование',
     history: 'История движения',
-    maintenanceSchedule: 'График ТО'
+    maintenanceSchedule: 'График ТО',
+    description: 'Описание',
+    note: 'Примечание',
+    bik: 'БИК'
   };
 
   const formatAttrValue = (value: unknown, dataType?: string, fieldKey?: string): string => {

@@ -107,15 +107,26 @@ export function ObjectCardDetailsPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const [cardRes, historyRes] = await Promise.all([
+      const [cardRes, filesRes] = await Promise.all([
         api.objects.cards.getById(id),
-        api.objects.cards.getHistory(id).catch(() => ({ data: [] }))
+        api.objectFiles.list(id).catch(() => ({ data: [] }))
       ]);
 
-      const cardData = cardRes.data;
-      setCard(cardData);
-      setHistory(historyRes.data || []);
-      setFiles(filesRes.data || []);
+      const cardData = cardRes.data as any;
+      setCard({
+        id: cardData.id,
+        typeId: cardData.typeId,
+        typeCode: cardData.typeCode,
+        typeName: cardData.typeName,
+        code: cardData.code,
+        name: cardData.name,
+        organizationId: cardData.organizationId,
+        status: cardData.status,
+        attrs: cardData.attrs || {},
+        createdAt: cardData.createdAt,
+        updatedAt: cardData.updatedAt
+      });
+      setHistory(Array.isArray(cardData.history) ? cardData.history : []);
       setFiles(filesRes.data || []);
 
       // Загружаем схему полей типа объекта
@@ -233,8 +244,22 @@ export function ObjectCardDetailsPage() {
     }
   };
 
+  const handleFileDelete = async (fileId: string) => {
+    try {
+      setDeletingFileId(fileId);
+      await api.objectFiles.delete(fileId);
+      message.success('Файл удалён');
+      setFiles((prev) => prev.filter((f) => f.id !== fileId));
+    } catch (error: any) {
+      message.error('Ошибка при удалении файла: ' + (error.message || 'Неизвестная ошибка'));
+    } finally {
+      setDeletingFileId(null);
+    }
+  };
+
   const renderField = (field: SchemaField) => {
-    const value = form.getFieldValue(field.fieldKey);
+    // Значение для отображения берём из card.attrs, чтобы не вызывать form.getFieldValue до монтирования Form
+    const value = (card?.attrs ?? {})[field.fieldKey];
     const isEditing = editing;
 
     switch (field.dataType) {
@@ -454,7 +479,7 @@ export function ObjectCardDetailsPage() {
                         icon={<FileOutlined />}
                         onClick={async () => {
                           try {
-                            await api.objectFiles.download(file.id);
+                            await api.objectFiles.download(file.id, file.name);
                           } catch (error: any) {
                             message.error('Ошибка при скачивании файла: ' + (error.message || 'Неизвестная ошибка'));
                           }
