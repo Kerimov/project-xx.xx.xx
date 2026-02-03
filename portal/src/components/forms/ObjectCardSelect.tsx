@@ -186,7 +186,7 @@ export function ObjectCardSelect({
         onChange={handleChange}
         showSearch
         allowClear
-        placeholder={`Выберите объект учета (${objectTypeCode})`}
+        placeholder={props.placeholder ?? `Выберите объект учета (${objectTypeCode})`}
         loading={loading}
         filterOption={false}
         onSearch={handleSearch}

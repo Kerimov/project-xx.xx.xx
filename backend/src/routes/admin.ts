@@ -6,6 +6,7 @@ import path from 'path';
 import { pool } from '../db/connection.js';
 import { uhQueueService } from '../services/uh-queue.js';
 import { nsiSyncService } from '../services/nsi-sync.js';
+import { syncObjectAnalyticsFromNSI } from '../services/object-analytics-sync.js';
 import { testUHConnection } from '../db/uh-connection.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
@@ -211,6 +212,16 @@ adminRouter.post('/nsi/seed-warehouses', async (req: Request, res: Response) => 
 adminRouter.post('/nsi/clear-seeded-warehouses', async (req: Request, res: Response) => {
   try {
     const result = await nsiSyncService.clearSeededWarehouses();
+    res.json({ data: result });
+  } catch (error: any) {
+    res.status(500).json({ error: { message: error.message } });
+  }
+});
+
+// Синхронизация аналитик карточек объектов из справочников НСИ (номенклатура по code, контрагенты по id в code). Только для администратора.
+adminRouter.post('/object-analytics-sync', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const result = await syncObjectAnalyticsFromNSI();
     res.json({ data: result });
   } catch (error: any) {
     res.status(500).json({ error: { message: error.message } });

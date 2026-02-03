@@ -31,6 +31,18 @@ import dayjs from 'dayjs';
 
 const { TextArea } = Input;
 
+/** Типы объектов, для которых можно заполнить данные из справочника НСИ */
+const OBJECT_TYPE_REFERENCE: Record<string, { label: string; load: (search?: string) => Promise<Array<{ id: string; code?: string | null; name: string; [k: string]: unknown }>> }> = {
+  ITEM: { label: 'Номенклатура', load: (search) => api.nsi.nomenclature(search).then((r) => r.data || []) },
+  NOMENCLATURE: { label: 'Номенклатура', load: (search) => api.nsi.nomenclature(search).then((r) => r.data || []) },
+  COUNTERPARTY: { label: 'Контрагенты', load: (search) => api.nsi.counterparties(search).then((r) => r.data || []) },
+  CONTRACT: { label: 'Договоры', load: () => api.nsi.contracts(undefined, undefined).then((r) => r.data || []) },
+  WAREHOUSE: { label: 'Склады', load: (search) => api.nsi.warehouses(undefined, search).then((r) => r.data || []) },
+  DEPARTMENT: { label: 'Подразделения', load: (search) => api.nsi.departments(undefined, search).then((r) => r.data || []) },
+  ACCOUNTING_ACCOUNT: { label: 'План счетов', load: (search) => api.nsi.accountingAccounts(search).then((r) => r.data || []) },
+  ACCOUNT: { label: 'Счета (банк/касса)', load: () => api.nsi.accounts(undefined, undefined).then((r) => r.data || []) }
+};
+
 type TypeRow = { id: string; code: string; name: string; directionId: string | null; isActive: boolean };
 type SubRow = { typeId: string; typeCode: string; typeName: string; isEnabled: boolean };
 
@@ -79,6 +91,8 @@ export function AnalyticsPage() {
   const [objectCardModalVisible, setObjectCardModalVisible] = useState(false);
   const [objectTypeForm] = Form.useForm();
   const [objectCardForm] = Form.useForm();
+  const [referenceItems, setReferenceItems] = useState<Array<{ id: string; code?: string | null; name: string; [k: string]: unknown }>>([]);
+  const [referenceLoading, setReferenceLoading] = useState(false);
   const [editingObjectType, setEditingObjectType] = useState<ObjectType | null>(null);
   const [savingObjectTypeId, setSavingObjectTypeId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('analytics');
@@ -295,9 +309,44 @@ export function AnalyticsPage() {
       objectCardForm.resetFields();
       objectCardForm.setFieldsValue(initialValues);
       setObjectCardModalVisible(true);
+      // Загружаем справочник для заполнения аналитики из НСИ
+      const refConfig = selectedObjectTypeCode ? OBJECT_TYPE_REFERENCE[selectedObjectTypeCode] : null;
+      if (refConfig) {
+        setReferenceLoading(true);
+        try {
+          const items = await refConfig.load();
+          setReferenceItems(Array.isArray(items) ? items : []);
+        } catch {
+          setReferenceItems([]);
+        } finally {
+          setReferenceLoading(false);
+        }
+      } else {
+        setReferenceItems([]);
+      }
     } catch (e: any) {
       message.error('Ошибка загрузки схемы полей: ' + (e.message || 'Неизвестная ошибка'));
     }
+  };
+
+  const fillFormFromReference = (item: { id: string; code?: string | null; name: string; [k: string]: unknown }) => {
+    if (!selectedObjectTypeCode) return;
+    const code = item.code ?? item.id;
+    const name = item.name ?? '';
+    const attrs: Record<string, unknown> = {};
+    if (item.data && typeof item.data === 'object' && !Array.isArray(item.data)) {
+      Object.assign(attrs, item.data as Record<string, unknown>);
+    }
+    if (item.inn != null) attrs.inn = item.inn;
+    if (item.organizationId != null) attrs.organizationId = item.organizationId;
+    if (item.counterpartyId != null) attrs.counterpartyId = item.counterpartyId;
+    const currentValues = objectCardForm.getFieldsValue();
+    objectCardForm.setFieldsValue({
+      ...currentValues,
+      code: code ?? currentValues.code,
+      name: name || currentValues.name,
+      ...attrs
+    });
   };
 
   const handleSubmitObjectCard = async () => {
@@ -914,6 +963,7 @@ export function AnalyticsPage() {
             setObjectCardModalVisible(false);
             objectCardForm.resetFields();
             setObjectCardSchemas([]);
+            setReferenceItems([]);
           }}
           width={800}
           okText="Создать"
@@ -923,6 +973,33 @@ export function AnalyticsPage() {
             <Form.Item name="typeId" hidden>
               <Input />
             </Form.Item>
+
+            {/* Заполнить из справочника НСИ */}
+            {selectedObjectTypeCode && OBJECT_TYPE_REFERENCE[selectedObjectTypeCode] && referenceItems.length >= 0 && (
+              <Card size="small" title="Заполнить из справочника" style={{ marginBottom: 16 }}>
+                <Typography.Paragraph type="secondary" style={{ marginTop: 0, marginBottom: 8 }}>
+                  Выберите запись из справочника «{OBJECT_TYPE_REFERENCE[selectedObjectTypeCode].label}» — код, наименование и аналитики подставятся в форму.
+                </Typography.Paragraph>
+                <Select
+                  placeholder={`Выберите из справочника ${OBJECT_TYPE_REFERENCE[selectedObjectTypeCode].label}`}
+                  style={{ width: '100%' }}
+                  loading={referenceLoading}
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                  }
+                  options={referenceItems.map((it) => ({
+                    value: it.id,
+                    label: it.name + (it.code ? ` (${it.code})` : '')
+                  }))}
+                  allowClear
+                  onSelect={(value) => {
+                    const item = referenceItems.find((i) => i.id === value);
+                    if (item) fillFormFromReference(item);
+                  }}
+                />
+              </Card>
+            )}
 
             {/* 1. Объект */}
             <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>

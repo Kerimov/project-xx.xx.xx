@@ -42,6 +42,21 @@ const { Title } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
+/** Подписи на русском для значений перечислений по полям (fieldKey -> value -> label) */
+const ENUM_LABELS_RU: Record<string, Record<string, string>> = {
+  itemKind: {
+    product: 'Продукт',
+    service: 'Услуга',
+    material: 'Материал',
+    semi_finished: 'Полуфабрикат',
+    other: 'Прочее'
+  }
+};
+
+function getEnumLabel(fieldKey: string, value: string): string {
+  return ENUM_LABELS_RU[fieldKey]?.[value] ?? value;
+}
+
 interface ObjectCard {
   id: string;
   typeId: string;
@@ -343,12 +358,12 @@ export function ObjectCardDetailsPage() {
               <Select placeholder={field.label}>
                 {field.enumValues?.map((val) => (
                   <Option key={val} value={val}>
-                    {val}
+                    {getEnumLabel(field.fieldKey, val)}
                   </Option>
                 ))}
               </Select>
             ) : (
-              <span>{value || '-'}</span>
+              <span>{value ? getEnumLabel(field.fieldKey, value as string) : '-'}</span>
             )}
           </Form.Item>
         );
@@ -369,9 +384,10 @@ export function ObjectCardDetailsPage() {
                 objectTypeCode={referenceTypeCode}
                 value={value as string}
                 onChange={(val) => form.setFieldValue(field.fieldKey, val)}
+                placeholder={field.label ? `Выберите ${field.label}` : undefined}
               />
             ) : isEditing ? (
-              <Input placeholder={`Выберите ${field.label}`} />
+              <Input placeholder={field.label ? `Выберите ${field.label}` : 'Выберите из списка'} />
             ) : (
               <span>{value || '-'}</span>
             )}
