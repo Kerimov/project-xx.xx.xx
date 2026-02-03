@@ -1132,6 +1132,20 @@ export function AnalyticsPage() {
           Организация: <b>{user?.organizationId || '—'}</b>
         </Typography.Text>
 
+        <Card size="small" style={{ marginBottom: 8 }}>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+            <Typography.Text strong>Зачем две вкладки?</Typography.Text>
+          </Typography.Paragraph>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+            <Typography.Text strong>«Аналитики»</Typography.Text> — подписка на <em>виды</em> аналитик (Банк, Банковский счёт, Вид операции НДС и т.д.).
+            Это «измерения», которые организация может использовать в документах и в карточках объектов. Включаете нужные виды — они становятся доступны в формах.
+          </Typography.Paragraph>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+            <Typography.Text strong>«Объекты учета»</Typography.Text> — подписка на <em>типы</em> объектов (Основные средства, Номенклатура и т.д.) и создание <em>конкретных</em> карточек
+            (например, «Легковой автомобиль», «Ноутбук») с заполнением аналитик по каждой карточке. В документах потом выбирают именно эти карточки.
+          </Typography.Paragraph>
+        </Card>
+
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabsItems} />
 
         {/* Модалка выбора карточек для подписки (SELECTED) */}

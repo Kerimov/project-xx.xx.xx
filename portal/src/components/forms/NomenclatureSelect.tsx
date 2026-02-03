@@ -66,15 +66,16 @@ export function NomenclatureSelect({
     try {
       const list = await loadItems(undefined);
       setItems(list);
-      // Если задан value и его нет в списке — подгружаем по id (для редактирования)
+      // Если задан value и его нет в списке — подгружаем по id (для редактирования).
+      // value может быть ID карточки объекта (object_cards) или ID номенклатуры НСИ (nomenclature).
       if (value && !list.some((x) => x.id === value)) {
         try {
-          const one = await api.objects.cards.getById(value);
-          if (one.data?.id) {
-            setItems((prev) => [
-              { id: one.data.id, code: one.data.code || '', name: one.data.name || '' },
-              ...prev
-            ]);
+          const resolved = await api.objects.cards.resolve(value);
+          const data: any = resolved?.data ?? null;
+          if (data?.kind === 'object_card' && data?.id) {
+            setItems((prev) => [{ id: data.id, code: data.code || '', name: data.name || '', data: data.attrs }, ...prev]);
+          } else if (data?.kind === 'nsi_nomenclature' && data?.id) {
+            setItems((prev) => [{ id: data.id, code: data.code || '', name: data.name || '', data: data.data }, ...prev]);
           }
         } catch {
           // ignore
@@ -89,7 +90,7 @@ export function NomenclatureSelect({
 
   useEffect(() => {
     loadInitial();
-  }, [loadItems]);
+  }, [loadItems, value]);
 
   const handleChange = (id: string | undefined) => {
     if (id === undefined) {

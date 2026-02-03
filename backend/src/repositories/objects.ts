@@ -99,6 +99,17 @@ export type OrgObjectSubscriptionMode = 'NONE' | 'ALL' | 'SELECTED';
 
 // ========== Org object subscriptions (v2) ==========
 
+/** Возвращает Set кодов типов объектов, на которые организация подписана (ALL или SELECTED с хотя бы одной карточкой). */
+export async function getEnabledObjectTypeCodesForOrg(orgId: string): Promise<Set<string>> {
+  const subs = await listOrgObjectTypeSubscriptions(orgId);
+  const codes = new Set<string>();
+  for (const s of subs) {
+    if (s.mode === 'ALL') codes.add(String(s.type_code || '').toUpperCase());
+    else if (s.mode === 'SELECTED' && (s.selected_count ?? 0) > 0) codes.add(String(s.type_code || '').toUpperCase());
+  }
+  return codes;
+}
+
 export async function listOrgObjectTypeSubscriptions(orgId: string): Promise<
   Array<{
     org_id: string;

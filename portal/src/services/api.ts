@@ -810,6 +810,28 @@ export const api = {
             updatedBy: string | null;
           };
         }>(`/objects/cards/${id}`),
+      resolve: (id: string) =>
+        request<{
+          data:
+            | null
+            | {
+                kind: 'object_card';
+                id: string;
+                code: string;
+                name: string;
+                attrs?: Record<string, unknown>;
+                typeId?: string;
+                organizationId?: string | null;
+                status?: string;
+              }
+            | {
+                kind: 'nsi_nomenclature';
+                id: string;
+                code: string;
+                name: string;
+                data?: Record<string, unknown>;
+              };
+        }>(`/objects/cards/resolve/${id}`),
       lookup: (params: { typeId: string; code: string }) =>
         request<{
           data:

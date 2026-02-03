@@ -58,7 +58,7 @@ export function ArchitectureComponentsSvg({ height = 520 }: Props) {
           1С:УХ (учётное ядро)
         </text>
         <text x="840" y="114" className="hint">
-          Проведение, регламент, отчётность. Доступ по HTTP‑сервисам.
+          Проведение. Доступ по HTTP‑сервисам.
         </text>
 
         {/* User */}

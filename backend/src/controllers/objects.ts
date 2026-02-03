@@ -374,6 +374,55 @@ export async function getObjectCardById(req: Request, res: Response, next: NextF
   }
 }
 
+/**
+ * Универсальный "resolve" по id для UI:
+ * - если id принадлежит карточке объекта учета → возвращаем карточку
+ * - иначе пробуем найти номенклатуру НСИ по id → возвращаем как "nsi_nomenclature"
+ *
+ * Нужен, чтобы UI мог безопасно отрисовать label по value без 404 в консоли (в legacy документах value может быть NSI id).
+ */
+export async function resolveCardOrNsiNomenclatureById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+
+    const card = await objectsRepo.getObjectCardById(id);
+    if (card) {
+      return res.json({
+        data: {
+          kind: 'object_card',
+          id: card.id,
+          code: card.code,
+          name: card.name,
+          attrs: card.attrs,
+          typeId: card.type_id,
+          organizationId: card.organization_id,
+          status: card.status
+        }
+      });
+    }
+
+    // fallback: NSI nomenclature by id (direct query to avoid circular deps between controllers)
+    const r = await pool.query('SELECT id, code, name, data FROM nomenclature WHERE id = $1 LIMIT 1', [id]);
+    const row = r.rows[0];
+    if (row) {
+      return res.json({
+        data: {
+          kind: 'nsi_nomenclature',
+          id: row.id,
+          code: row.code,
+          name: row.name,
+          data: row.data
+        }
+      });
+    }
+
+    // Intentionally return 200 with null (instead of 404) to keep UI quiet.
+    return res.json({ data: null });
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function createObjectCard(req: Request, res: Response, next: NextFunction) {
   try {
     const data = req.body;

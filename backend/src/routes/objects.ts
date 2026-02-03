@@ -51,6 +51,8 @@ objectsRouter.delete('/types/:typeId/schemas/:fieldKey', requireAdmin, objectsCo
 // Список карточек (доступен всем авторизованным, но фильтруется по подпискам)
 objectsRouter.get('/cards', validate(listObjectCardsSchema), objectsController.listObjectCards);
 objectsRouter.get('/cards/lookup', objectsController.lookupObjectCard);
+// Универсальный resolve по id: карточка объекта или номенклатура НСИ (без 404, для legacy значений в документах)
+objectsRouter.get('/cards/resolve/:id', objectsController.resolveCardOrNsiNomenclatureById);
 objectsRouter.get('/cards/:id', objectsController.getObjectCardById);
 objectsRouter.post('/cards', validate(createObjectCardSchema), objectsController.createObjectCard);
 objectsRouter.put('/cards/:id', validate(updateObjectCardSchema), objectsController.updateObjectCard);
