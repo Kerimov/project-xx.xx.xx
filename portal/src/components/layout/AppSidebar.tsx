@@ -9,7 +9,8 @@ import {
   LinkOutlined,
   FileSearchOutlined,
   ApartmentOutlined,
-  SettingOutlined
+  SettingOutlined,
+  UserOutlined
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,6 +20,9 @@ export function AppSidebar() {
   const location = useLocation();
   const { user } = useAuth();
 
+  const isEmployee = user?.role === 'employee';
+  const isAdmin = user?.role === 'org_admin' || user?.role === 'ecof_admin';
+
   const items = [
     { key: '/dashboard', icon: <AppstoreOutlined />, label: 'Дашборд' },
     { key: '/packages', icon: <FileDoneOutlined />, label: 'Пакеты' },
@@ -27,13 +31,19 @@ export function AppSidebar() {
     { key: '/analytics', icon: <ApartmentOutlined />, label: 'Аналитики' },
     { key: '/nsi', icon: <DatabaseOutlined />, label: 'Справочники' },
     { key: '/reports', icon: <LineChartOutlined />, label: 'Отчётность' },
-    { key: '/integration', icon: <CloudSyncOutlined />, label: 'Интеграция с УХ' },
-    { key: '/logs', icon: <FileSearchOutlined />, label: 'Логи' },
-    { key: '/uh-db-connection', icon: <LinkOutlined />, label: 'Подключение к БД УХ' }
+    // Административные пункты - только для администраторов
+    ...(isAdmin ? [
+      { key: '/integration', icon: <CloudSyncOutlined />, label: 'Интеграция с УХ' },
+      { key: '/logs', icon: <FileSearchOutlined />, label: 'Логи' },
+      { key: '/uh-db-connection', icon: <LinkOutlined />, label: 'Подключение к БД УХ' }
+    ] : [])
   ] as any[];
 
   if (user?.role === 'ecof_admin') {
-    items.push({ key: '/analytics/admin', icon: <SettingOutlined />, label: 'Админ: аналитики' });
+    items.push(
+      { key: '/admin/users', icon: <UserOutlined />, label: 'Админ: пользователи' },
+      { key: '/analytics/admin', icon: <SettingOutlined />, label: 'Админ: аналитики' }
+    );
   }
 
   // Определяем активный ключ меню на основе текущего пути
@@ -41,6 +51,7 @@ export function AppSidebar() {
     const path = location.pathname;
     if (path.startsWith('/nsi')) return '/nsi';
     if (path.startsWith('/uh-db-connection')) return '/uh-db-connection';
+    if (path.startsWith('/admin/users')) return '/admin/users';
     if (path.startsWith('/analytics/admin')) return '/analytics/admin';
     if (path.startsWith('/organization/cabinet')) return '/organization/cabinet';
     return path;

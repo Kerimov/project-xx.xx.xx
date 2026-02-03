@@ -545,6 +545,66 @@ export const api = {
           nsi: { contracts: number; accounts: number; warehouses: number; nomenclature?: number; accountingAccounts: number; counterparties: number; organizations: number };
           keptOrganizations: number;
         };
-      }>('/admin/clear-portal-data', { method: 'POST' })
+      }>('/admin/clear-portal-data', { method: 'POST' }),
+    users: {
+      list: (params?: { organizationId?: string; role?: string; search?: string; limit?: number; offset?: number }) => {
+        const queryParams = new URLSearchParams();
+        if (params?.organizationId) queryParams.append('organizationId', params.organizationId);
+        if (params?.role) queryParams.append('role', params.role);
+        if (params?.search) queryParams.append('search', params.search);
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.offset) queryParams.append('offset', params.offset.toString());
+        return request<{
+          data: Array<{
+            id: string;
+            username: string;
+            email: string | null;
+            role: string;
+            organizationId: string | null;
+            organizationName: string | null;
+            isActive: boolean;
+            createdAt: string;
+            updatedAt: string;
+          }>;
+          pagination: { total: number; limit: number; offset: number };
+        }>(`/admin/users${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+      },
+      getById: (id: string) =>
+        request<{
+          data: {
+            id: string;
+            username: string;
+            email: string | null;
+            role: string;
+            organizationId: string | null;
+            organizationName: string | null;
+            isActive: boolean;
+            createdAt: string;
+            updatedAt: string;
+          };
+        }>(`/admin/users/${id}`),
+      create: (payload: { username: string; email?: string | null; password: string; role: string; organizationId?: string | null }) =>
+        request<{ data: any }>('/admin/users', { method: 'POST', body: JSON.stringify(payload) }),
+      update: (id: string, payload: { username?: string; email?: string | null; role?: string; organizationId?: string | null; isActive?: boolean }) =>
+        request<{ data: any }>(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+      updatePassword: (id: string, payload: { password: string }) =>
+        request<{ data: { success: boolean } }>(`/admin/users/${id}/password`, { method: 'PUT', body: JSON.stringify(payload) }),
+      delete: (id: string) =>
+        request<{ data: { success: boolean } }>(`/admin/users/${id}`, { method: 'DELETE' })
+    },
+    organizations: {
+      list: () =>
+        request<{
+          data: Array<{
+            id: string;
+            code: string;
+            name: string;
+            inn: string | null;
+            directionId: string | null;
+            createdAt: string;
+            updatedAt: string;
+          }>;
+        }>('/admin/organizations')
+    }
   }
 };

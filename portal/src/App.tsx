@@ -3,6 +3,7 @@ import { Content } from 'antd/es/layout/layout';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AdminRoute } from './components/AdminRoute';
 import { AppSidebar } from './components/layout/AppSidebar';
 import { AppHeader } from './components/layout/AppHeader';
 import { LoginPage } from './pages/LoginPage';
@@ -22,6 +23,7 @@ import { NSIPage } from './pages/NSIPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AnalyticsAdminPage } from './pages/AnalyticsAdminPage';
 import { OrganizationCabinetPage } from './pages/OrganizationCabinetPage';
+import { UsersAdminPage } from './pages/UsersAdminPage';
 import { OrganizationDetailsPage } from './pages/nsi/OrganizationDetailsPage';
 import { CounterpartyDetailsPage } from './pages/nsi/CounterpartyDetailsPage';
 import { ContractDetailsPage } from './pages/nsi/ContractDetailsPage';
@@ -58,13 +60,14 @@ function AppLayout() {
             <Route path="/documents/:id/edit" element={<CreateDocumentPage />} />
             <Route path="/documents/:id" element={<DocumentDetailsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/integration" element={<IntegrationMonitorPage />} />
-            <Route path="/logs" element={<LogsPage />} />
-            <Route path="/uh-db-connection" element={<UHDbConnectionPage />} />
+            <Route path="/integration" element={<AdminRoute><IntegrationMonitorPage /></AdminRoute>} />
+            <Route path="/logs" element={<AdminRoute><LogsPage /></AdminRoute>} />
+            <Route path="/uh-db-connection" element={<AdminRoute><UHDbConnectionPage /></AdminRoute>} />
             <Route path="/nsi" element={<NSIPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/analytics/admin" element={<AnalyticsAdminPage />} />
             <Route path="/organization/cabinet" element={<OrganizationCabinetPage />} />
+            <Route path="/admin/users" element={<UsersAdminPage />} />
             <Route path="/nsi/organizations/:id" element={<OrganizationDetailsPage />} />
             <Route path="/nsi/counterparties/:id" element={<CounterpartyDetailsPage />} />
             <Route path="/nsi/contracts/:id" element={<ContractDetailsPage />} />

@@ -10,7 +10,8 @@
     "lint": "eslint \"src/**/*.ts\"",
     "migrate": "tsx scripts/run-migrate.ts",
     "create-db": "tsx scripts/create-db.ts",
-    "seed-nsi": "tsx scripts/seed-nsi.ts"
+    "seed-nsi": "tsx scripts/seed-nsi.ts",
+    "fix-admin-password": "tsx scripts/fix-admin-password.ts"
   },
   "dependencies": {
     "@types/multer": "^2.0.0",

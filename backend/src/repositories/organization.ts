@@ -22,6 +22,18 @@ export interface OrganizationRow {
 }
 
 /**
+ * Получить список всех организаций
+ */
+export async function getAllOrganizations(): Promise<OrganizationRow[]> {
+  const result = await pool.query<OrganizationRow>(
+    `SELECT id, code, name, inn, direction_id, created_at, updated_at
+     FROM organizations
+     ORDER BY name`
+  );
+  return result.rows;
+}
+
+/**
  * Получить информацию об организации по ID
  */
 export async function getOrganizationById(orgId: string): Promise<OrganizationRow | null> {

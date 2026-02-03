@@ -15,10 +15,19 @@ export function AnalyticsPage() {
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingTypeId, setSavingTypeId] = useState<string | null>(null);
-  const [webhookForm] = Form.useForm();
-  const [webhookLoading, setWebhookLoading] = useState(false);
 
   const enabledSet = useMemo(() => new Set(subs.filter((s) => s.isEnabled).map((s) => s.typeId)), [subs]);
+  
+  // Для сотрудников показываем только подписанные аналитики
+  const displayedTypes = useMemo(() => {
+    if (isOrgAdmin) {
+      // Администратор видит все аналитики
+      return types.filter((t) => t.isActive);
+    } else {
+      // Сотрудник видит только подписанные аналитики
+      return types.filter((t) => t.isActive && enabledSet.has(t.id));
+    }
+  }, [types, enabledSet, isOrgAdmin]);
 
   const load = async () => {
     try {
@@ -29,27 +38,6 @@ export function AnalyticsPage() {
       ]);
       setTypes(tRes.data || []);
       setSubs(sRes.data || []);
-
-      // Загружаем webhook только если пользователь администратор
-      if (isOrgAdmin) {
-        try {
-          const wRes = await api.analytics.getWebhook();
-          if (wRes.data) {
-            webhookForm.setFieldsValue({
-              url: wRes.data.url,
-              secret: '',
-              isActive: wRes.data.isActive
-            });
-          } else {
-            webhookForm.setFieldsValue({ url: '', secret: '', isActive: true });
-          }
-        } catch (e: any) {
-          // Игнорируем ошибку 403 для обычных сотрудников
-          if (!e?.message?.includes('403') && !e?.message?.includes('Forbidden')) {
-            message.error(e?.message || 'Ошибка загрузки webhook');
-          }
-        }
-      }
     } catch (e: any) {
       message.error(e?.message || 'Ошибка загрузки аналитик');
     } finally {
@@ -78,32 +66,6 @@ export function AnalyticsPage() {
     }
   };
 
-  const saveWebhook = async () => {
-    try {
-      const values = await webhookForm.validateFields();
-      setWebhookLoading(true);
-      await api.analytics.upsertWebhook(values);
-      message.success('Webhook сохранён. Запущен ресинк подписанных аналитик.');
-      await api.analytics.resync();
-    } catch (e: any) {
-      if (e?.errorFields) return;
-      message.error(e?.message || 'Ошибка сохранения webhook');
-    } finally {
-      setWebhookLoading(false);
-    }
-  };
-
-  const resync = async () => {
-    try {
-      setWebhookLoading(true);
-      const r = await api.analytics.resync();
-      message.success(`Ресинк поставлен в очередь: ${r.data.created}`);
-    } catch (e: any) {
-      message.error(e?.message || 'Ошибка ресинка');
-    } finally {
-      setWebhookLoading(false);
-    }
-  };
 
   return (
     <div className="page">
@@ -115,55 +77,24 @@ export function AnalyticsPage() {
           Организация: <b>{user?.organizationId || '—'}</b>
         </Typography.Text>
 
-        {isOrgAdmin && (
-          <Card size="small" title="Webhook для доставки аналитик (push)" loading={loading}>
-          <Form form={webhookForm} layout="vertical">
-            <Row gutter={12}>
-              <Col xs={24} md={14}>
-                <Form.Item
-                  name="url"
-                  label="URL получателя"
-                  rules={[{ required: true, message: 'Укажите URL' }]}
-                >
-                  <Input placeholder="https://accounting дочерней компании /webhooks/ecof-analytics" />
-                </Form.Item>
-              </Col>
-              <Col xs={24} md={10}>
-                <Form.Item
-                  name="secret"
-                  label="Секрет (для подписи HMAC SHA-256)"
-                  rules={[{ required: true, message: 'Укажите secret (минимум 8 символов)' }]}
-                >
-                  <Input.Password placeholder="********" />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Space wrap>
-              <Button type="primary" onClick={saveWebhook} loading={webhookLoading}>
-                Сохранить webhook
-              </Button>
-              <Button onClick={resync} loading={webhookLoading}>
-                Ресинк подписок
-              </Button>
-            <Tag>Подпись: заголовок `x-ecof-signature`</Tag>
-          </Space>
-        </Form>
-      </Card>
-        )}
-
         <Card size="small" title="Подписки на виды аналитик" loading={loading}>
           <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
             {isOrgAdmin 
               ? 'Включите только те аналитики, которые ваша организация будет получать и использовать в документах на портале.'
-              : 'Текущие подписки вашей организации на аналитики. Для изменения подписок обратитесь к администратору организации.'}
+              : 'Аналитики, на которые подписана ваша организация. Для изменения подписок обратитесь к администратору организации.'}
           </Typography.Paragraph>
 
           <Divider style={{ margin: '12px 0' }} />
 
-          <Row gutter={[12, 12]}>
-            {types
-              .filter((t) => t.isActive)
-              .map((t) => (
+          {displayedTypes.length === 0 ? (
+            <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: '40px 0' }}>
+              {isOrgAdmin 
+                ? 'Нет доступных аналитик. Обратитесь к администратору ЕЦОФ для добавления аналитик в каталог.'
+                : 'Ваша организация не подписана ни на одну аналитику. Обратитесь к администратору организации для настройки подписок.'}
+            </Typography.Paragraph>
+          ) : (
+            <Row gutter={[12, 12]}>
+              {displayedTypes.map((t) => (
                 <Col key={t.id} xs={24} md={12} lg={8}>
                   <Card size="small">
                     <Space direction="vertical">
@@ -175,14 +106,15 @@ export function AnalyticsPage() {
                         <b>{t.name}</b>
                       </Checkbox>
                       <Typography.Text type="secondary">Код: {t.code}</Typography.Text>
-                      {!isOrgAdmin && enabledSet.has(t.id) && (
+                      {!isOrgAdmin && (
                         <Tag color="green">Подписана</Tag>
                       )}
                     </Space>
                   </Card>
                 </Col>
               ))}
-          </Row>
+            </Row>
+          )}
         </Card>
       </Space>
     </div>

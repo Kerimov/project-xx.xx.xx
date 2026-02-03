@@ -7,6 +7,28 @@ function getOrgId(req: Request): string | null {
 }
 
 /**
+ * Получить список всех организаций (для администратора ЕЦОФ)
+ */
+export async function getAllOrganizations(req: Request, res: Response, next: NextFunction) {
+  try {
+    const orgs = await orgRepo.getAllOrganizations();
+    res.json({
+      data: orgs.map((org) => ({
+        id: org.id,
+        code: org.code,
+        name: org.name,
+        inn: org.inn,
+        directionId: org.direction_id,
+        createdAt: org.created_at,
+        updatedAt: org.updated_at,
+      })),
+    });
+  } catch (e) {
+    next(e);
+  }
+}
+
+/**
  * Получить информацию об организации текущего пользователя
  */
 export async function getMyOrganization(req: Request, res: Response, next: NextFunction) {

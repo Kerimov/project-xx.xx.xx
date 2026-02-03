@@ -9,6 +9,16 @@ import { nsiSyncService } from '../services/nsi-sync.js';
 import { testUHConnection } from '../db/uh-connection.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
+import { validate, validateQuery, validateParams } from '../middleware/validate.js';
+import * as usersController from '../controllers/users.js';
+import * as orgController from '../controllers/organization.js';
+import {
+  createUserSchema,
+  updateUserSchema,
+  updateUserPasswordSchema,
+  listUsersSchema,
+} from '../validators/users.js';
+import { z } from 'zod';
 
 export const adminRouter = Router();
 
@@ -238,3 +248,16 @@ adminRouter.get('/uh/db/health', requireAdmin, async (_req: Request, res: Respon
     res.status(500).json({ error: { message: error.message } });
   }
 });
+
+// Управление пользователями (только для администратора ЕЦОФ)
+const userIdSchema = z.object({ id: z.string().uuid() });
+
+adminRouter.get('/users', requireAdmin, validateQuery(listUsersSchema), usersController.getAllUsers);
+adminRouter.get('/users/:id', requireAdmin, validateParams(userIdSchema), usersController.getUserById);
+adminRouter.post('/users', requireAdmin, validate(createUserSchema), usersController.createUser);
+adminRouter.put('/users/:id', requireAdmin, validateParams(userIdSchema), validate(updateUserSchema), usersController.updateUser);
+adminRouter.put('/users/:id/password', requireAdmin, validateParams(userIdSchema), validate(updateUserPasswordSchema), usersController.updateUserPassword);
+adminRouter.delete('/users/:id', requireAdmin, validateParams(userIdSchema), usersController.deleteUser);
+
+// Список организаций для выбора при создании/редактировании пользователя
+adminRouter.get('/organizations', requireAdmin, orgController.getAllOrganizations);
