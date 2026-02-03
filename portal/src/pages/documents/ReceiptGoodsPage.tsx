@@ -6,6 +6,7 @@ import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { OrganizationSelect, CounterpartySelect, AccountingAccountSelect, AnalyticsSection, NomenclatureSelect, DepartmentSelect, PackageSelect } from '../../components/forms';
 import { AccountSelect } from '../../components/forms/AccountSelect';
 import { api } from '../../services/api';
+import { useAutoFillOrganization } from '../../hooks/useAutoFillOrganization';
 import dayjs from 'dayjs';
 import { parseDateSafe } from '../../utils/dateUtils';
 
@@ -100,6 +101,9 @@ export function ReceiptGoodsPage({ documentId }: ReceiptGoodsPageProps = {}) {
       loadDocument();
     }
   }, [id, isEditMode, form, navigate]);
+
+  // Автоматическое заполнение организации при создании нового документа
+  useAutoFillOrganization(form, isEditMode, setSelectedOrganizationId);
 
   const handleSave = async () => {
     try {

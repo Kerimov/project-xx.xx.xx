@@ -88,6 +88,9 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
     }
   }, [id, isEditMode, form, navigate]);
 
+  // Автоматическое заполнение организации при создании нового документа
+  useAutoFillOrganization(form, isEditMode, setSelectedOrganizationId);
+
   const handleSave = async () => {
     try {
       setLoading(true);

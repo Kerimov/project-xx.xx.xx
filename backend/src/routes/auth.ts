@@ -160,7 +160,16 @@ authRouter.get('/me', async (req: Request, res: Response) => {
       return res.status(404).json({ error: { message: 'User not found' } });
     }
 
-    res.json({ data: result.rows[0] });
+    const user = result.rows[0];
+    res.json({
+      data: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        organizationId: user.organization_id
+      }
+    });
   } catch (error: any) {
     res.status(401).json({ error: { message: 'Недействительный или просроченный токен' } });
   }

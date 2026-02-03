@@ -5,6 +5,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { OrganizationSelect, CounterpartySelect, ContractSelect, WarehouseSelect, NomenclatureSelect } from '../../components/forms';
 import { api } from '../../services/api';
+import { useAutoFillOrganization } from '../../hooks/useAutoFillOrganization';
 import dayjs from 'dayjs';
 import { parseDateSafe } from '../../utils/dateUtils';
 
@@ -81,6 +82,9 @@ export function ReturnToSupplierPage({ documentId }: ReturnToSupplierPageProps =
       loadDocument();
     }
   }, [id, isEditMode, form, navigate]);
+
+  // Автоматическое заполнение организации при создании нового документа
+  useAutoFillOrganization(form, isEditMode, setSelectedOrganizationId);
 
   const handleSave = async () => {
     try {

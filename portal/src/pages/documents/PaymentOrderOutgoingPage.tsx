@@ -6,6 +6,7 @@ import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { OrganizationSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import { useDocumentEdit } from './useDocumentEdit';
+import { useAutoFillOrganization } from '../../hooks/useAutoFillOrganization';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
@@ -24,6 +25,9 @@ export function PaymentOrderOutgoingPage({ documentId }: PaymentOrderOutgoingPag
     form,
     navigate
   });
+
+  // Автоматическое заполнение организации при создании нового документа
+  useAutoFillOrganization(form, isEditMode);
 
   const handleSave = async () => {
     try {

@@ -6,6 +6,7 @@ import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { OrganizationSelect, CounterpartySelect, ContractSelect, AccountingAccountSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import { useDocumentEdit } from './useDocumentEdit';
+import { useAutoFillOrganization } from '../../hooks/useAutoFillOrganization';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
@@ -39,6 +40,9 @@ export function ReceiptAdditionalExpensesPage({ documentId }: ReceiptAdditionalE
     setSelectedOrganizationId,
     setSelectedCounterpartyId
   });
+
+  // Автоматическое заполнение организации при создании нового документа
+  useAutoFillOrganization(form, isEditMode, setSelectedOrganizationId);
 
   const handleSave = async () => {
     try {

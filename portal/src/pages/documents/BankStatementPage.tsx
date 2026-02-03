@@ -5,6 +5,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { api } from '../../services/api';
 import { useDocumentEdit } from './useDocumentEdit';
+import { useAutoFillOrganization } from '../../hooks/useAutoFillOrganization';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
@@ -36,6 +37,9 @@ export function BankStatementPage({ documentId }: BankStatementPageProps = {}) {
     navigate,
     setItems
   });
+
+  // Автоматическое заполнение организации при создании нового документа
+  useAutoFillOrganization(form, isEditMode);
 
   const handleSave = async () => {
     try {
