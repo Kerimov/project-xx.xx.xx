@@ -42,8 +42,7 @@ export function AppSidebar() {
 
   if (user?.role === 'ecof_admin') {
     items.push(
-      { key: '/admin/users', icon: <UserOutlined />, label: 'Админ: пользователи' },
-      { key: '/analytics/admin', icon: <SettingOutlined />, label: 'Админ: аналитики' }
+      { key: '/admin/users', icon: <UserOutlined />, label: 'Админ: пользователи' }
     );
   }
 
@@ -53,7 +52,6 @@ export function AppSidebar() {
     if (path.startsWith('/nsi')) return '/nsi';
     if (path.startsWith('/uh-db-connection')) return '/uh-db-connection';
     if (path.startsWith('/admin/users')) return '/admin/users';
-    if (path.startsWith('/analytics/admin')) return '/analytics/admin';
     if (path.startsWith('/organization/cabinet')) return '/organization/cabinet';
     if (path.startsWith('/objects')) return '/objects/cards';
     return path;

@@ -21,7 +21,6 @@ import CreateDocumentPage from './pages/CreateDocumentPage';
 import { SelectDocumentTypePage } from './pages/SelectDocumentTypePage';
 import { NSIPage } from './pages/NSIPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
-import { AnalyticsAdminPage } from './pages/AnalyticsAdminPage';
 import { OrganizationCabinetPage } from './pages/OrganizationCabinetPage';
 import { UsersAdminPage } from './pages/UsersAdminPage';
 import { OrganizationDetailsPage } from './pages/nsi/OrganizationDetailsPage';
@@ -66,7 +65,6 @@ function AppLayout() {
             <Route path="/uh-db-connection" element={<AdminRoute><UHDbConnectionPage /></AdminRoute>} />
             <Route path="/nsi" element={<NSIPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route path="/analytics/admin" element={<AnalyticsAdminPage />} />
             <Route path="/organization/cabinet" element={<OrganizationCabinetPage />} />
             <Route path="/admin/users" element={<UsersAdminPage />} />
             <Route path="/nsi/organizations/:id" element={<OrganizationDetailsPage />} />
@@ -75,9 +73,6 @@ function AppLayout() {
             <Route path="/nsi/accounts/:id" element={<AccountDetailsPage />} />
             <Route path="/nsi/warehouses/:id" element={<WarehouseDetailsPage />} />
             <Route path="/nsi/accounting-accounts/:id" element={<AccountingAccountDetailsPage />} />
-            <Route path="/objects/types" element={<AdminRoute><ObjectTypesPage /></AdminRoute>} />
-            <Route path="/objects/types/:id" element={<AdminRoute><ObjectTypesPage /></AdminRoute>} />
-            <Route path="/objects/cards" element={<ObjectCardsPage />} />
             <Route path="/objects/cards/:id" element={<ObjectCardDetailsPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

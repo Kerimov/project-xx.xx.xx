@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   Checkbox,
@@ -79,6 +80,12 @@ export function AnalyticsPage() {
   const [editingObjectType, setEditingObjectType] = useState<ObjectType | null>(null);
   const [savingObjectTypeId, setSavingObjectTypeId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('analytics');
+  const [schemaEditorVisible, setSchemaEditorVisible] = useState(false);
+  const [schemaEditorTypeId, setSchemaEditorTypeId] = useState<string | null>(null);
+  
+  // Администрирование аналитик (для ecof_admin)
+  const [adminCreateForm] = Form.useForm();
+  const [adminValueForm] = Form.useForm();
 
   const enabledSet = useMemo(() => new Set(subs.filter((s) => s.isEnabled).map((s) => s.typeId)), [subs]);
   const objectEnabledSet = useMemo(() => new Set(objectSubs.filter((s) => s.isEnabled).map((s) => s.typeId)), [objectSubs]);
@@ -492,7 +499,121 @@ export function AnalyticsPage() {
           )}
         </Space>
       )
-    }
+    },
+    ...(isEcofAdmin ? [{
+      key: 'admin',
+      label: 'Администрирование',
+      children: (
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <Card size="small" title="Создать тип аналитики">
+            <Form layout="vertical" form={adminCreateForm}>
+              <Row gutter={12}>
+                <Col xs={24} md={6}>
+                  <Form.Item
+                    name="code"
+                    label="Код (A-Z0-9_)"
+                    rules={[{ required: true, message: 'Укажите code' }]}
+                  >
+                    <Input placeholder="COUNTERPARTY" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="name" label="Название" rules={[{ required: true, message: 'Укажите name' }]}>
+                    <Input placeholder="Контрагент" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={6}>
+                  <Form.Item name="directionId" label="Direction ID (опц.)">
+                    <Input placeholder="UUID или пусто" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Button type="primary" onClick={async () => {
+                try {
+                  const v = await adminCreateForm.validateFields();
+                  await api.analytics.adminCreateType(v);
+                  message.success('Тип аналитики создан');
+                  adminCreateForm.resetFields();
+                  await loadAnalytics();
+                } catch (e: any) {
+                  if (e?.errorFields) return;
+                  message.error(e?.message || 'Ошибка создания');
+                }
+              }}>
+                Создать
+              </Button>
+            </Form>
+          </Card>
+
+          <Card size="small" title="Добавить/обновить значение аналитики (ручной ввод)">
+            <Form layout="vertical" form={adminValueForm}>
+              <Row gutter={12}>
+                <Col xs={24} md={6}>
+                  <Form.Item name="typeCode" label="TypeCode" rules={[{ required: true, message: 'Укажите typeCode' }]}>
+                    <Input placeholder="COUNTERPARTY" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={6}>
+                  <Form.Item name="code" label="Код значения" rules={[{ required: true, message: 'Укажите code' }]}>
+                    <Input placeholder="000123" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="name" label="Название" rules={[{ required: true, message: 'Укажите name' }]}>
+                    <Input placeholder="ООО Ромашка" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={12}>
+                <Col xs={24} md={16}>
+                  <Form.Item name="attrs" label="attrs (JSON, опц.)">
+                    <Input.TextArea rows={3} placeholder='{"inn":"7700000000"}' />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Form.Item name="isActive" label="Активен? (true/false)" initialValue="true">
+                    <Input />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Button onClick={async () => {
+                try {
+                  const v = await adminValueForm.validateFields();
+                  await api.analytics.adminUpsertValue({
+                    typeCode: v.typeCode,
+                    code: v.code,
+                    name: v.name,
+                    attrs: v.attrs ? JSON.parse(v.attrs) : undefined,
+                    isActive: v.isActive !== 'false'
+                  });
+                  message.success('Значение сохранено (событие создано)');
+                  adminValueForm.resetFields();
+                } catch (e: any) {
+                  if (e?.errorFields) return;
+                  message.error(e?.message || 'Ошибка сохранения значения');
+                }
+              }} type="primary">
+                Сохранить значение
+              </Button>
+            </Form>
+          </Card>
+
+          <Card size="small" title="Список типов аналитик" loading={loading}>
+            <Table<TypeRow>
+              rowKey="id"
+              dataSource={types}
+              pagination={{ pageSize: 50 }}
+              columns={[
+                { title: 'Код', dataIndex: 'code', key: 'code' },
+                { title: 'Название', dataIndex: 'name', key: 'name' },
+                { title: 'Active', dataIndex: 'isActive', key: 'isActive', render: (v) => String(v) },
+                { title: 'Direction', dataIndex: 'directionId', key: 'directionId', render: (v) => v || '—' }
+              ]}
+            />
+          </Card>
+        </Space>
+      )
+    }] : [])
   ];
 
   return (

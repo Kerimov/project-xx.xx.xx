@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS object_type_schemas (
   data_type VARCHAR(50) NOT NULL,             -- string, number, date, boolean, money, enum, reference(ObjectType), file, json
   field_group VARCHAR(100),                   -- "Основное", "Идентификация", "Финансы", "Эксплуатация", "Налоговая", "Управленческая"
   is_required BOOLEAN NOT NULL DEFAULT false,
-  is_unique BOOLEAN NOT NULL DEFAULT false,   -- уникальность значения в рамках типа
+  is_unique BOOLEAN DEFAULT false NOT NULL,   -- уникальность значения в рамках типа
   validation_rules JSONB DEFAULT '{}'::jsonb,  -- правила валидации (маски, диапазоны, форматы)
   default_value JSONB,                         -- значение по умолчанию
   reference_type_id UUID REFERENCES object_types(id), -- если data_type = reference, ссылка на другой тип объекта

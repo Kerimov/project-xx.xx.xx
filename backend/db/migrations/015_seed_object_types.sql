@@ -22,58 +22,58 @@ BEGIN
     ON CONFLICT (type_id, field_key) DO NOTHING;
 
     -- Идентификация
-    INSERT INTO object_type_schemas (type_id, field_key, label, data_type, field_group, is_required, validation_rules, display_order)
+    INSERT INTO object_type_schemas (type_id, field_key, label, data_type, field_group, is_required, is_unique, validation_rules, display_order)
     VALUES
-      (fixed_asset_type_id, 'vin', 'VIN/Заводской номер', 'string', 'Идентификация', false, '{"pattern": "^[A-HJ-NPR-Z0-9]{17}$", "maxLength": 17}'::jsonb, 10),
-      (fixed_asset_type_id, 'inventoryCardNumber', 'Инвентарная карточка (ОС-6)', 'string', 'Идентификация', false, '{}'::jsonb, 11),
-      (fixed_asset_type_id, 'okofCode', 'ОКОФ код', 'string', 'Идентификация', false, '{}'::jsonb, 12),
-      (fixed_asset_type_id, 'depreciationGroup', 'Амортизационная группа', 'enum', 'Идентификация', true, '{}'::jsonb, 13)
+      (fixed_asset_type_id, 'vin', 'VIN/Заводской номер', 'string', 'Идентификация', false, false, '{"pattern": "^[A-HJ-NPR-Z0-9]{17}$", "maxLength": 17}'::jsonb, 10),
+      (fixed_asset_type_id, 'inventoryCardNumber', 'Инвентарная карточка (ОС-6)', 'string', 'Идентификация', false, false, '{}'::jsonb, 11),
+      (fixed_asset_type_id, 'okofCode', 'ОКОФ код', 'string', 'Идентификация', false, false, '{}'::jsonb, 12),
+      (fixed_asset_type_id, 'depreciationGroup', 'Амортизационная группа', 'enum', 'Идентификация', true, false, '{}'::jsonb, 13)
     ON CONFLICT (type_id, field_key) DO NOTHING;
 
     UPDATE object_type_schemas SET enum_values = '["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]'::jsonb
     WHERE type_id = fixed_asset_type_id AND field_key = 'depreciationGroup';
 
     -- Финансы (БУ)
-    INSERT INTO object_type_schemas (type_id, field_key, label, data_type, field_group, is_required, display_order)
+    INSERT INTO object_type_schemas (type_id, field_key, label, data_type, field_group, is_required, is_unique, display_order)
     VALUES
-      (fixed_asset_type_id, 'initialCost', 'Первоначальная стоимость', 'money', 'Финансы (БУ)', true, 20),
-      (fixed_asset_type_id, 'vatRate', 'Ставка НДС', 'enum', 'Финансы (БУ)', false, 21),
-      (fixed_asset_type_id, 'vatAmount', 'Сумма НДС', 'money', 'Финансы (БУ)', false, 22),
-      (fixed_asset_type_id, 'amortBaseCost', 'Стоимость для амортизации', 'money', 'Финансы (БУ)', false, 23)
+      (fixed_asset_type_id, 'initialCost', 'Первоначальная стоимость', 'money', 'Финансы (БУ)', true, false, 20),
+      (fixed_asset_type_id, 'vatRate', 'Ставка НДС', 'enum', 'Финансы (БУ)', false, false, 21),
+      (fixed_asset_type_id, 'vatAmount', 'Сумма НДС', 'money', 'Финансы (БУ)', false, false, 22),
+      (fixed_asset_type_id, 'amortBaseCost', 'Стоимость для амортизации', 'money', 'Финансы (БУ)', false, false, 23)
     ON CONFLICT (type_id, field_key) DO NOTHING;
 
     UPDATE object_type_schemas SET enum_values = '["0", "10", "20"]'::jsonb
     WHERE type_id = fixed_asset_type_id AND field_key = 'vatRate';
 
     -- Амортизация
-    INSERT INTO object_type_schemas (type_id, field_key, label, data_type, field_group, is_required, display_order)
+    INSERT INTO object_type_schemas (type_id, field_key, label, data_type, field_group, is_required, is_unique, display_order)
     VALUES
-      (fixed_asset_type_id, 'amortMethodBU', 'Метод амортизации (БУ)', 'enum', 'Амортизация', true, 30),
-      (fixed_asset_type_id, 'usefulLifeMonthsBU', 'СПИ (БУ), мес.', 'number', 'Амортизация', true, 31),
-      (fixed_asset_type_id, 'monthlyAmortBU', 'Амортизация/мес (БУ)', 'money', 'Амортизация', false, 32)
+      (fixed_asset_type_id, 'amortMethodBU', 'Метод амортизации (БУ)', 'enum', 'Амортизация', true, false, 30),
+      (fixed_asset_type_id, 'usefulLifeMonthsBU', 'СПИ (БУ), мес.', 'number', 'Амортизация', true, false, 31),
+      (fixed_asset_type_id, 'monthlyAmortBU', 'Амортизация/мес (БУ)', 'money', 'Амортизация', false, false, 32)
     ON CONFLICT (type_id, field_key) DO NOTHING;
 
     UPDATE object_type_schemas SET enum_values = '["linear", "nonlinear", "other"]'::jsonb
     WHERE type_id = fixed_asset_type_id AND field_key = 'amortMethodBU';
 
     -- Эксплуатация
-    INSERT INTO object_type_schemas (type_id, field_key, label, data_type, field_group, is_required, reference_type_id, display_order)
+    INSERT INTO object_type_schemas (type_id, field_key, label, data_type, field_group, is_required, is_unique, reference_type_id, display_order)
     VALUES
-      (fixed_asset_type_id, 'putIntoUseDate', 'Дата ввода в эксплуатацию', 'date', 'Эксплуатация', true, NULL, 40),
-      (fixed_asset_type_id, 'condition', 'Состояние', 'enum', 'Эксплуатация', true, NULL, 41),
-      (fixed_asset_type_id, 'location', 'Место эксплуатации', 'string', 'Эксплуатация', false, NULL, 42),
-      (fixed_asset_type_id, 'departmentId', 'Подразделение', 'string', 'Эксплуатация', false, NULL, 43),
-      (fixed_asset_type_id, 'molId', 'МОЛ', 'string', 'Эксплуатация', false, NULL, 44)
+      (fixed_asset_type_id, 'putIntoUseDate', 'Дата ввода в эксплуатацию', 'date', 'Эксплуатация', true, false, NULL, 40),
+      (fixed_asset_type_id, 'condition', 'Состояние', 'enum', 'Эксплуатация', true, false, NULL, 41),
+      (fixed_asset_type_id, 'location', 'Место эксплуатации', 'string', 'Эксплуатация', false, false, NULL, 42),
+      (fixed_asset_type_id, 'departmentId', 'Подразделение', 'string', 'Эксплуатация', false, false, NULL, 43),
+      (fixed_asset_type_id, 'molId', 'МОЛ', 'string', 'Эксплуатация', false, false, NULL, 44)
     ON CONFLICT (type_id, field_key) DO NOTHING;
 
     UPDATE object_type_schemas SET enum_values = '["good", "needs_repair", "conservation", "written_off"]'::jsonb
     WHERE type_id = fixed_asset_type_id AND field_key = 'condition';
 
     -- Управленческая
-    INSERT INTO object_type_schemas (type_id, field_key, label, data_type, field_group, is_required, reference_type_id, display_order)
+    INSERT INTO object_type_schemas (type_id, field_key, label, data_type, field_group, is_required, is_unique, reference_type_id, display_order)
     VALUES
-      (fixed_asset_type_id, 'cfoId', 'ЦФО', 'reference', 'Управленческая', true, NULL, 50),
-      (fixed_asset_type_id, 'costItemId', 'Статья затрат', 'reference', 'Управленческая', false, NULL, 51)
+      (fixed_asset_type_id, 'cfoId', 'ЦФО', 'reference', 'Управленческая', true, false, NULL, 50),
+      (fixed_asset_type_id, 'costItemId', 'Статья затрат', 'reference', 'Управленческая', false, false, NULL, 51)
     ON CONFLICT (type_id, field_key) DO NOTHING;
   END IF;
 END $$;
