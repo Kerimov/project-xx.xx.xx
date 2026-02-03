@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg';
 import { pool } from '../db/connection.js';
 
 export interface ObjectTypeRow {
@@ -328,7 +329,7 @@ export async function createObjectCard(data: {
     );
     const card = cardRes.rows[0] as ObjectCardRow;
 
-    // Записываем создание в историю
+    // Записываем создание в историю (в той же транзакции, чтобы FK object_card_history_card_id_fkey видел карточку)
     await addObjectCardHistory(
       card.id,
       'Created',
@@ -341,7 +342,8 @@ export async function createObjectCard(data: {
         status: card.status,
         attrs: card.attrs
       },
-      null
+      null,
+      client
     );
 
     // Записываем событие для webhook
@@ -444,7 +446,8 @@ export async function updateObjectCard(
           'code',
           oldCard.code,
           card.code,
-          null
+          null,
+          client
         );
       }
       if (updates.name !== undefined && updates.name !== oldCard.name) {
@@ -456,7 +459,8 @@ export async function updateObjectCard(
           'name',
           oldCard.name,
           card.name,
-          null
+          null,
+          client
         );
       }
       if (updates.status !== undefined && updates.status !== oldCard.status) {
@@ -468,7 +472,8 @@ export async function updateObjectCard(
           'status',
           oldCard.status,
           card.status,
-          null
+          null,
+          client
         );
       }
       if (updates.attrs !== undefined) {
@@ -485,7 +490,8 @@ export async function updateObjectCard(
               key,
               oldAttrs[key],
               newAttrs[key],
-              null
+              null,
+              client
             );
           }
         }
@@ -499,7 +505,8 @@ export async function updateObjectCard(
           null,
           null,
           null,
-          null
+          null,
+          client
         );
       }
     }
@@ -592,6 +599,7 @@ export async function getObjectCardHistory(cardId: string, limit: number = 50): 
   return r.rows as ObjectCardHistoryRow[];
 }
 
+/** Если передан client, вставка выполняется в той же транзакции (для соблюдения FK при создании карточки). */
 export async function addObjectCardHistory(
   cardId: string,
   changeType: string,
@@ -599,9 +607,11 @@ export async function addObjectCardHistory(
   fieldKey: string | null,
   oldValue: unknown,
   newValue: unknown,
-  comment?: string | null
+  comment?: string | null,
+  client?: PoolClient
 ): Promise<void> {
-  await pool.query(
+  const q = client ?? pool;
+  await q.query(
     `INSERT INTO object_card_history (card_id, changed_by, change_type, field_key, old_value, new_value, comment)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
