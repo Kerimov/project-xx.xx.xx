@@ -8,7 +8,6 @@ import {
   createObjectCardSchema,
   updateObjectCardSchema,
   listObjectCardsSchema,
-  setObjectSubscriptionSchema
 } from '../validators/objects.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
@@ -53,11 +52,6 @@ objectsRouter.get('/cards/:id', objectsController.getObjectCardById);
 objectsRouter.post('/cards', validate(createObjectCardSchema), objectsController.createObjectCard);
 objectsRouter.put('/cards/:id', validate(updateObjectCardSchema), objectsController.updateObjectCard);
 objectsRouter.delete('/cards/:id', requireOrgAdmin, objectsController.deleteObjectCard); // удаление только для админов
-
-// ========== Subscriptions (для org_admin и ecof_admin) ==========
-
-objectsRouter.get('/subscriptions', objectsController.listMyObjectSubscriptions);
-objectsRouter.post('/subscriptions', requireOrgAdmin, validate(setObjectSubscriptionSchema), objectsController.setMyObjectSubscription);
 
 // Получение карточек объектов по подписке (для всех авторизованных)
 objectsRouter.get('/subscribed-cards', objectsController.listSubscribedObjectCards);

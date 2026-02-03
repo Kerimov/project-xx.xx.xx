@@ -626,46 +626,6 @@ export async function addObjectCardHistory(
   );
 }
 
-// ========== Organization Subscriptions ==========
-
-export async function setObjectSubscription(orgId: string, typeId: string, isEnabled: boolean): Promise<boolean> {
-  const r = await pool.query(
-    `INSERT INTO org_object_subscriptions (org_id, type_id, is_enabled)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (org_id, type_id)
-     DO UPDATE SET is_enabled = EXCLUDED.is_enabled, updated_at = now()`,
-    [orgId, typeId, isEnabled]
-  );
-  return (r.rowCount ?? 0) > 0;
-}
-
-export async function listOrgObjectSubscriptions(orgId: string): Promise<Array<{ org_id: string; type_id: string; is_enabled: boolean; type_code: string; type_name: string }>> {
-  const r = await pool.query(
-    `SELECT s.org_id, s.type_id, s.is_enabled, t.code as type_code, t.name as type_name
-     FROM org_object_subscriptions s
-     JOIN object_types t ON t.id = s.type_id
-     WHERE s.org_id = $1
-     ORDER BY t.name ASC`,
-    [orgId]
-  );
-  return r.rows as Array<{ org_id: string; type_id: string; is_enabled: boolean; type_code: string; type_name: string }>;
-}
-
-export async function getEnabledObjectTypeCodesForOrg(orgId: string): Promise<Set<string>> {
-  const r = await pool.query(
-    `SELECT t.code
-     FROM org_object_subscriptions s
-     JOIN object_types t ON t.id = s.type_id
-     WHERE s.org_id = $1 AND s.is_enabled = true`,
-    [orgId]
-  );
-  const set = new Set<string>();
-  for (const row of r.rows as Array<{ code: string }>) {
-    if (row?.code) set.add(String(row.code).toUpperCase());
-  }
-  return set;
-}
-
 // Получение карточек объектов, на которые подписана организация
 export async function listSubscribedObjectCards(params: {
   orgId: string;

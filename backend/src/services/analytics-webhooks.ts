@@ -59,6 +59,12 @@ export class AnalyticsWebhooksService {
          FROM analytics_resync_jobs
          WHERE status = 'Pending'
            AND next_retry_at <= now()
+           AND NOT EXISTS (
+             SELECT 1 FROM analytics_resync_jobs j2
+             WHERE j2.org_id = analytics_resync_jobs.org_id
+               AND j2.type_id = analytics_resync_jobs.type_id
+               AND j2.status = 'Processing'
+           )
          ORDER BY created_at ASC
          LIMIT 5
          FOR UPDATE SKIP LOCKED

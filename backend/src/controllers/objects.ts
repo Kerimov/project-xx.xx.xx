@@ -463,45 +463,6 @@ export async function deleteObjectCard(req: Request, res: Response, next: NextFu
   }
 }
 
-// ========== Subscriptions ==========
-
-export async function listMyObjectSubscriptions(req: Request, res: Response, next: NextFunction) {
-  try {
-    const orgId = getOrgId(req);
-    if (!orgId) {
-      return res.status(400).json({ error: { message: 'У пользователя не задана организация' } });
-    }
-
-    const rows = await objectsRepo.listOrgObjectSubscriptions(orgId);
-    res.json({
-      data: rows.map((r) => ({
-        typeId: r.type_id,
-        typeCode: r.type_code,
-        typeName: r.type_name,
-        isEnabled: r.is_enabled
-      }))
-    });
-  } catch (e) {
-    next(e);
-  }
-}
-
-export async function setMyObjectSubscription(req: Request, res: Response, next: NextFunction) {
-  try {
-    const orgId = getOrgId(req);
-    if (!orgId) {
-      return res.status(400).json({ error: { message: 'У пользователя не задана организация' } });
-    }
-
-    const { typeId, isEnabled } = req.body as { typeId: string; isEnabled: boolean };
-    await objectsRepo.setObjectSubscription(orgId, typeId, !!isEnabled);
-
-    res.json({ data: { success: true } });
-  } catch (e) {
-    next(e);
-  }
-}
-
 export async function listSubscribedObjectCards(req: Request, res: Response, next: NextFunction) {
   try {
     const orgId = getOrgId(req);

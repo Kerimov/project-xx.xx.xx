@@ -62,8 +62,3 @@ export const listObjectCardsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(1000).optional(),
   offset: z.coerce.number().int().min(0).optional()
 });
-
-export const setObjectSubscriptionSchema = z.object({
-  typeId: z.string().uuid(),
-  isEnabled: z.boolean()
-});

@@ -843,22 +843,6 @@ export const api = {
       delete: (id: string) =>
         request<{ data: { success: boolean } }>(`/objects/cards/${id}`, { method: 'DELETE' })
     },
-    subscriptions: {
-      list: () =>
-        request<{
-          data: Array<{
-            typeId: string;
-            typeCode: string;
-            typeName: string;
-            isEnabled: boolean;
-          }>;
-        }>('/objects/subscriptions'),
-      set: (payload: { typeId: string; isEnabled: boolean }) =>
-        request<{ data: { success: boolean } }>('/objects/subscriptions', {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        })
-    },
     subscribedCards: {
       list: (params: {
         typeCode: string;
