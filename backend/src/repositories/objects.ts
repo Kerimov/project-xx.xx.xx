@@ -243,8 +243,9 @@ export async function listObjectCards(filters?: {
   let i = 1;
 
   if (filters?.typeId) {
-    q += ` AND type_id = $${i++}`;
-    countQ += ` AND type_id = $${i}`;
+    const idx = i++;
+    q += ` AND type_id = $${idx}`;
+    countQ += ` AND type_id = $${idx}`;
     p.push(filters.typeId);
   }
   if (filters?.organizationId !== undefined) {
@@ -252,19 +253,23 @@ export async function listObjectCards(filters?: {
       q += ` AND organization_id IS NULL`;
       countQ += ` AND organization_id IS NULL`;
     } else {
-      q += ` AND organization_id = $${i++}`;
-      countQ += ` AND organization_id = $${i}`;
+      const idx = i++;
+      q += ` AND organization_id = $${idx}`;
+      countQ += ` AND organization_id = $${idx}`;
       p.push(filters.organizationId);
     }
   }
   if (filters?.status) {
-    q += ` AND status = $${i++}`;
-    countQ += ` AND status = $${i}`;
+    const idx = i++;
+    q += ` AND status = $${idx}`;
+    countQ += ` AND status = $${idx}`;
     p.push(filters.status);
   }
   if (filters?.search && filters.search.trim()) {
-    q += ` AND (code ILIKE $${i++} OR name ILIKE $${i++})`;
-    countQ += ` AND (code ILIKE $${i} OR name ILIKE $${i + 1})`;
+    const searchIdx1 = i++;
+    const searchIdx2 = i++;
+    q += ` AND (code ILIKE $${searchIdx1} OR name ILIKE $${searchIdx2})`;
+    countQ += ` AND (code ILIKE $${searchIdx1} OR name ILIKE $${searchIdx2})`;
     const s = `%${filters.search.trim()}%`;
     p.push(s, s);
   }
@@ -678,5 +683,6 @@ export async function listSubscribedObjectCards(params: {
     limit: params.limit,
     offset: params.offset
   };
-  return listObjectCards(filters);
+  const { rows, total } = await listObjectCards(filters);
+  return { type, rows, total };
 }

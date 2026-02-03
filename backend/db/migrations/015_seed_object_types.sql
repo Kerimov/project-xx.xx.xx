@@ -101,7 +101,7 @@ BEGIN
       (counterparty_type_id, 'legalAddress', 'Юр. адрес', 'json', 'Адреса', false, false, 20),
       (counterparty_type_id, 'actualAddress', 'Факт. адрес', 'json', 'Адреса', false, false, 21),
       (counterparty_type_id, 'contacts', 'Контакты', 'json', 'Контакты', false, false, 30),
-      (counterparty_type_id, 'defaultContractId', 'Договор по умолчанию', 'string', 'Расчеты', false, NULL, 40)
+      (counterparty_type_id, 'defaultContractId', 'Договор по умолчанию', 'string', 'Расчеты', false, false, 40)
     ON CONFLICT (type_id, field_key) DO NOTHING;
 
     UPDATE object_type_schemas SET enum_values = '["legal_entity", "individual_entrepreneur", "individual", "non_resident"]'::jsonb

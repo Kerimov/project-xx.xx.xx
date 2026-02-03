@@ -4,7 +4,7 @@ import {
   Card,
   Checkbox,
   Col,
-  Divider,
+  List,
   Row,
   Space,
   Typography,
@@ -84,7 +84,9 @@ export function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<string>('analytics');
   const [schemaEditorVisible, setSchemaEditorVisible] = useState(false);
   const [schemaEditorTypeId, setSchemaEditorTypeId] = useState<string | null>(null);
-  
+  /** Схема полей выбранного типа объекта — для отображения аналитик по объектам в таблице */
+  const [objectTypeSchemaForList, setObjectTypeSchemaForList] = useState<Array<{ fieldKey: string; label: string; fieldGroup: string; dataType: string }>>([]);
+
   // Администрирование аналитик (для ecof_admin)
   const [adminCreateForm] = Form.useForm();
   const [adminValueForm] = Form.useForm();
@@ -166,8 +168,24 @@ export function AnalyticsPage() {
   useEffect(() => {
     if (selectedObjectTypeCode && activeTab === 'objects') {
       loadObjectCards(selectedObjectTypeCode);
+      const type = objectTypes.find((t) => t.code === selectedObjectTypeCode);
+      if (type) {
+        api.objects.types.getSchemas(type.id).then((r) => {
+          const list = (r.data || []).map((f: any) => ({
+            fieldKey: f.fieldKey,
+            label: f.label,
+            fieldGroup: f.fieldGroup || 'Прочее',
+            dataType: f.dataType || 'string'
+          }));
+          setObjectTypeSchemaForList(list);
+        }).catch(() => setObjectTypeSchemaForList([]));
+      } else {
+        setObjectTypeSchemaForList([]);
+      }
+    } else {
+      setObjectTypeSchemaForList([]);
     }
-  }, [selectedObjectTypeCode, activeTab]);
+  }, [selectedObjectTypeCode, activeTab, objectTypes]);
 
   const toggleSubscription = async (typeId: string, isEnabled: boolean) => {
     try {
@@ -358,6 +376,81 @@ export function AnalyticsPage() {
       : [])
   ];
 
+  const FIELD_KEY_LABELS: Record<string, string> = {
+    monthlyAmortNU: 'Амортизация/мес (НУ)',
+    amortMethodNU: 'Метод амортизации (НУ)',
+    usefulLifeMonthsNU: 'СПИ (НУ), мес.',
+    techSpecs: 'Технические характеристики',
+    insurance: 'Страхование',
+    history: 'История движения',
+    maintenanceSchedule: 'График ТО'
+  };
+
+  const formatAttrValue = (value: unknown, dataType?: string, fieldKey?: string): string => {
+    if (value === null || value === undefined) return '—';
+    if (dataType === 'date' && typeof value === 'string') return dayjs(value).format('DD.MM.YYYY');
+    if (typeof value === 'number') return value.toLocaleString('ru-RU');
+    if (typeof value === 'boolean') return value ? 'Да' : 'Нет';
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase();
+      if (lower === 'linear') return 'Линейный';
+      if (lower === 'good') return 'Хорошее';
+      if (lower === 'active') return 'Активен';
+      if (lower === 'inactive') return 'Неактивен';
+      return value;
+    }
+    if (typeof value === 'object') {
+      if (Array.isArray(value)) {
+        const items = value as Array<{ date?: string; event?: string; document?: string }>;
+        if (items.length && typeof items[0] === 'object' && items[0] !== null && 'event' in items[0]) {
+          return items
+            .map((it) => {
+              const d = it.date ? dayjs(it.date).format('DD.MM.YYYY') : '';
+              const ev = it.event || '';
+              const doc = it.document ? ` (${it.document})` : '';
+              return d ? `${d} — ${ev}${doc}` : ev;
+            })
+            .join('; ');
+        }
+        return items.map((it) => (typeof it === 'object' ? JSON.stringify(it) : String(it))).join('; ');
+      }
+      const obj = value as Record<string, unknown>;
+      if (fieldKey === 'insurance' && obj.osago && obj.casco) {
+        const osago = obj.osago as { number?: string; validUntil?: string };
+        const casco = obj.casco as { number?: string; validUntil?: string };
+        const parts: string[] = [];
+        if (osago?.number || osago?.validUntil) parts.push(`ОСАГО: ${osago.number || '—'} до ${osago.validUntil ? dayjs(osago.validUntil).format('DD.MM.YYYY') : '—'}`);
+        if (casco?.number || casco?.validUntil) parts.push(`КАСКО: ${casco.number || '—'} до ${casco.validUntil ? dayjs(casco.validUntil).format('DD.MM.YYYY') : '—'}`);
+        return parts.join('; ') || '—';
+      }
+      if (fieldKey === 'techSpecs' || (obj.model !== undefined && obj.engineVolume !== undefined)) {
+        const model = obj.model as string | undefined;
+        const engineVolume = obj.engineVolume as string | undefined;
+        const year = obj.year as number | undefined;
+        const color = obj.color as string | undefined;
+        const licensePlate = obj.licensePlate as string | undefined;
+        const parts: string[] = [];
+        if (model) parts.push(`модель ${model}`);
+        if (engineVolume) parts.push(engineVolume);
+        if (year) parts.push(`${year} г.`);
+        if (color) parts.push(`цвет ${color}`);
+        if (licensePlate) parts.push(`гос. номер ${licensePlate}`);
+        return parts.length ? parts.join(', ') : '—';
+      }
+      if (fieldKey === 'maintenanceSchedule' || (obj.nextMaintenance !== undefined && obj.nextMaintenanceMileage !== undefined)) {
+        const next = obj.nextMaintenance as string | undefined;
+        const mileage = obj.nextMaintenanceMileage as number | undefined;
+        if (next && mileage != null) return `Следующее ТО: ${dayjs(next).format('DD.MM.YYYY')} (пробег ${mileage.toLocaleString('ru-RU')} км)`;
+        if (next) return `Следующее ТО: ${dayjs(next).format('DD.MM.YYYY')}`;
+        return '—';
+      }
+      return Object.entries(obj)
+        .map(([k, v]) => `${k}: ${typeof v === 'object' && v !== null ? JSON.stringify(v) : v}`)
+        .join('; ');
+    }
+    return String(value);
+  };
+
   const objectCardColumns = [
     {
       title: 'Код',
@@ -399,60 +492,93 @@ export function AnalyticsPage() {
     }
   ];
 
+  const expandableRowRender = (record: ObjectCard) => {
+    const attrs = record.attrs || {};
+    const schemaMap = new Map(objectTypeSchemaForList.map((s) => [s.fieldKey, s]));
+    const byGroup: Record<string, Array<{ label: string; value: unknown; dataType: string; fieldKey: string }>> = {};
+    Object.entries(attrs).forEach(([key, value]) => {
+      if (value === null || value === undefined || value === '') return;
+      const s = schemaMap.get(key);
+      const g = s ? (s.fieldGroup || 'Прочее') : 'Прочее';
+      if (!byGroup[g]) byGroup[g] = [];
+      const label = s ? s.label : (FIELD_KEY_LABELS[key] || key);
+      byGroup[g].push({
+        label,
+        value,
+        dataType: s ? s.dataType : 'string',
+        fieldKey: key
+      });
+    });
+
+    const groups = Object.entries(byGroup).sort(([a], [b]) => a.localeCompare(b));
+    if (groups.length === 0) {
+      return (
+        <Typography.Paragraph type="secondary" style={{ margin: 12 }}>
+          Аналитические признаки не заполнены. Откройте карточку объекта для редактирования.
+        </Typography.Paragraph>
+      );
+    }
+    return (
+      <div style={{ padding: '12px 24px' }}>
+        <Typography.Text strong style={{ marginBottom: 8, display: 'block' }}>
+          Аналитики по объекту
+        </Typography.Text>
+        {groups.map(([group, items]) => (
+          <Card key={group} size="small" title={group} style={{ marginBottom: 12 }}>
+            <Row gutter={[16, 8]}>
+              {items.map(({ label, value, dataType, fieldKey }) => (
+                <Col key={fieldKey} xs={24} sm={12} md={8} lg={6}>
+                  <Typography.Text type="secondary">{label}:</Typography.Text>{' '}
+                  <Typography.Text>{formatAttrValue(value, dataType, fieldKey)}</Typography.Text>
+                </Col>
+              ))}
+            </Row>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
   const tabsItems: TabsProps['items'] = [
     {
       key: 'analytics',
       label: 'Аналитики',
       children: (
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
-          <Card size="small" title="Подписки на виды аналитик" loading={loading}>
-            <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
-              {isOrgAdmin
-                ? 'Включите только те аналитики, которые ваша организация будет получать и использовать в документах на портале.'
-                : 'Аналитики, на которые подписана ваша организация. Для изменения подписок обратитесь к администратору организации.'}
+        <Card size="small" title="Подписки на виды аналитик" loading={loading}>
+          <Typography.Paragraph type="secondary" style={{ marginTop: 0, marginBottom: 16 }}>
+            {isOrgAdmin
+              ? 'Включите аналитики, которые организация будет использовать в документах.'
+              : 'Аналитики, на которые подписана ваша организация.'}
+          </Typography.Paragraph>
+          {loading ? (
+            <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: 24 }}>Загрузка...</Typography.Paragraph>
+          ) : displayedTypes.length === 0 ? (
+            <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: 24 }}>
+              {isOrgAdmin ? 'Нет доступных аналитик. Добавьте тип во вкладке «Администрирование».' : 'Нет подписок. Обратитесь к администратору организации.'}
             </Typography.Paragraph>
-
-            <Divider style={{ margin: '12px 0' }} />
-
-            {loading ? (
-              <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: '40px 0' }}>
-                Загрузка аналитик...
-              </Typography.Paragraph>
-            ) : displayedTypes.length === 0 ? (
-              <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: '40px 0' }}>
-                {isOrgAdmin
-                  ? 'Нет доступных аналитик. Обратитесь к администратору ЕЦОФ для добавления аналитик в каталог или создайте новый тип аналитики во вкладке "Администрирование".'
-                  : 'Ваша организация не подписана ни на одну аналитику. Обратитесь к администратору организации для настройки подписок.'}
-              </Typography.Paragraph>
-            ) : (
-              <>
-                <Typography.Text strong style={{ display: 'block', marginBottom: 12 }}>
-                  Доступно аналитик: {displayedTypes.length}
-                  {isOrgAdmin && ` (из ${types.length} в каталоге)`}
-                </Typography.Text>
-                <Row gutter={[12, 12]}>
-                  {displayedTypes.map((t) => (
-                    <Col key={t.id} xs={24} md={12} lg={8}>
-                      <Card size="small">
-                        <Space direction="vertical">
-                          <Checkbox
-                            checked={enabledSet.has(t.id)}
-                            disabled={!isOrgAdmin || savingTypeId === t.id}
-                            onChange={(e) => toggleSubscription(t.id, e.target.checked)}
-                          >
-                            <b>{t.name}</b>
-                          </Checkbox>
-                          <Typography.Text type="secondary">Код: {t.code}</Typography.Text>
-                          {!isOrgAdmin && <Tag color="green">Подписана</Tag>}
-                        </Space>
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
-              </>
-            )}
-          </Card>
-        </Space>
+          ) : (
+            <List
+              size="small"
+              dataSource={displayedTypes}
+              renderItem={(t) => (
+                <List.Item
+                  extra={!isOrgAdmin && enabledSet.has(t.id) ? <Tag color="green">Подписана</Tag> : null}
+                >
+                  <Checkbox
+                    checked={enabledSet.has(t.id)}
+                    disabled={!isOrgAdmin || savingTypeId === t.id}
+                    onChange={(e) => toggleSubscription(t.id, e.target.checked)}
+                  >
+                    <Space size={4}>
+                      <Typography.Text strong>{t.name}</Typography.Text>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>({t.code})</Typography.Text>
+                    </Space>
+                  </Checkbox>
+                </List.Item>
+              )}
+            />
+          )}
+        </Card>
       )
     },
     {
@@ -460,42 +586,38 @@ export function AnalyticsPage() {
       label: 'Объекты учета',
       children: (
         <Space direction="vertical" style={{ width: '100%' }} size="large">
-          {/* Шаг 1. Тип объекта учета */}
           <Card size="small" title="Шаг 1. Тип объекта учета">
-            <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
-              Выберите тип объекта (Основное средство, Проект и т.д.). Включите подписку на нужный тип — тогда вы сможете создавать объекты этого типа и добавлять к ним аналитики.
+            <Typography.Paragraph type="secondary" style={{ marginTop: 0, marginBottom: 16 }}>
+              Включите подписку на нужный тип объекта — затем можно создавать объекты и заполнять аналитики.
             </Typography.Paragraph>
-            <Divider style={{ margin: '12px 0' }} />
             {displayedObjectTypes.length === 0 ? (
-              <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: '40px 0' }}>
-                {isOrgAdmin
-                  ? 'Нет доступных типов объектов. Обратитесь к администратору ЕЦОФ или создайте тип во вкладке «Администрирование».'
-                  : 'Ваша организация не подписана ни на один тип объекта. Обратитесь к администратору организации.'}
+              <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: 24 }}>
+                {isOrgAdmin ? 'Нет типов объектов. Создайте тип во вкладке «Администрирование».' : 'Нет подписок. Обратитесь к администратору организации.'}
               </Typography.Paragraph>
             ) : (
-              <Row gutter={[12, 12]}>
-                {displayedObjectTypes.map((t) => (
-                  <Col key={t.id} xs={24} md={12} lg={8}>
-                    <Card size="small">
-                      <Space direction="vertical">
-                        <Checkbox
-                          checked={objectEnabledSet.has(t.id)}
-                          disabled={!isOrgAdmin || savingObjectTypeId === t.id}
-                          onChange={(e) => toggleObjectSubscription(t.id, e.target.checked)}
-                        >
-                          <b>{t.name}</b>
-                        </Checkbox>
-                        <Typography.Text type="secondary">Код: {t.code}</Typography.Text>
-                        {!isOrgAdmin && <Tag color="green">Подписана</Tag>}
+              <List
+                size="small"
+                dataSource={displayedObjectTypes}
+                renderItem={(t) => (
+                  <List.Item
+                    extra={!isOrgAdmin && objectEnabledSet.has(t.id) ? <Tag color="green">Подписана</Tag> : null}
+                  >
+                    <Checkbox
+                      checked={objectEnabledSet.has(t.id)}
+                      disabled={!isOrgAdmin || savingObjectTypeId === t.id}
+                      onChange={(e) => toggleObjectSubscription(t.id, e.target.checked)}
+                    >
+                      <Space size={4}>
+                        <Typography.Text strong>{t.name}</Typography.Text>
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>({t.code})</Typography.Text>
                       </Space>
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
+                    </Checkbox>
+                  </List.Item>
+                )}
+              />
             )}
           </Card>
 
-          {/* Шаг 2. Создание объекта и добавление аналитик */}
           <Card
             size="small"
             title="Шаг 2. Создание объекта и добавление аналитик"
@@ -507,54 +629,40 @@ export function AnalyticsPage() {
               ) : null
             }
           >
-            <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
-              Создайте объект выбранного типа (код и наименование), затем заполните аналитические признаки — характеристики, суммы, даты и т.д.
-            </Typography.Paragraph>
-            <Divider style={{ margin: '12px 0' }} />
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Space wrap>
-                <Typography.Text strong>Тип объекта:</Typography.Text>
-                <Select
-                  placeholder="Выберите тип объекта"
-                  style={{ width: 320 }}
-                  value={selectedObjectTypeCode}
-                  onChange={(value) => {
-                    setSelectedObjectTypeCode(value);
-                    if (value) loadObjectCards(value);
-                    else setObjectCards([]);
-                  }}
-                  options={displayedObjectTypes
-                    .filter((t) => objectEnabledSet.has(t.id))
-                    .map((t) => ({ label: `${t.name} (${t.code})`, value: t.code }))}
-                  notFoundContent={
-                    displayedObjectTypes.length === 0
-                      ? 'Нет доступных типов. Включите подписку в шаге 1.'
-                      : 'Нет подписанных типов. Включите подписку в шаге 1.'
-                  }
+            <Space wrap align="center" style={{ marginBottom: selectedObjectTypeCode ? 16 : 0 }}>
+              <Typography.Text strong>Тип объекта:</Typography.Text>
+              <Select
+                placeholder="Выберите тип объекта"
+                style={{ width: 320 }}
+                value={selectedObjectTypeCode}
+                onChange={(value) => {
+                  setSelectedObjectTypeCode(value);
+                  if (value) loadObjectCards(value);
+                  else setObjectCards([]);
+                }}
+                options={displayedObjectTypes
+                  .filter((t) => objectEnabledSet.has(t.id))
+                  .map((t) => ({ label: `${t.name} (${t.code})`, value: t.code }))}
+                notFoundContent="Включите подписку в шаге 1"
+              />
+              {selectedObjectTypeCode && (
+                <Input.Search
+                  placeholder="Поиск..."
+                  style={{ width: 240 }}
+                  onSearch={(value) => selectedObjectTypeCode && loadObjectCards(selectedObjectTypeCode, value || undefined)}
+                  allowClear
                 />
-                {selectedObjectTypeCode && (
-                  <Input.Search
-                    placeholder="Поиск по коду или наименованию..."
-                    style={{ width: 280 }}
-                    onSearch={(value) => selectedObjectTypeCode && loadObjectCards(selectedObjectTypeCode, value || undefined)}
-                    allowClear
-                  />
-                )}
-              </Space>
-              {!selectedObjectTypeCode && (
-                <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                  Выберите тип объекта выше, затем нажмите «Создать объект» — откроется форма: сначала укажете объект (код, наименование), затем добавите аналитики.
-                </Typography.Paragraph>
               )}
             </Space>
+            {!selectedObjectTypeCode && (
+              <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>Выберите тип объекта и нажмите «Создать объект» для добавления объекта и аналитик.</Typography.Paragraph>
+            )}
           </Card>
 
-          {/* Шаг 3. Созданные объекты */}
           <Card size="small" title="Шаг 3. Созданные объекты">
-            <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
-              Список объектов выбранного типа. Нажмите на наименование, чтобы открыть карточку и при необходимости отредактировать аналитики.
+            <Typography.Paragraph type="secondary" style={{ marginTop: 0, marginBottom: 16 }}>
+              Раскройте строку (▶), чтобы увидеть аналитики по объекту. Нажмите на наименование для редактирования.
             </Typography.Paragraph>
-            <Divider style={{ margin: '12px 0' }} />
             {selectedObjectTypeCode ? (
               objectCards.length > 0 ? (
                 <Table
@@ -564,6 +672,10 @@ export function AnalyticsPage() {
                   loading={objectCardsLoading}
                   pagination={{ pageSize: 20 }}
                   size="small"
+                  expandable={{
+                    expandedRowRender: expandableRowRender,
+                    rowExpandable: (record) => true
+                  }}
                 />
               ) : (
                 <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: '40px 0' }}>
@@ -586,22 +698,17 @@ export function AnalyticsPage() {
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           <Card size="small" title="Создать тип аналитики">
             <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
-              Создайте новый тип аналитики, который будет доступен для подписки организациям. 
-              После создания тип появится в каталоге аналитик во вкладке "Аналитики".
+              Новый тип появится во вкладке «Аналитики» для подписки организаций.
             </Typography.Paragraph>
             <Form layout="vertical" form={adminCreateForm}>
               <Row gutter={12}>
                 <Col xs={24} md={6}>
-                  <Form.Item
-                    name="code"
-                    label="Код (A-Z0-9_)"
-                    rules={[{ required: true, message: 'Укажите code' }]}
-                  >
+                  <Form.Item name="code" label="Код" rules={[{ required: true, message: 'Укажите код' }]}>
                     <Input placeholder="COUNTERPARTY" />
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>
-                  <Form.Item name="name" label="Название" rules={[{ required: true, message: 'Укажите name' }]}>
+                  <Form.Item name="name" label="Название" rules={[{ required: true, message: 'Укажите название' }]}>
                     <Input placeholder="Контрагент" />
                   </Form.Item>
                 </Col>
@@ -628,64 +735,41 @@ export function AnalyticsPage() {
             </Form>
           </Card>
 
-          <Card size="small" title="Каталог аналитик">
-            <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
-              Все типы аналитик, доступные в системе (созданные через миграции или вручную).
-            </Typography.Paragraph>
-            <Table
-              columns={[
-                { title: 'Код', dataIndex: 'code', key: 'code', width: 200 },
-                { title: 'Название', dataIndex: 'name', key: 'name' },
-                {
-                  title: 'Статус',
-                  dataIndex: 'isActive',
-                  key: 'isActive',
-                  width: 100,
-                  render: (active: boolean) => (
-                    <Tag color={active ? 'green' : 'red'}>{active ? 'Активен' : 'Неактивен'}</Tag>
-                  )
-                }
-              ]}
-              dataSource={types}
-              rowKey="id"
-              pagination={{ pageSize: 20 }}
-              size="small"
-              loading={loading}
-            />
-          </Card>
-
-          <Card size="small" title="Добавить/обновить значение аналитики (ручной ввод)">
+          <Card size="small" title="Добавить значение аналитики">
             <Form layout="vertical" form={adminValueForm}>
               <Row gutter={12}>
                 <Col xs={24} md={6}>
-                  <Form.Item name="typeCode" label="TypeCode" rules={[{ required: true, message: 'Укажите typeCode' }]}>
+                  <Form.Item name="typeCode" label="Код типа" rules={[{ required: true, message: 'Укажите код типа' }]}>
                     <Input placeholder="COUNTERPARTY" />
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={6}>
-                  <Form.Item name="code" label="Код значения" rules={[{ required: true, message: 'Укажите code' }]}>
+                  <Form.Item name="code" label="Код значения" rules={[{ required: true, message: 'Укажите код' }]}>
                     <Input placeholder="000123" />
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>
-                  <Form.Item name="name" label="Название" rules={[{ required: true, message: 'Укажите name' }]}>
+                  <Form.Item name="name" label="Название" rules={[{ required: true, message: 'Укажите название' }]}>
                     <Input placeholder="ООО Ромашка" />
                   </Form.Item>
                 </Col>
               </Row>
               <Row gutter={12}>
                 <Col xs={24} md={16}>
-                  <Form.Item name="attrs" label="attrs (JSON, опц.)">
-                    <Input.TextArea rows={3} placeholder='{"inn":"7700000000"}' />
+                  <Form.Item name="attrs" label="Атрибуты (JSON, опц.)">
+                    <Input.TextArea rows={2} placeholder='{"inn":"7700000000"}' />
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={8}>
-                  <Form.Item name="isActive" label="Активен? (true/false)" initialValue="true">
-                    <Input />
+                  <Form.Item name="isActive" label="Активен" initialValue="true">
+                    <Select>
+                      <Select.Option value="true">Да</Select.Option>
+                      <Select.Option value="false">Нет</Select.Option>
+                    </Select>
                   </Form.Item>
                 </Col>
               </Row>
-              <Button onClick={async () => {
+              <Button type="primary" onClick={async () => {
                 try {
                   const v = await adminValueForm.validateFields();
                   await api.analytics.adminUpsertValue({
@@ -695,47 +779,49 @@ export function AnalyticsPage() {
                     attrs: v.attrs ? JSON.parse(v.attrs) : undefined,
                     isActive: v.isActive !== 'false'
                   });
-                  message.success('Значение сохранено (событие создано)');
+                  message.success('Значение сохранено');
                   adminValueForm.resetFields();
                 } catch (e: any) {
                   if (e?.errorFields) return;
-                  message.error(e?.message || 'Ошибка сохранения значения');
+                  message.error(e?.message || 'Ошибка сохранения');
                 }
-              }} type="primary">
-                Сохранить значение
+              }}>
+                Сохранить
               </Button>
             </Form>
           </Card>
 
-          {/* Управление типами объектов учета (только для ecof_admin) */}
           <Card size="small" title="Типы объектов учета">
             <Space style={{ marginBottom: 16 }}>
               <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateObjectType}>
                 Создать тип
               </Button>
             </Space>
-            <Table
-              columns={objectTypeColumns}
-              dataSource={objectTypes}
-              rowKey="id"
-              pagination={{ pageSize: 10 }}
-              size="small"
-              loading={loading}
-            />
-          </Card>
-
-          <Card size="small" title="Список типов аналитик" loading={loading}>
-            <Table<TypeRow>
-              rowKey="id"
-              dataSource={types}
-              pagination={{ pageSize: 50 }}
-              columns={[
-                { title: 'Код', dataIndex: 'code', key: 'code' },
-                { title: 'Название', dataIndex: 'name', key: 'name' },
-                { title: 'Active', dataIndex: 'isActive', key: 'isActive', render: (v) => String(v) },
-                { title: 'Direction', dataIndex: 'directionId', key: 'directionId', render: (v) => v || '—' }
-              ]}
-            />
+            {objectTypes.length === 0 ? (
+              <Typography.Paragraph type="secondary" style={{ padding: 24, textAlign: 'center' }}>Нет типов объектов. Создайте тип кнопкой выше.</Typography.Paragraph>
+            ) : (
+              <List
+                size="small"
+                dataSource={objectTypes}
+                renderItem={(t) => (
+                  <List.Item
+                    extra={
+                      isEcofAdmin ? (
+                        <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditObjectType(t)}>
+                          Редактировать
+                        </Button>
+                      ) : null
+                    }
+                  >
+                    <Space>
+                      <Typography.Text strong>{t.name}</Typography.Text>
+                      <Typography.Text type="secondary">({t.code})</Typography.Text>
+                      <Tag color={t.isActive ? 'green' : 'red'}>{t.isActive ? 'Активен' : 'Неактивен'}</Tag>
+                    </Space>
+                  </List.Item>
+                )}
+              />
+            )}
           </Card>
         </Space>
       )
