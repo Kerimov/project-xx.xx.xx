@@ -62,3 +62,13 @@ export const listObjectCardsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(1000).optional(),
   offset: z.coerce.number().int().min(0).optional()
 });
+
+// Org object subscriptions (v2)
+export const setObjectSubscriptionModeSchema = z.object({
+  typeId: z.string().uuid(),
+  mode: z.enum(['NONE', 'ALL', 'SELECTED'])
+});
+
+export const setObjectSubscriptionCardsSchema = z.object({
+  cardIds: z.array(z.string().uuid()).default([])
+});

@@ -10,6 +10,10 @@ function getOrgId(req: Request): string | null {
   return (req as any).user?.organizationId ?? null;
 }
 
+function isEcofAdmin(req: Request): boolean {
+  return String((req as any).user?.role || '') === 'ecof_admin';
+}
+
 // ========== Object Types ==========
 
 export async function listObjectTypes(req: Request, res: Response, next: NextFunction) {
@@ -286,6 +290,34 @@ export async function listObjectCards(req: Request, res: Response, next: NextFun
   }
 }
 
+export async function lookupObjectCard(req: Request, res: Response, next: NextFunction) {
+  try {
+    const typeId = String(req.query.typeId || '');
+    const code = String(req.query.code || '');
+    if (!typeId || !code) {
+      return res.status(400).json({ error: { message: 'Укажите typeId и code' } });
+    }
+    const card = await objectsRepo.getObjectCardByTypeAndCode(typeId, code);
+    res.json({
+      data: card
+        ? {
+            id: card.id,
+            typeId: card.type_id,
+            code: card.code,
+            name: card.name,
+            organizationId: card.organization_id,
+            status: card.status,
+            attrs: card.attrs,
+            createdAt: card.created_at,
+            updatedAt: card.updated_at
+          }
+        : null
+    });
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function getObjectCardById(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
@@ -347,25 +379,19 @@ export async function createObjectCard(req: Request, res: Response, next: NextFu
     const data = req.body;
     const userId = getUserId(req);
 
-    // Проверяем подписку организации на аналитику (typeCode == object_type.code)
-    // Вариант B: подписки должны быть на конкретные аналитики (analytics_types), а не на object_types.
     const orgId = data.organizationId ?? getOrgId(req);
     if (orgId) {
       const type = await objectsRepo.getObjectTypeById(data.typeId);
       if (type) {
-        const subRes = await pool.query(
-          `SELECT 1
-           FROM org_analytics_subscriptions s
-           JOIN analytics_types t ON t.id = s.type_id
-           WHERE s.org_id = $1 AND s.is_enabled = true AND UPPER(t.code) = UPPER($2)
-           LIMIT 1`,
-          [orgId, type.code]
-        );
-        const hasSubscription = (subRes.rowCount ?? 0) > 0;
-        if (!hasSubscription) {
-          return res.status(403).json({
-            error: { message: 'Организация не подписана на данную аналитику (тип объекта учета)' }
-          });
+        // v2: проверяем подписку организации на тип объекта учета (NONE/ALL/SELECTED)
+        if (!isEcofAdmin(req)) {
+          const sub = await objectsRepo.getOrgObjectTypeSubscription(orgId, type.id);
+          const mode = (sub?.mode ?? 'NONE') as any;
+          if (mode === 'NONE') {
+            return res.status(403).json({
+              error: { message: 'Организация не подписана на данный тип объекта учета' }
+            });
+          }
         }
       }
     }
@@ -493,12 +519,20 @@ export async function listSubscribedObjectCards(req: Request, res: Response, nex
       return res.status(404).json({ error: { message: 'Тип объекта учета не найден' } });
     }
 
+    const sub = await objectsRepo.getOrgObjectTypeSubscription(orgId, type.id);
+    const mode = (sub?.mode ?? 'NONE') as any;
+    const selectedCount = sub?.selected_count ?? 0;
+
     res.json({
       data: {
         type: {
           id: type.id,
           code: type.code,
           name: type.name
+        },
+        subscription: {
+          mode,
+          selectedCount
         },
         cards: rows.map((c) => ({
           id: c.id,
@@ -512,6 +546,159 @@ export async function listSubscribedObjectCards(req: Request, res: Response, nex
         })),
         total
       }
+    });
+  } catch (e) {
+    next(e);
+  }
+}
+
+// ========== Org subscriptions (v2) ==========
+
+export async function listMyObjectSubscriptions(req: Request, res: Response, next: NextFunction) {
+  try {
+    const orgId = getOrgId(req);
+    if (!orgId) return res.status(400).json({ error: { message: 'У пользователя не задана организация' } });
+
+    const rows = await objectsRepo.listOrgObjectTypeSubscriptions(orgId);
+    res.json({
+      data: rows.map((r) => ({
+        typeId: r.type_id,
+        typeCode: r.type_code,
+        typeName: r.type_name,
+        mode: r.mode,
+        selectedCount: r.selected_count
+      }))
+    });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function setMyObjectSubscriptionMode(req: Request, res: Response, next: NextFunction) {
+  try {
+    const orgId = getOrgId(req);
+    if (!orgId) return res.status(400).json({ error: { message: 'У пользователя не задана организация' } });
+
+    const { typeId, mode } = req.body as { typeId: string; mode: objectsRepo.OrgObjectSubscriptionMode };
+    const updated = await objectsRepo.upsertOrgObjectTypeSubscription(orgId, typeId, mode);
+    res.json({ data: updated });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function listMyObjectSubscriptionCards(req: Request, res: Response, next: NextFunction) {
+  try {
+    const orgId = getOrgId(req);
+    if (!orgId) return res.status(400).json({ error: { message: 'У пользователя не задана организация' } });
+    const { typeId } = req.params as any;
+
+    const cards = await objectsRepo.listOrgSelectedObjectCards(orgId, typeId);
+    res.json({
+      data: cards.map((c) => ({
+        id: c.id,
+        typeId: c.type_id,
+        code: c.code,
+        name: c.name,
+        organizationId: c.organization_id,
+        status: c.status,
+        attrs: c.attrs,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at
+      }))
+    });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function setMyObjectSubscriptionCards(req: Request, res: Response, next: NextFunction) {
+  try {
+    const orgId = getOrgId(req);
+    if (!orgId) return res.status(400).json({ error: { message: 'У пользователя не задана организация' } });
+    const { typeId } = req.params as any;
+    const { cardIds } = req.body as { cardIds: string[] };
+
+    // При выборе карточек считаем режим SELECTED
+    await objectsRepo.upsertOrgObjectTypeSubscription(orgId, typeId, 'SELECTED');
+    const r = await objectsRepo.replaceOrgSelectedObjectCards({
+      orgId,
+      typeId,
+      cardIds: Array.isArray(cardIds) ? cardIds : [],
+      validateType: true
+    });
+    res.json({ data: r });
+  } catch (e) {
+    next(e);
+  }
+}
+
+/**
+ * Карточки типа для выбора в подписке (без учета текущей подписки), но только видимые организации:
+ * organization_id IS NULL OR organization_id = orgId
+ */
+export async function listAvailableCardsForMyOrg(req: Request, res: Response, next: NextFunction) {
+  try {
+    const orgId = getOrgId(req);
+    if (!orgId) return res.status(400).json({ error: { message: 'У пользователя не задана организация' } });
+
+    const typeCode = String(req.query.typeCode || '');
+    if (!typeCode) return res.status(400).json({ error: { message: 'Укажите typeCode' } });
+
+    const search = (req.query.search as string | undefined) ?? undefined;
+    const status = (req.query.status as string | undefined) ?? undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 200;
+    const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
+
+    const type = await objectsRepo.getObjectTypeByCode(typeCode);
+    if (!type) return res.status(404).json({ error: { message: 'Тип объекта учета не найден' } });
+
+    // ecof_admin может смотреть всё, остальные — только org/null
+    const allowAll = isEcofAdmin(req);
+
+    // Простой запрос с OR-фильтром; используем repo.listObjectCards не можем (там нет OR)
+    const p: any[] = [type.id];
+    let i = 2;
+    const where: string[] = [`c.type_id = $1`];
+    if (!allowAll) {
+      where.push(`(c.organization_id IS NULL OR c.organization_id = $${i++})`);
+      p.push(orgId);
+    }
+    if (status) {
+      where.push(`c.status = $${i++}`);
+      p.push(status);
+    }
+    if (search && search.trim()) {
+      where.push(`(c.code ILIKE $${i} OR c.name ILIKE $${i + 1})`);
+      const s = `%${search.trim()}%`;
+      p.push(s, s);
+      i += 2;
+    }
+
+    p.push(Math.min(Math.max(limit, 1), 1000), Math.max(offset, 0));
+    const r = await pool.query(
+      `
+      SELECT c.*
+      FROM object_cards c
+      WHERE ${where.join(' AND ')}
+      ORDER BY c.name ASC
+      LIMIT $${i++} OFFSET $${i++}
+      `,
+      p
+    );
+
+    res.json({
+      data: (r.rows || []).map((c: any) => ({
+        id: c.id,
+        typeId: c.type_id,
+        code: c.code,
+        name: c.name,
+        organizationId: c.organization_id,
+        status: c.status,
+        attrs: c.attrs,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at
+      }))
     });
   } catch (e) {
     next(e);

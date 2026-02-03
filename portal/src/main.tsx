@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { AnalyticsAccessProvider } from './contexts/AnalyticsAccessContext';
+import { ObjectAccessProvider } from './contexts/ObjectAccessContext';
 import App from './App';
 import 'antd/dist/reset.css';
 import './styles.css';
@@ -17,7 +18,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     >
       <AuthProvider>
         <AnalyticsAccessProvider>
-          <App />
+          <ObjectAccessProvider>
+            <App />
+          </ObjectAccessProvider>
         </AnalyticsAccessProvider>
       </AuthProvider>
     </BrowserRouter>

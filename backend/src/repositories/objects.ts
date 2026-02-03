@@ -95,6 +95,149 @@ export async function getObjectTypeByCode(code: string): Promise<ObjectTypeRow |
   return (r.rows[0] ?? null) as ObjectTypeRow | null;
 }
 
+export type OrgObjectSubscriptionMode = 'NONE' | 'ALL' | 'SELECTED';
+
+// ========== Org object subscriptions (v2) ==========
+
+export async function listOrgObjectTypeSubscriptions(orgId: string): Promise<
+  Array<{
+    org_id: string;
+    type_id: string;
+    mode: OrgObjectSubscriptionMode;
+    type_code: string;
+    type_name: string;
+    selected_count: number;
+  }>
+> {
+  const r = await pool.query(
+    `
+    SELECT
+      s.org_id,
+      s.type_id,
+      s.mode,
+      t.code AS type_code,
+      t.name AS type_name,
+      COALESCE(x.selected_count, 0)::int AS selected_count
+    FROM org_object_type_subscriptions s
+    JOIN object_types t ON t.id = s.type_id
+    LEFT JOIN (
+      SELECT org_id, type_id, COUNT(*) AS selected_count
+      FROM org_object_card_subscriptions
+      GROUP BY org_id, type_id
+    ) x ON x.org_id = s.org_id AND x.type_id = s.type_id
+    WHERE s.org_id = $1
+    ORDER BY t.name ASC
+    `,
+    [orgId]
+  );
+  return r.rows as any;
+}
+
+export async function getOrgObjectTypeSubscription(orgId: string, typeId: string): Promise<{
+  org_id: string;
+  type_id: string;
+  mode: OrgObjectSubscriptionMode;
+  selected_count: number;
+} | null> {
+  const r = await pool.query(
+    `
+    SELECT
+      s.org_id,
+      s.type_id,
+      s.mode,
+      COALESCE(x.selected_count, 0)::int AS selected_count
+    FROM org_object_type_subscriptions s
+    LEFT JOIN (
+      SELECT org_id, type_id, COUNT(*) AS selected_count
+      FROM org_object_card_subscriptions
+      GROUP BY org_id, type_id
+    ) x ON x.org_id = s.org_id AND x.type_id = s.type_id
+    WHERE s.org_id = $1 AND s.type_id = $2
+    `,
+    [orgId, typeId]
+  );
+  return (r.rows[0] ?? null) as any;
+}
+
+export async function upsertOrgObjectTypeSubscription(orgId: string, typeId: string, mode: OrgObjectSubscriptionMode) {
+  const r = await pool.query(
+    `
+    INSERT INTO org_object_type_subscriptions (org_id, type_id, mode)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (org_id, type_id)
+    DO UPDATE SET mode = EXCLUDED.mode, updated_at = now()
+    RETURNING org_id, type_id, mode
+    `,
+    [orgId, typeId, mode]
+  );
+  return r.rows[0] ?? null;
+}
+
+export async function listOrgSelectedObjectCards(orgId: string, typeId: string): Promise<ObjectCardRow[]> {
+  const r = await pool.query(
+    `
+    SELECT c.*
+    FROM org_object_card_subscriptions s
+    JOIN object_cards c ON c.id = s.card_id
+    WHERE s.org_id = $1 AND s.type_id = $2
+    ORDER BY c.name ASC
+    `,
+    [orgId, typeId]
+  );
+  return r.rows as ObjectCardRow[];
+}
+
+export async function replaceOrgSelectedObjectCards(params: {
+  orgId: string;
+  typeId: string;
+  cardIds: string[];
+  /** enforce that cards belong to the same type */
+  validateType?: boolean;
+}): Promise<{ replaced: number }> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    if (params.validateType && params.cardIds.length > 0) {
+      const r = await client.query(
+        `SELECT COUNT(*)::int AS cnt FROM object_cards WHERE id = ANY($1::uuid[]) AND type_id = $2`,
+        [params.cardIds, params.typeId]
+      );
+      const cnt = r.rows[0]?.cnt ?? 0;
+      if (cnt !== params.cardIds.length) {
+        throw new Error('Некоторые карточки не принадлежат выбранному типу объекта');
+      }
+    }
+
+    await client.query(`DELETE FROM org_object_card_subscriptions WHERE org_id = $1 AND type_id = $2`, [
+      params.orgId,
+      params.typeId
+    ]);
+
+    let inserted = 0;
+    if (params.cardIds.length > 0) {
+      const ins = await client.query(
+        `
+        INSERT INTO org_object_card_subscriptions (org_id, type_id, card_id)
+        SELECT $1, $2, x.card_id
+        FROM UNNEST($3::uuid[]) AS x(card_id)
+        ON CONFLICT DO NOTHING
+        `,
+        [params.orgId, params.typeId, params.cardIds]
+      );
+      inserted = ins.rowCount ?? 0;
+    }
+
+    await client.query('COMMIT');
+    return { replaced: inserted };
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 export async function createObjectType(data: {
   code: string;
   name: string;
@@ -297,6 +440,11 @@ export async function listObjectCards(filters?: {
 
 export async function getObjectCardById(id: string): Promise<ObjectCardRow | null> {
   const r = await pool.query(`SELECT * FROM object_cards WHERE id = $1`, [id]);
+  return (r.rows[0] ?? null) as ObjectCardRow | null;
+}
+
+export async function getObjectCardByTypeAndCode(typeId: string, code: string): Promise<ObjectCardRow | null> {
+  const r = await pool.query(`SELECT * FROM object_cards WHERE type_id = $1 AND code = $2 LIMIT 1`, [typeId, code]);
   return (r.rows[0] ?? null) as ObjectCardRow | null;
 }
 
@@ -638,24 +786,92 @@ export async function listSubscribedObjectCards(params: {
   const type = await getObjectTypeByCode(params.typeCode);
   if (!type) return { type: null, rows: [], total: 0 };
 
-  // Проверяем подписку на аналитику (analytics_types.code == object_types.code)
-  const subRes = await pool.query(
-    `SELECT 1
-     FROM org_analytics_subscriptions s
-     JOIN analytics_types t ON t.id = s.type_id
-     WHERE s.org_id = $1 AND s.is_enabled = true AND UPPER(t.code) = UPPER($2)
-     LIMIT 1`,
-    [params.orgId, type.code]
-  );
-  if (!subRes.rowCount) return { type, rows: [], total: 0 };
+  const sub = await getOrgObjectTypeSubscription(params.orgId, type.id);
+  const mode: OrgObjectSubscriptionMode = (sub?.mode as OrgObjectSubscriptionMode) ?? 'NONE';
+  const selectedCount = sub?.selected_count ?? 0;
 
-  const filters: Parameters<typeof listObjectCards>[0] = {
-    typeId: type.id,
-    search: params.search,
-    status: params.status,
-    limit: params.limit,
-    offset: params.offset
-  };
-  const { rows, total } = await listObjectCards(filters);
-  return { type, rows, total };
+  // NONE: доступа нет
+  if (mode === 'NONE') return { type, rows: [], total: 0 };
+  // SELECTED без выбранных карточек = по сути тоже "нет доступа"
+  if (mode === 'SELECTED' && selectedCount === 0) return { type, rows: [], total: 0 };
+
+  const limit = Math.min(Math.max(params.limit ?? 100, 1), 1000);
+  const offset = Math.max(params.offset ?? 0, 0);
+  const status = params.status ?? undefined;
+  const search = params.search?.trim() ? `%${params.search.trim()}%` : null;
+
+  // ALL: карточки типа, видимые организации (общие + свои)
+  if (mode === 'ALL') {
+    const p: any[] = [type.id, params.orgId];
+    let i = 3;
+    const where: string[] = [`c.type_id = $1`, `(c.organization_id IS NULL OR c.organization_id = $2)`];
+    if (status) {
+      where.push(`c.status = $${i++}`);
+      p.push(status);
+    }
+    if (search) {
+      where.push(`(c.code ILIKE $${i} OR c.name ILIKE $${i + 1})`);
+      p.push(search, search);
+      i += 2;
+    }
+
+    const countR = await pool.query(`SELECT COUNT(*)::int AS cnt FROM object_cards c WHERE ${where.join(' AND ')}`, p);
+    const total = countR.rows[0]?.cnt ?? 0;
+
+    p.push(limit, offset);
+    const dataR = await pool.query(
+      `
+      SELECT c.*
+      FROM object_cards c
+      WHERE ${where.join(' AND ')}
+      ORDER BY c.created_at DESC
+      LIMIT $${i++} OFFSET $${i++}
+      `,
+      p
+    );
+    return { type, rows: dataR.rows as ObjectCardRow[], total };
+  }
+
+  // SELECTED: только выбранные карточки (и видимые организации)
+  const p: any[] = [params.orgId, type.id];
+  let i = 3;
+  const where: string[] = [
+    `s.org_id = $1`,
+    `s.type_id = $2`,
+    `(c.organization_id IS NULL OR c.organization_id = $1)`
+  ];
+  if (status) {
+    where.push(`c.status = $${i++}`);
+    p.push(status);
+  }
+  if (search) {
+    where.push(`(c.code ILIKE $${i} OR c.name ILIKE $${i + 1})`);
+    p.push(search, search);
+    i += 2;
+  }
+
+  const countR = await pool.query(
+    `
+    SELECT COUNT(*)::int AS cnt
+    FROM org_object_card_subscriptions s
+    JOIN object_cards c ON c.id = s.card_id
+    WHERE ${where.join(' AND ')}
+    `,
+    p
+  );
+  const total = countR.rows[0]?.cnt ?? 0;
+
+  p.push(limit, offset);
+  const dataR = await pool.query(
+    `
+    SELECT c.*
+    FROM org_object_card_subscriptions s
+    JOIN object_cards c ON c.id = s.card_id
+    WHERE ${where.join(' AND ')}
+    ORDER BY c.created_at DESC
+    LIMIT $${i++} OFFSET $${i++}
+    `,
+    p
+  );
+  return { type, rows: dataR.rows as ObjectCardRow[], total };
 }

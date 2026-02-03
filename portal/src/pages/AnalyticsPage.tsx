@@ -27,6 +27,7 @@ import { ObjectTypeSchemaEditor } from '../components/ObjectTypeSchemaEditor';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useAnalyticsAccess } from '../contexts/AnalyticsAccessContext';
+import { useObjectAccess } from '../contexts/ObjectAccessContext';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -74,6 +75,7 @@ export function AnalyticsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { refresh: refreshAccess } = useAnalyticsAccess();
+  const { refresh: refreshObjectAccess } = useObjectAccess();
   const isOrgAdmin = useMemo(() => user?.role === 'org_admin' || user?.role === 'ecof_admin', [user?.role]);
   const isEcofAdmin = useMemo(() => user?.role === 'ecof_admin', [user?.role]);
   
@@ -99,6 +101,18 @@ export function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<string>('analytics');
   const [schemaEditorVisible, setSchemaEditorVisible] = useState(false);
   const [schemaEditorTypeId, setSchemaEditorTypeId] = useState<string | null>(null);
+  // Подписки на объекты учета (v2)
+  const [objectSubs, setObjectSubs] = useState<
+    Array<{ typeId: string; typeCode: string; typeName: string; mode: 'NONE' | 'ALL' | 'SELECTED'; selectedCount: number }>
+  >([]);
+  const [objectSubsLoading, setObjectSubsLoading] = useState(false);
+  const [subsEditorOpen, setSubsEditorOpen] = useState(false);
+  const [subsEditorType, setSubsEditorType] = useState<{ typeId: string; typeCode: string; typeName: string } | null>(null);
+  const [subsEditorSearch, setSubsEditorSearch] = useState('');
+  const [subsEditorItems, setSubsEditorItems] = useState<Array<{ id: string; code: string; name: string; status: string }>>([]);
+  const [subsEditorSelectedIds, setSubsEditorSelectedIds] = useState<string[]>([]);
+  const [subsEditorSaving, setSubsEditorSaving] = useState(false);
+
   /** Схема полей выбранного типа объекта — для отображения аналитик по объектам в таблице */
   const [objectTypeSchemaForList, setObjectTypeSchemaForList] = useState<Array<{ fieldKey: string; label: string; fieldGroup: string; dataType: string }>>([]);
 
@@ -110,10 +124,22 @@ export function AnalyticsPage() {
   const [webhookInfo, setWebhookInfo] = useState<any | null>(null);
 
   const enabledSet = useMemo(() => new Set(subs.filter((s) => s.isEnabled).map((s) => s.typeId)), [subs]);
-  const enabledCodeSet = useMemo(
-    () => new Set(subs.filter((s) => s.isEnabled).map((s) => String(s.typeCode || '').toUpperCase())),
-    [subs]
-  );
+
+  const objectSubsMap = useMemo(() => {
+    const m = new Map<string, { mode: 'NONE' | 'ALL' | 'SELECTED'; selectedCount: number; typeId: string }>();
+    (objectSubs || []).forEach((s) => {
+      m.set(String(s.typeCode || '').toUpperCase(), { mode: s.mode, selectedCount: s.selectedCount, typeId: s.typeId });
+    });
+    return m;
+  }, [objectSubs]);
+
+  const objectTypeEnabled = (typeCode: string) => {
+    const x = objectSubsMap.get(String(typeCode || '').toUpperCase());
+    if (!x) return false;
+    if (x.mode === 'NONE') return false;
+    if (x.mode === 'SELECTED') return (x.selectedCount ?? 0) > 0;
+    return true;
+  };
   
   // Для сотрудников показываем только подписанные аналитики
   const displayedTypes = useMemo(() => {
@@ -124,14 +150,11 @@ export function AnalyticsPage() {
     }
   }, [types, enabledSet, isOrgAdmin]);
 
-  // Для сотрудников показываем только подписанные объекты учета
+  // Для сотрудников показываем только подписанные объекты учета (v2)
   const displayedObjectTypes = useMemo(() => {
-    if (isOrgAdmin) {
-      return objectTypes.filter((t) => t.isActive);
-    } else {
-      return objectTypes.filter((t) => t.isActive && enabledCodeSet.has(String(t.code || '').toUpperCase()));
-    }
-  }, [objectTypes, enabledCodeSet, isOrgAdmin]);
+    if (isOrgAdmin) return objectTypes.filter((t) => t.isActive);
+    return objectTypes.filter((t) => t.isActive && objectTypeEnabled(t.code));
+  }, [objectTypes, isOrgAdmin, objectSubsMap]);
 
   const loadAnalytics = async () => {
     try {
@@ -176,6 +199,18 @@ export function AnalyticsPage() {
     }
   };
 
+  const loadObjectSubs = async () => {
+    setObjectSubsLoading(true);
+    try {
+      const res = await api.objects.subscriptions.listMy();
+      setObjectSubs(res.data || []);
+    } catch (e: any) {
+      setObjectSubs([]);
+    } finally {
+      setObjectSubsLoading(false);
+    }
+  };
+
   const loadObjectCards = async (typeCode: string, search?: string) => {
     if (!typeCode) return;
     try {
@@ -192,7 +227,7 @@ export function AnalyticsPage() {
   const load = async () => {
     try {
       setLoading(true);
-      await Promise.all([loadAnalytics(), loadObjectTypes()]);
+      await Promise.all([loadAnalytics(), loadObjectTypes(), loadObjectSubs()]);
       await loadWebhook();
     } finally {
       setLoading(false);
@@ -241,24 +276,64 @@ export function AnalyticsPage() {
     }
   };
 
-  // Подписка на тип объекта учета = подписка на аналитику с тем же code (вариант B)
-  const toggleObjectSubscription = async (objectTypeCode: string, isEnabled: boolean) => {
+  // Подписка на тип объекта учета (v2): NONE/ALL/SELECTED
+  const setObjectSubscriptionMode = async (type: ObjectType, mode: 'NONE' | 'ALL' | 'SELECTED') => {
     try {
-      setSavingObjectTypeId(objectTypeCode);
-      const at = types.find((t) => String(t.code || '').toUpperCase() === String(objectTypeCode || '').toUpperCase());
-      if (!at) {
-        message.error(`Не найден тип аналитики для кода ${objectTypeCode}. Примените миграцию seed analytics_types из object_types.`);
-        return;
-      }
-      await api.analytics.setSubscription({ typeId: at.id, isEnabled });
-      const sRes = await api.analytics.listSubscriptions();
-      setSubs(sRes.data || []);
-      await refreshAccess();
-      message.success(isEnabled ? 'Подписка включена' : 'Подписка отключена');
+      setSavingObjectTypeId(type.code);
+      await api.objects.subscriptions.setMode({ typeId: type.id, mode });
+      await loadObjectSubs();
+      await refreshObjectAccess();
+      message.success(mode === 'NONE' ? 'Подписка отключена' : mode === 'ALL' ? 'Подписка: весь объект' : 'Подписка: выборочно');
     } catch (e: any) {
       message.error(e?.message || 'Ошибка сохранения подписки');
     } finally {
       setSavingObjectTypeId(null);
+    }
+  };
+
+  const openSubsEditor = async (type: ObjectType) => {
+    setSubsEditorType({ typeId: type.id, typeCode: type.code, typeName: type.name });
+    setSubsEditorOpen(true);
+    setSubsEditorSearch('');
+    setSubsEditorItems([]);
+    try {
+      const [selectedRes, itemsRes] = await Promise.all([
+        api.objects.subscriptions.listCards(type.id),
+        api.objects.availableCards.list({ typeCode: type.code, limit: 200 })
+      ]);
+      setSubsEditorSelectedIds((selectedRes.data || []).map((x) => x.id));
+      setSubsEditorItems((itemsRes.data || []).map((x) => ({ id: x.id, code: x.code, name: x.name, status: x.status })));
+    } catch {
+      setSubsEditorSelectedIds([]);
+      setSubsEditorItems([]);
+    }
+  };
+
+  const searchSubsEditor = async (q: string) => {
+    if (!subsEditorType) return;
+    setSubsEditorSearch(q);
+    try {
+      const itemsRes = await api.objects.availableCards.list({ typeCode: subsEditorType.typeCode, search: q || undefined, limit: 200 });
+      setSubsEditorItems((itemsRes.data || []).map((x) => ({ id: x.id, code: x.code, name: x.name, status: x.status })));
+    } catch {
+      setSubsEditorItems([]);
+    }
+  };
+
+  const saveSubsEditor = async () => {
+    if (!subsEditorType) return;
+    setSubsEditorSaving(true);
+    try {
+      await api.objects.subscriptions.setCards(subsEditorType.typeId, { cardIds: subsEditorSelectedIds });
+      await loadObjectSubs();
+      await refreshObjectAccess();
+      message.success('Подписка сохранена');
+      setSubsEditorOpen(false);
+      setSubsEditorType(null);
+    } catch (e: any) {
+      message.error(e?.message || 'Ошибка сохранения');
+    } finally {
+      setSubsEditorSaving(false);
     }
   };
 
@@ -399,7 +474,19 @@ export function AnalyticsPage() {
           attrs[key] = value;
         }
       });
-      
+
+      // UX: если карточка с таким code уже есть для typeId — открываем её вместо ошибки уникальности
+      const existing = await api.objects.cards.lookup({ typeId, code });
+      if (existing.data?.id) {
+        message.info('Карточка с таким кодом уже существует — открываю существующую');
+        setObjectCardModalVisible(false);
+        objectCardForm.resetFields();
+        setObjectCardSchemas([]);
+        setReferenceItems([]);
+        navigate(`/objects/cards/${existing.data.id}`);
+        return;
+      }
+
       await api.objects.cards.create({
         typeId,
         code,
@@ -765,18 +852,44 @@ export function AnalyticsPage() {
                 dataSource={displayedObjectTypes}
                 renderItem={(t) => (
                   <List.Item
-                    extra={!isOrgAdmin && enabledCodeSet.has(String(t.code || '').toUpperCase()) ? <Tag color="green">Подписана</Tag> : null}
+                    extra={
+                      !isOrgAdmin && objectTypeEnabled(t.code) ? (
+                        <Tag color="green">Подписана</Tag>
+                      ) : isOrgAdmin ? (
+                        <Space>
+                          <Select
+                            value={(objectSubsMap.get(String(t.code || '').toUpperCase())?.mode ?? 'NONE') as any}
+                            style={{ width: 160 }}
+                            disabled={savingObjectTypeId === t.code || objectSubsLoading}
+                            onChange={(val) => setObjectSubscriptionMode(t, val)}
+                            options={[
+                              { value: 'NONE', label: 'Нет' },
+                              { value: 'ALL', label: 'Весь объект' },
+                              { value: 'SELECTED', label: 'Выборочно' }
+                            ]}
+                          />
+                          {(objectSubsMap.get(String(t.code || '').toUpperCase())?.mode ?? 'NONE') === 'SELECTED' && (
+                            <Button onClick={() => openSubsEditor(t)}>Выбрать ({objectSubsMap.get(String(t.code || '').toUpperCase())?.selectedCount ?? 0})</Button>
+                          )}
+                        </Space>
+                      ) : null
+                    }
                   >
-                    <Checkbox
-                      checked={enabledCodeSet.has(String(t.code || '').toUpperCase())}
-                      disabled={!isOrgAdmin || savingObjectTypeId === t.code}
-                      onChange={(e) => toggleObjectSubscription(t.code, e.target.checked)}
-                    >
-                      <Space size={4}>
-                        <Typography.Text strong>{t.name}</Typography.Text>
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>({t.code})</Typography.Text>
-                      </Space>
-                    </Checkbox>
+                    <Space size={4}>
+                      <Typography.Text strong>{t.name}</Typography.Text>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        ({t.code})
+                      </Typography.Text>
+                      {!isOrgAdmin && (
+                        <Tag>
+                          {(objectSubsMap.get(String(t.code || '').toUpperCase())?.mode ?? 'NONE') === 'ALL'
+                            ? 'Весь объект'
+                            : (objectSubsMap.get(String(t.code || '').toUpperCase())?.mode ?? 'NONE') === 'SELECTED'
+                              ? `Выборочно (${objectSubsMap.get(String(t.code || '').toUpperCase())?.selectedCount ?? 0})`
+                              : 'Нет'}
+                        </Tag>
+                      )}
+                    </Space>
                   </List.Item>
                 )}
               />
@@ -806,7 +919,7 @@ export function AnalyticsPage() {
                   else setObjectCards([]);
                 }}
                 options={displayedObjectTypes
-                  .filter((t) => enabledCodeSet.has(String(t.code || '').toUpperCase()))
+                  .filter((t) => objectTypeEnabled(t.code))
                   .map((t) => ({ label: `${t.name} (${t.code})`, value: t.code }))}
                 notFoundContent="Включите подписку в шаге 1"
               />
@@ -1006,6 +1119,47 @@ export function AnalyticsPage() {
         </Typography.Text>
 
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabsItems} />
+
+        {/* Модалка выбора карточек для подписки (SELECTED) */}
+        <Modal
+          title={subsEditorType ? `Подписка выборочно: ${subsEditorType.typeName} (${subsEditorType.typeCode})` : 'Подписка выборочно'}
+          open={subsEditorOpen}
+          onCancel={() => {
+            setSubsEditorOpen(false);
+            setSubsEditorType(null);
+          }}
+          onOk={saveSubsEditor}
+          okText="Сохранить"
+          cancelText="Отмена"
+          confirmLoading={subsEditorSaving}
+          width={900}
+        >
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <Input.Search
+              placeholder="Поиск по коду или наименованию..."
+              value={subsEditorSearch}
+              onChange={(e) => setSubsEditorSearch(e.target.value)}
+              onSearch={(v) => searchSubsEditor(v)}
+              allowClear
+            />
+            <Table
+              rowKey="id"
+              size="small"
+              pagination={{ pageSize: 10 }}
+              dataSource={subsEditorItems}
+              rowSelection={{
+                selectedRowKeys: subsEditorSelectedIds,
+                onChange: (keys) => setSubsEditorSelectedIds(keys as string[])
+              }}
+              columns={[
+                { title: 'Код', dataIndex: 'code', key: 'code', width: 200 },
+                { title: 'Наименование', dataIndex: 'name', key: 'name' },
+                { title: 'Статус', dataIndex: 'status', key: 'status', width: 120 }
+              ]}
+            />
+            <Typography.Text type="secondary">Выбрано: {subsEditorSelectedIds.length}</Typography.Text>
+          </Space>
+        </Modal>
 
         {/* Модальное окно создания/редактирования типа объекта учета */}
         <Modal

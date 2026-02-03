@@ -8,6 +8,8 @@ import {
   createObjectCardSchema,
   updateObjectCardSchema,
   listObjectCardsSchema,
+  setObjectSubscriptionModeSchema,
+  setObjectSubscriptionCardsSchema,
 } from '../validators/objects.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
@@ -48,6 +50,7 @@ objectsRouter.delete('/types/:typeId/schemas/:fieldKey', requireAdmin, objectsCo
 
 // Список карточек (доступен всем авторизованным, но фильтруется по подпискам)
 objectsRouter.get('/cards', validate(listObjectCardsSchema), objectsController.listObjectCards);
+objectsRouter.get('/cards/lookup', objectsController.lookupObjectCard);
 objectsRouter.get('/cards/:id', objectsController.getObjectCardById);
 objectsRouter.post('/cards', validate(createObjectCardSchema), objectsController.createObjectCard);
 objectsRouter.put('/cards/:id', validate(updateObjectCardSchema), objectsController.updateObjectCard);
@@ -55,5 +58,15 @@ objectsRouter.delete('/cards/:id', requireOrgAdmin, objectsController.deleteObje
 
 // Получение карточек объектов по подписке (для всех авторизованных)
 objectsRouter.get('/subscribed-cards', objectsController.listSubscribedObjectCards);
+
+// ========== Подписки организации на объекты учета (v2) ==========
+// Просмотр — всем (для скрытия полей в формах), управление — org_admin/ecof_admin
+objectsRouter.get('/subscriptions', objectsController.listMyObjectSubscriptions);
+objectsRouter.post('/subscriptions', requireOrgAdmin, validate(setObjectSubscriptionModeSchema), objectsController.setMyObjectSubscriptionMode);
+objectsRouter.get('/subscriptions/:typeId/cards', requireOrgAdmin, objectsController.listMyObjectSubscriptionCards);
+objectsRouter.put('/subscriptions/:typeId/cards', requireOrgAdmin, validate(setObjectSubscriptionCardsSchema), objectsController.setMyObjectSubscriptionCards);
+
+// Карточки для выбора при подписке (видимые организации)
+objectsRouter.get('/available-cards', requireOrgAdmin, objectsController.listAvailableCardsForMyOrg);
 
 export default objectsRouter;

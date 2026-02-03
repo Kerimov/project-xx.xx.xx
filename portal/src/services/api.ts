@@ -810,6 +810,22 @@ export const api = {
             updatedBy: string | null;
           };
         }>(`/objects/cards/${id}`),
+      lookup: (params: { typeId: string; code: string }) =>
+        request<{
+          data:
+            | {
+                id: string;
+                typeId: string;
+                code: string;
+                name: string;
+                organizationId: string | null;
+                status: string;
+                attrs: Record<string, unknown>;
+                createdAt: string;
+                updatedAt: string;
+              }
+            | null;
+        }>(`/objects/cards/lookup?typeId=${encodeURIComponent(params.typeId)}&code=${encodeURIComponent(params.code)}`),
       getHistory: (id: string) =>
         request<{
           data: Array<{
@@ -864,6 +880,10 @@ export const api = {
               code: string;
               name: string;
             };
+            subscription?: {
+              mode: 'NONE' | 'ALL' | 'SELECTED';
+              selectedCount: number;
+            };
             cards: Array<{
               id: string;
               code: string;
@@ -877,6 +897,66 @@ export const api = {
             total: number;
           };
         }>(`/objects/subscribed-cards?${queryParams.toString()}`);
+      }
+    },
+
+    // Подписки на объекты учета (v2)
+    subscriptions: {
+      listMy: () =>
+        request<{
+          data: Array<{
+            typeId: string;
+            typeCode: string;
+            typeName: string;
+            mode: 'NONE' | 'ALL' | 'SELECTED';
+            selectedCount: number;
+          }>;
+        }>(`/objects/subscriptions`),
+      setMode: (payload: { typeId: string; mode: 'NONE' | 'ALL' | 'SELECTED' }) =>
+        request<{ data: any }>(`/objects/subscriptions`, { method: 'POST', body: JSON.stringify(payload) }),
+      listCards: (typeId: string) =>
+        request<{
+          data: Array<{
+            id: string;
+            typeId: string;
+            code: string;
+            name: string;
+            organizationId: string | null;
+            status: string;
+            attrs: Record<string, unknown>;
+            createdAt: string;
+            updatedAt: string;
+          }>;
+        }>(`/objects/subscriptions/${typeId}/cards`),
+      setCards: (typeId: string, payload: { cardIds: string[] }) =>
+        request<{ data: { replaced: number } }>(`/objects/subscriptions/${typeId}/cards`, {
+          method: 'PUT',
+          body: JSON.stringify(payload)
+        })
+    },
+
+    // Карточки, видимые организации (для выбора при подписке)
+    availableCards: {
+      list: (params: { typeCode: string; search?: string; status?: string; limit?: number; offset?: number }) => {
+        const queryParams = new URLSearchParams();
+        queryParams.append('typeCode', params.typeCode);
+        if (params.search) queryParams.append('search', params.search);
+        if (params.status) queryParams.append('status', params.status);
+        if (params.limit != null) queryParams.append('limit', params.limit.toString());
+        if (params.offset != null) queryParams.append('offset', params.offset.toString());
+        return request<{
+          data: Array<{
+            id: string;
+            typeId: string;
+            code: string;
+            name: string;
+            organizationId: string | null;
+            status: string;
+            attrs: Record<string, unknown>;
+            createdAt: string;
+            updatedAt: string;
+          }>;
+        }>(`/objects/available-cards?${queryParams.toString()}`);
       }
     }
   },

@@ -16,8 +16,7 @@ import { Card, Form, Alert, Space } from 'antd';
 import { Link } from 'react-router-dom';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { ObjectCardSelect } from './ObjectCardSelect';
-import { api } from '../../services/api';
-import { useState, useEffect } from 'react';
+import { useObjectAccess } from '../../contexts/ObjectAccessContext';
 
 export interface ObjectAccountingSectionProps {
   /** Показывать выбор основного средства */
@@ -53,32 +52,12 @@ export function ObjectAccountingSection({
   cfoName = defaultCFOName,
   contractObjectName = defaultContractObjectName
 }: ObjectAccountingSectionProps) {
-  const [subscriptions, setSubscriptions] = useState<Array<{ typeCode: string; isEnabled: boolean }>>([]);
-  const [loading, setLoading] = useState(true);
+  const { isEnabled, loading } = useObjectAccess();
 
-  useEffect(() => {
-    const loadSubscriptions = async () => {
-      try {
-        // Вариант B: подписки только на аналитики (analytics_types)
-        const response = await api.analytics.listSubscriptions();
-        setSubscriptions(response.data || []);
-      } catch (e) {
-        console.error('Ошибка загрузки подписок на объекты учета:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadSubscriptions();
-  }, []);
-
-  const isSubscribed = (typeCode: string) => {
-    return subscriptions.some((s) => s.typeCode === typeCode && s.isEnabled);
-  };
-
-  const fixedAssetEnabled = showFixedAsset && isSubscribed('FIXED_ASSET');
-  const projectEnabled = showProject && isSubscribed('PROJECT');
-  const cfoEnabled = showCFO && isSubscribed('CFO');
-  const contractObjectEnabled = showContractObject && isSubscribed('CONTRACT');
+  const fixedAssetEnabled = showFixedAsset && isEnabled('FIXED_ASSET');
+  const projectEnabled = showProject && isEnabled('PROJECT');
+  const cfoEnabled = showCFO && isEnabled('CFO');
+  const contractObjectEnabled = showContractObject && isEnabled('CONTRACT');
 
   const missing: string[] = [];
   if (showFixedAsset && !fixedAssetEnabled) missing.push('Основное средство');

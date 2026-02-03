@@ -5,6 +5,7 @@ import { InfoCircleOutlined } from '@ant-design/icons';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
+import { useObjectAccess } from '../../contexts/ObjectAccessContext';
 
 const { Option } = Select;
 
@@ -39,30 +40,8 @@ export function ObjectCardSelect({
 }: ObjectCardSelectProps) {
   const [loading, setLoading] = useState(false);
   const [cards, setCards] = useState<ObjectCard[]>([]);
-  const [enabled, setEnabled] = useState(false);
-  const [checkingSubscription, setCheckingSubscription] = useState(true);
-
-  // Проверяем подписку организации на тип объекта учета
-  useEffect(() => {
-    const checkSubscription = async () => {
-      try {
-        setCheckingSubscription(true);
-        // Вариант B: подписки только на аналитики (analytics_types). Считаем тип объекта доступным,
-        // если организация подписана на аналитику с тем же code.
-        const subsResponse = await api.analytics.listSubscriptions();
-        const hasSubscription = (subsResponse.data || []).some(
-          (s) => String(s.typeCode || '').toUpperCase() === String(objectTypeCode || '').toUpperCase() && s.isEnabled
-        );
-        setEnabled(hasSubscription);
-      } catch (e: any) {
-        console.error('Ошибка проверки подписки на объекты учета:', e);
-        setEnabled(false);
-      } finally {
-        setCheckingSubscription(false);
-      }
-    };
-    checkSubscription();
-  }, [objectTypeCode]);
+  const { isEnabled: isTypeEnabled, loading: checkingSubscription } = useObjectAccess();
+  const enabled = isTypeEnabled(objectTypeCode);
 
   // Если подписка не активна — очищаем значение
   useEffect(() => {
