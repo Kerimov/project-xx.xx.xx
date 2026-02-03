@@ -5,6 +5,7 @@ import { uhIntegrationService } from './uh-integration.js';
 import { buildUHPayload } from './uh-payload.js';
 import { getUHDocumentConfig } from '../config/uh-document-types.js';
 import * as documentsRepo from '../repositories/documents.js';
+import * as packagesRepo from '../repositories/packages.js';
 import { logger } from '../utils/logger.js';
 import { normalizeUhDocumentRef } from '../utils/uh-ref.js';
 
@@ -275,6 +276,76 @@ export class UHQueueService {
         documentId
       ]
     );
+
+    // После обновления документа — пересчитываем статус пакета (если документ входит в пакет)
+    try {
+      await this.updatePackageStatusForDocument(documentId);
+    } catch (err: any) {
+      logger.error(
+        'Failed to update package status after UH operation',
+        err instanceof Error ? err : new Error(String(err)),
+        { documentId }
+      );
+    }
+  }
+
+  /**
+   * Пересчёт статуса пакета на основе статусов документов
+   * Логика:
+   *  - если есть ещё не обработанные документы (uh_status IS NULL) → InProcessing
+   *  - если все обработаны и нет ошибок → Done
+   *  - если все обработаны и все с ошибками → Failed
+   *  - если есть и успешные, и с ошибками → PartiallyFailed
+   */
+  private async updatePackageStatusForDocument(documentId: string) {
+    const docRes = await pool.query(
+      `SELECT package_id FROM documents WHERE id = $1`,
+      [documentId]
+    );
+    if (docRes.rows.length === 0) {
+      return;
+    }
+
+    const packageId: string | null = docRes.rows[0].package_id;
+    if (!packageId) {
+      return;
+    }
+
+    const aggRes = await pool.query(
+      `SELECT
+         COUNT(*)::int AS total,
+         COUNT(*) FILTER (WHERE uh_status IS NOT NULL)::int AS processed,
+         COUNT(*) FILTER (WHERE uh_status = 'Error' OR uh_error_message IS NOT NULL)::int AS error
+       FROM documents
+       WHERE package_id = $1
+         AND portal_status <> 'Cancelled'`,
+      [packageId]
+    );
+
+    const row = aggRes.rows[0];
+    const total: number = row?.total ?? 0;
+    const processed: number = row?.processed ?? 0;
+    const error: number = row?.error ?? 0;
+
+    if (total === 0) {
+      await packagesRepo.updatePackage(packageId, { status: 'New' });
+      return;
+    }
+
+    const pending = total - processed;
+
+    let newStatus: string;
+    if (pending > 0) {
+      newStatus = 'InProcessing';
+    } else if (error === 0) {
+      newStatus = 'Done';
+    } else if (error === total) {
+      newStatus = 'Failed';
+    } else {
+      newStatus = 'PartiallyFailed';
+    }
+
+    await packagesRepo.updatePackage(packageId, { status: newStatus });
   }
 
   /**

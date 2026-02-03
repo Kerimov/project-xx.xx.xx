@@ -89,7 +89,15 @@ export async function sendPackageToUH(req: Request, res: Response, next: NextFun
       return res.status(404).json({ error: { message: 'Пакет не найден' } });
     }
 
-    const docs = await documentsRepo.getDocuments({ packageId, limit: 500 });
+    // Защита от повторного запуска: пакет уже в обработке
+    if (row.status === 'InProcessing') {
+      return res.status(400).json({
+        error: { message: 'Пакет уже находится в обработке УХ. Дождитесь завершения или измените статус пакета.' }
+      });
+    }
+
+    // Берём все документы пакета; фильтрация по статусам ниже
+    const docs = await documentsRepo.getDocuments({ packageId });
     const sendable = docs.filter(
       (d: any) => canTransition(d.portal_status as any, 'Frozen')
     );
