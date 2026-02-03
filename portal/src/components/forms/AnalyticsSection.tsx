@@ -9,6 +9,7 @@ import { Card, Form } from 'antd';
 import { ContractSelect } from './ContractSelect';
 import { WarehouseSelect } from './WarehouseSelect';
 import { AccountSelect } from './AccountSelect';
+import { useAnalyticsAccess } from '../../contexts/AnalyticsAccessContext';
 
 export interface AnalyticsSectionProps {
   /** Показывать выбор договора */
@@ -46,7 +47,14 @@ export function AnalyticsSection({
   warehouseName = defaultWarehouseName,
   accountName = defaultAccountName
 }: AnalyticsSectionProps) {
-  const showAny = showContract || showWarehouse || showAccount;
+  const { isEnabled } = useAnalyticsAccess();
+
+  // Гейт по подпискам организации: показываем только доступные аналитики
+  const contractEnabled = showContract && isEnabled('CONTRACT');
+  const warehouseEnabled = showWarehouse && isEnabled('WAREHOUSE');
+  const accountEnabled = showAccount && (isEnabled('ACCOUNT') || isEnabled('BANK_ACCOUNT'));
+
+  const showAny = contractEnabled || warehouseEnabled || accountEnabled;
   if (!showAny) return null;
 
   return (
@@ -54,7 +62,7 @@ export function AnalyticsSection({
       <Form.Item noStyle shouldUpdate>
         {() => (
           <>
-            {showContract && (
+            {contractEnabled && (
               <Form.Item label="Договор" name={contractName}>
                 <ContractSelect
                   organizationId={organizationId}
@@ -63,7 +71,7 @@ export function AnalyticsSection({
                 />
               </Form.Item>
             )}
-            {showWarehouse && (
+            {warehouseEnabled && (
               <Form.Item
                 label="Склад"
                 name={warehouseName}
@@ -74,7 +82,7 @@ export function AnalyticsSection({
                 />
               </Form.Item>
             )}
-            {showAccount && (
+            {accountEnabled && (
               <Form.Item label="Счёт" name={accountName}>
                 <AccountSelect
                   organizationId={organizationId}

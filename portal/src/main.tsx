@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { AnalyticsAccessProvider } from './contexts/AnalyticsAccessContext';
 import App from './App';
 import 'antd/dist/reset.css';
 import './styles.css';
@@ -15,7 +16,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
       }}
     >
       <AuthProvider>
-        <App />
+        <AnalyticsAccessProvider>
+          <App />
+        </AnalyticsAccessProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>

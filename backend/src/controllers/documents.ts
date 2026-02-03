@@ -13,8 +13,43 @@ import {
 } from '../services/document-status.js';
 import { validateDocument } from '../services/document-validation.js';
 import { normalizeUhDocumentRef } from '../utils/uh-ref.js';
+import * as analyticsRepo from '../repositories/analytics.js';
 
 const DEFAULT_UH_DOCUMENT_TYPE = 'Документ.ПоступлениеТоваровУслуг';
+
+function isFilled(v: any): boolean {
+  if (v === null || v === undefined) return false;
+  if (typeof v === 'string') return v.trim() !== '';
+  return true;
+}
+
+async function validateDocumentAnalyticsSubscriptions(orgId: string, payload: any) {
+  const enabled = await analyticsRepo.getEnabledTypeCodesForOrg(orgId);
+
+  const requireEnabled = (typeCode: string, fieldLabel: string, fieldValue: any) => {
+    if (!isFilled(fieldValue)) return;
+    const tc = String(typeCode).toUpperCase();
+    if (enabled.has(tc)) return;
+    // совместимость: ACCOUNT может быть BANK_ACCOUNT
+    if (tc === 'ACCOUNT' && enabled.has('BANK_ACCOUNT')) return;
+    // совместимость: NOMENCLATURE может быть ITEM
+    if (tc === 'NOMENCLATURE' && enabled.has('ITEM')) return;
+    throw new Error(`Организация не подписана на аналитику «${fieldLabel}»`);
+  };
+
+  requireEnabled('COUNTERPARTY', 'Контрагент', payload.counterpartyId);
+  requireEnabled('CONTRACT', 'Договор', payload.contractId);
+  requireEnabled('WAREHOUSE', 'Склад', payload.warehouseId);
+  requireEnabled('ACCOUNT', 'Счёт (банк/касса)', payload.paymentAccountId);
+  requireEnabled('DEPARTMENT', 'Подразделение', payload.departmentId);
+
+  if (Array.isArray(payload.items)) {
+    for (const it of payload.items) {
+      requireEnabled('NOMENCLATURE', 'Номенклатура', (it as any)?.nomenclatureId);
+      requireEnabled('ACCOUNTING_ACCOUNT', 'Счет учета (план счетов)', (it as any)?.accountId);
+    }
+  }
+}
 
 function buildUhDocumentDisplayUrl(uhDocumentRef: string | null | undefined): string | null {
   const base = process.env.UH_WEB_CLIENT_BASE_URL;
@@ -163,6 +198,12 @@ export async function createDocument(req: Request, res: Response, next: NextFunc
     // Данные уже валидированы через middleware validate()
     const documentData = req.body;
     logger.info('Creating document', { documentId: 'new', type: documentData.type, number: documentData.number });
+
+    try {
+      await validateDocumentAnalyticsSubscriptions(documentData.organizationId, documentData);
+    } catch (e: any) {
+      return res.status(400).json({ error: { message: e?.message || 'Аналитики недоступны для организации' } });
+    }
     
     const document = await documentsRepo.createDocument({
       packageId: documentData.packageId,
@@ -310,6 +351,12 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
       serviceStartDate: updates.serviceStartDate,
       serviceEndDate: updates.serviceEndDate
     };
+
+    try {
+      await validateDocumentAnalyticsSubscriptions(versionData.organizationId, versionData);
+    } catch (e: any) {
+      return res.status(400).json({ error: { message: e?.message || 'Аналитики недоступны для организации' } });
+    }
 
     // Сравниваем старые и новые значения для определения измененных полей
     const fieldLabels: Record<string, string> = {

@@ -3,6 +3,7 @@ import { Select, Spin, message } from 'antd';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
+import { useAnalyticsAccess } from '../../contexts/AnalyticsAccessContext';
 
 const { Option } = Select;
 
@@ -29,8 +30,17 @@ export function ContractSelect({
   counterpartyId,
   ...props 
 }: ContractSelectProps) {
+  const { isEnabled } = useAnalyticsAccess();
+  const enabled = isEnabled('CONTRACT');
   const [loading, setLoading] = useState(false);
   const [contracts, setContracts] = useState<Contract[]>([]);
+
+  useEffect(() => {
+    if (enabled) return;
+    if (!value) return;
+    onChange?.('' as any);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
   const loadContracts = async () => {
     setLoading(true);
@@ -71,8 +81,8 @@ export function ContractSelect({
       ]}
       loadItems={loadItems}
       onSelect={(id) => onChange?.(id)}
-      disabled={!organizationId}
-      disabledHint="Сначала выберите организацию"
+      disabled={!enabled || !organizationId}
+      disabledHint={!enabled ? 'Нет подписки на аналитику' : 'Сначала выберите организацию'}
     >
       <Select
         {...props}
@@ -80,12 +90,17 @@ export function ContractSelect({
         onChange={onChange}
         showSearch
         allowClear
-        placeholder="Выберите договор"
+        placeholder={enabled ? 'Выберите договор' : 'Недоступно (нет подписки на аналитику)'}
         loading={loading}
+        disabled={!enabled || !organizationId}
         filterOption={(input, option) =>
           (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
         }
-        notFoundContent={loading ? <Spin size="small" /> : organizationId ? 'Договоры не найдены' : 'Сначала выберите организацию'}
+        notFoundContent={
+          loading ? <Spin size="small" /> :
+          !enabled ? 'Недоступно (нет подписки на аналитику)' :
+          organizationId ? 'Договоры не найдены' : 'Сначала выберите организацию'
+        }
         optionLabelProp="label"
         style={{ width: '100%' }}
       >

@@ -3,6 +3,7 @@ import { Select, Spin, message } from 'antd';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
+import { useAnalyticsAccess } from '../../contexts/AnalyticsAccessContext';
 
 const { Option } = Select;
 
@@ -29,8 +30,18 @@ export function AccountSelect({
   type,
   ...props 
 }: AccountSelectProps) {
+  const { isEnabled } = useAnalyticsAccess();
+  // В старых настройках может быть BANK_ACCOUNT вместо ACCOUNT
+  const enabled = isEnabled('ACCOUNT') || isEnabled('BANK_ACCOUNT');
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
+
+  useEffect(() => {
+    if (enabled) return;
+    if (!value) return;
+    onChange?.('' as any);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
   const loadAccounts = async () => {
     setLoading(true);
@@ -68,8 +79,8 @@ export function AccountSelect({
       ]}
       loadItems={loadItems}
       onSelect={(id) => onChange?.(id)}
-      disabled={!organizationId}
-      disabledHint="Сначала выберите организацию"
+      disabled={!enabled || !organizationId}
+      disabledHint={!enabled ? 'Нет подписки на аналитику' : 'Сначала выберите организацию'}
     >
       <Select
         {...props}
@@ -77,12 +88,17 @@ export function AccountSelect({
         onChange={onChange}
         showSearch
         allowClear
-        placeholder="Выберите счет"
+        placeholder={enabled ? 'Выберите счет' : 'Недоступно (нет подписки на аналитику)'}
         loading={loading}
         filterOption={(input, option) =>
           (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
         }
-        notFoundContent={loading ? <Spin size="small" /> : organizationId ? 'Счета не найдены' : 'Сначала выберите организацию'}
+        disabled={!enabled || !organizationId}
+        notFoundContent={
+          loading ? <Spin size="small" /> :
+          !enabled ? 'Недоступно (нет подписки на аналитику)' :
+          organizationId ? 'Счета не найдены' : 'Сначала выберите организацию'
+        }
         optionLabelProp="label"
         style={{ width: '100%' }}
       >

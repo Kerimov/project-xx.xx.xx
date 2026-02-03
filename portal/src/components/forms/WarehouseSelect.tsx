@@ -3,6 +3,7 @@ import { Select, Spin, message } from 'antd';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
+import { useAnalyticsAccess } from '../../contexts/AnalyticsAccessContext';
 
 const { Option } = Select;
 
@@ -27,8 +28,17 @@ export function WarehouseSelect({
   organizationId: _organizationId, // деструктурируем, чтобы не передавать в DOM
   ...props 
 }: WarehouseSelectProps) {
+  const { isEnabled } = useAnalyticsAccess();
+  const enabled = isEnabled('WAREHOUSE');
   const [loading, setLoading] = useState(false);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+
+  useEffect(() => {
+    if (enabled) return;
+    if (!value) return;
+    onChange?.('' as any);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
   const loadWarehouses = async () => {
     setLoading(true);
@@ -75,13 +85,18 @@ export function WarehouseSelect({
         onChange={onChange}
         showSearch
         allowClear
-        placeholder="Выберите склад"
+        placeholder={enabled ? 'Выберите склад' : 'Недоступно (нет подписки на аналитику)'}
         loading={loading}
+        disabled={!enabled}
         filterOption={(input, option) => {
           const label = (option?.label ?? option?.value ?? '')?.toString?.() ?? '';
           return label.toLowerCase().includes((input ?? '').toLowerCase());
         }}
-        notFoundContent={loading ? <Spin size="small" /> : 'Склады не найдены. Запустите синхронизацию НСИ на странице «Интеграция с УХ».'}
+        notFoundContent={
+          loading ? <Spin size="small" /> :
+          !enabled ? 'Недоступно (нет подписки на аналитику)' :
+          'Склады не найдены. Запустите синхронизацию НСИ на странице «Интеграция с УХ».'
+        }
         optionLabelProp="label"
         style={{ width: '100%' }}
       >

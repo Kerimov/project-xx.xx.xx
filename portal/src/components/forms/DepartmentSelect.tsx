@@ -3,6 +3,7 @@ import { Select, Spin, message } from 'antd';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
+import { useAnalyticsAccess } from '../../contexts/AnalyticsAccessContext';
 
 const { Option } = Select;
 
@@ -27,8 +28,17 @@ export function DepartmentSelect({
   organizationId,
   ...props
 }: DepartmentSelectProps) {
+  const { isEnabled } = useAnalyticsAccess();
+  const enabled = isEnabled('DEPARTMENT');
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
+
+  useEffect(() => {
+    if (enabled) return;
+    if (!value) return;
+    onChange?.('' as any);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
   const loadDepartments = async () => {
     setLoading(true);
@@ -74,9 +84,12 @@ export function DepartmentSelect({
         onChange={onChange}
         showSearch
         allowClear
-        placeholder={organizationId ? 'Выберите подразделение' : 'Сначала выберите организацию'}
+        placeholder={
+          !enabled ? 'Недоступно (нет подписки на аналитику)' :
+          organizationId ? 'Выберите подразделение' : 'Сначала выберите организацию'
+        }
         loading={loading}
-        disabled={!organizationId}
+        disabled={!enabled || !organizationId}
         filterOption={(input, option) => {
           const label = (option?.label ?? option?.value ?? '')?.toString?.() ?? '';
           return label.toLowerCase().includes((input ?? '').toLowerCase());
@@ -84,6 +97,8 @@ export function DepartmentSelect({
         notFoundContent={
           loading ? (
             <Spin size="small" />
+          ) : !enabled ? (
+            'Недоступно (нет подписки на аналитику)'
           ) : !organizationId ? (
             'Сначала выберите организацию'
           ) : (

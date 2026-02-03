@@ -3,6 +3,7 @@ import { Select, Spin, message } from 'antd';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
+import { useAnalyticsAccess } from '../../contexts/AnalyticsAccessContext';
 
 const { Option } = Select;
 
@@ -22,8 +23,17 @@ export function AccountingAccountSelect({
   onChange,
   ...props
 }: AccountingAccountSelectProps) {
+  const { isEnabled } = useAnalyticsAccess();
+  const enabled = isEnabled('ACCOUNTING_ACCOUNT');
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState<AccountingAccount[]>([]);
+
+  useEffect(() => {
+    if (enabled) return;
+    if (!value) return;
+    onChange?.('' as any);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
   const loadAccounts = async (search?: string) => {
     setLoading(true);
@@ -72,11 +82,16 @@ export function AccountingAccountSelect({
         onChange={onChange}
         showSearch
         allowClear
-        placeholder="Выберите счет"
+        disabled={!enabled}
+        placeholder={enabled ? 'Выберите счет' : 'Недоступно (нет подписки на аналитику)'}
         loading={loading}
         onSearch={handleSearch}
         filterOption={false}
-        notFoundContent={loading ? <Spin size="small" /> : 'Счета не найдены'}
+        notFoundContent={
+          loading ? <Spin size="small" /> :
+          !enabled ? 'Недоступно (нет подписки на аналитику)' :
+          'Счета не найдены'
+        }
         optionLabelProp="label"
         style={{ width: '100%' }}
       >

@@ -3,6 +3,7 @@ import { Select, Spin, message, Input } from 'antd';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
+import { useAnalyticsAccess } from '../../contexts/AnalyticsAccessContext';
 
 const { Option } = Select;
 
@@ -19,9 +20,20 @@ interface CounterpartySelectProps extends Omit<SelectProps, 'options' | 'loading
 }
 
 export function CounterpartySelect({ value, onChange, onNameChange, ...props }: CounterpartySelectProps) {
+  const { isEnabled } = useAnalyticsAccess();
+  const enabled = isEnabled('COUNTERPARTY');
   const [loading, setLoading] = useState(false);
   const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
   const [searchValue, setSearchValue] = useState('');
+
+  // Если аналитика не разрешена — очищаем значение, чтобы оно не ушло в API
+  useEffect(() => {
+    if (enabled) return;
+    if (!value) return;
+    onChange?.('' as any, undefined);
+    onNameChange?.('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
   const loadCounterparties = async (search?: string) => {
     setLoading(true);
@@ -90,9 +102,10 @@ export function CounterpartySelect({ value, onChange, onNameChange, ...props }: 
         {...props}
         value={value}
         onChange={handleChange}
+        disabled={!enabled}
         showSearch
         allowClear
-        placeholder="Выберите контрагента"
+        placeholder={enabled ? 'Выберите контрагента' : 'Недоступно (нет подписки на аналитику)'}
         loading={loading}
         filterOption={false}
         onSearch={handleSearch}
@@ -102,24 +115,26 @@ export function CounterpartySelect({ value, onChange, onNameChange, ...props }: 
         popupRender={(menu) => (
           <>
             {menu}
-            <div style={{ padding: '8px', borderTop: '1px solid #f0f0f0' }}>
-              <Input
-                placeholder="Или введите название вручную"
-                value={searchValue}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSearchValue(val);
-                  if (onNameChange && !counterparties.find(cp => cp.name === val)) {
-                    onNameChange(val);
-                  }
-                }}
-                onPressEnter={() => {
-                  if (onNameChange && searchValue) {
-                    onNameChange(searchValue);
-                  }
-                }}
-              />
-            </div>
+            {enabled && (
+              <div style={{ padding: '8px', borderTop: '1px solid #f0f0f0' }}>
+                <Input
+                  placeholder="Или введите название вручную"
+                  value={searchValue}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSearchValue(val);
+                    if (onNameChange && !counterparties.find(cp => cp.name === val)) {
+                      onNameChange(val);
+                    }
+                  }}
+                  onPressEnter={() => {
+                    if (onNameChange && searchValue) {
+                      onNameChange(searchValue);
+                    }
+                  }}
+                />
+              </div>
+            )}
           </>
         )}
       >

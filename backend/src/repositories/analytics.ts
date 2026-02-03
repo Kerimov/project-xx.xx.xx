@@ -260,6 +260,21 @@ export async function listOrgSubscriptions(orgId: string) {
   return r.rows as Array<{ org_id: string; type_id: string; is_enabled: boolean; type_code: string; type_name: string }>;
 }
 
+export async function getEnabledTypeCodesForOrg(orgId: string): Promise<Set<string>> {
+  const r = await pool.query(
+    `SELECT t.code
+     FROM org_analytics_subscriptions s
+     JOIN analytics_types t ON t.id = s.type_id
+     WHERE s.org_id = $1 AND s.is_enabled = true`,
+    [orgId]
+  );
+  const set = new Set<string>();
+  for (const row of r.rows as Array<{ code: string }>) {
+    if (row?.code) set.add(String(row.code).toUpperCase());
+  }
+  return set;
+}
+
 export async function upsertOrgWebhook(data: {
   orgId: string;
   url: string;
