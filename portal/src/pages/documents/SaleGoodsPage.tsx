@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Form, Input, DatePicker, Select, Button, Space, Typography, Table, InputNumber, Checkbox, message, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
-import { OrganizationSelect, CounterpartySelect, AccountingAccountSelect, AnalyticsSection, NomenclatureSelect, PackageSelect } from '../../components/forms';
+import { OrganizationSelect, CounterpartySelect, AccountingAccountSelect, AnalyticsSection, ObjectAccountingSection, NomenclatureSelect, PackageSelect } from '../../components/forms';
 import { api } from '../../services/api';
 import dayjs from 'dayjs';
 import { parseDateSafe } from '../../utils/dateUtils';
@@ -67,7 +67,11 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
             totalAmount: doc.totalAmount || doc.amount || 0,
             paymentTerms: doc.paymentTerms || '',
             isUPD: doc.isUPD || false,
-            invoiceRequired: doc.invoiceRequired || 'notRequired'
+            invoiceRequired: doc.invoiceRequired || 'notRequired',
+            // Объекты учета
+            fixedAssetId: doc.fixedAssetId || null,
+            projectId: doc.projectId || null,
+            cfoId: doc.cfoId || null
           });
 
           setSelectedOrganizationId(doc.organizationId);
@@ -106,6 +110,10 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
         contractId: values.contractId,
         warehouseId: values.warehouseId,
         currency: values.currency || 'RUB',
+        // Объекты учета
+        fixedAssetId: values.fixedAssetId || null,
+        projectId: values.projectId || null,
+        cfoId: values.cfoId || null,
         items: items.map((item, idx) => ({
           rowNumber: idx + 1,
           nomenclatureName: item.nomenclatureName || '',
@@ -150,7 +158,11 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
         items,
         portalStatus: 'Frozen',
         totalAmount: items.reduce((sum, item) => sum + item.totalAmount, 0),
-        totalVAT: items.reduce((sum, item) => sum + item.vatAmount, 0)
+        totalVAT: items.reduce((sum, item) => sum + item.vatAmount, 0),
+        // Объекты учета
+        fixedAssetId: values.fixedAssetId || null,
+        projectId: values.projectId || null,
+        cfoId: values.cfoId || null
       };
 
       const response = await api.documents.create(document);
@@ -436,6 +448,12 @@ export function SaleGoodsPage({ documentId }: SaleGoodsPageProps = {}) {
               organizationId={selectedOrganizationId}
               counterpartyId={selectedCounterpartyId}
               warehouseRequired
+            />
+
+            <ObjectAccountingSection
+              showFixedAsset
+              showProject
+              showCFO
             />
 
             <Form.Item label="Расчеты:" name="paymentTerms">

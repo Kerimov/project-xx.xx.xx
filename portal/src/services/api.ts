@@ -259,7 +259,7 @@ export const api = {
     me: () => request<{ data: any }>('/auth/me')
   },
 
-  // Файлы
+  // Файлы документов
   files: {
     upload: async (documentId: string, file: File) => {
       const formData = new FormData();
@@ -784,6 +784,19 @@ export const api = {
             updatedBy: string | null;
           };
         }>(`/objects/cards/${id}`),
+      getHistory: (id: string) =>
+        request<{
+          data: Array<{
+            id: string;
+            changedBy: string | null;
+            changeType: string;
+            fieldKey: string | null;
+            oldValue: unknown;
+            newValue: unknown;
+            comment: string | null;
+            createdAt: string;
+          }>;
+        }>(`/objects/cards/${id}/history`),
       create: (payload: {
         typeId: string;
         code: string;

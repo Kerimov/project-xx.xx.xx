@@ -14,6 +14,7 @@ import {
 import { validateDocument } from '../services/document-validation.js';
 import { normalizeUhDocumentRef } from '../utils/uh-ref.js';
 import * as analyticsRepo from '../repositories/analytics.js';
+import * as objectsRepo from '../repositories/objects.js';
 
 const DEFAULT_UH_DOCUMENT_TYPE = 'Документ.ПоступлениеТоваровУслуг';
 
@@ -49,6 +50,22 @@ async function validateDocumentAnalyticsSubscriptions(orgId: string, payload: an
       requireEnabled('ACCOUNTING_ACCOUNT', 'Счет учета (план счетов)', (it as any)?.accountId);
     }
   }
+}
+
+async function validateDocumentObjectSubscriptions(orgId: string, payload: any) {
+  const enabled = await objectsRepo.getEnabledObjectTypeCodesForOrg(orgId);
+
+  const requireEnabled = (typeCode: string, fieldLabel: string, fieldValue: any) => {
+    if (!isFilled(fieldValue)) return;
+    const tc = String(typeCode).toUpperCase();
+    if (enabled.has(tc)) return;
+    throw new Error(`Организация не подписана на объект учета «${fieldLabel}»`);
+  };
+
+  requireEnabled('FIXED_ASSET', 'Основное средство', payload.fixedAssetId);
+  requireEnabled('PROJECT', 'Проект', payload.projectId);
+  requireEnabled('CFO', 'ЦФО', payload.cfoId);
+  requireEnabled('CONTRACT', 'Договор (объект учета)', payload.contractObjectId);
 }
 
 function buildUhDocumentDisplayUrl(uhDocumentRef: string | null | undefined): string | null {
@@ -161,6 +178,11 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
       version: `v${row.current_version}`,
       packageId: row.package_id,
       packageName: row.package_name || null,
+      // Объекты учета
+      fixedAssetId: versionData?.data?.fixedAssetId || null,
+      projectId: versionData?.data?.projectId || null,
+      cfoId: versionData?.data?.cfoId || null,
+      contractObjectId: versionData?.data?.contractObjectId || null,
       // Для обратной совместимости
       company: row.organization_name || '',
       counterparty: row.counterparty_name || versionData?.data?.counterpartyName || '',
@@ -201,6 +223,7 @@ export async function createDocument(req: Request, res: Response, next: NextFunc
 
     try {
       await validateDocumentAnalyticsSubscriptions(documentData.organizationId, documentData);
+      await validateDocumentObjectSubscriptions(documentData.organizationId, documentData);
     } catch (e: any) {
       return res.status(400).json({ error: { message: e?.message || 'Аналитики недоступны для организации' } });
     }
@@ -349,11 +372,17 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
       paymentTerms: updates.paymentTerms,
       servicePeriod: updates.servicePeriod,
       serviceStartDate: updates.serviceStartDate,
-      serviceEndDate: updates.serviceEndDate
+      serviceEndDate: updates.serviceEndDate,
+      // Объекты учета
+      fixedAssetId: (updates as any).fixedAssetId ?? oldData.fixedAssetId ?? null,
+      projectId: (updates as any).projectId ?? oldData.projectId ?? null,
+      cfoId: (updates as any).cfoId ?? oldData.cfoId ?? null,
+      contractObjectId: (updates as any).contractObjectId ?? oldData.contractObjectId ?? null
     };
 
     try {
       await validateDocumentAnalyticsSubscriptions(versionData.organizationId, versionData);
+      await validateDocumentObjectSubscriptions(versionData.organizationId, versionData);
     } catch (e: any) {
       return res.status(400).json({ error: { message: e?.message || 'Аналитики недоступны для организации' } });
     }
@@ -385,7 +414,11 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
       paymentTerms: 'Условия оплаты',
       servicePeriod: 'Период оказания услуг',
       serviceStartDate: 'Дата начала услуг',
-      serviceEndDate: 'Дата окончания услуг'
+      serviceEndDate: 'Дата окончания услуг',
+      fixedAssetId: 'Основное средство',
+      projectId: 'Проект',
+      cfoId: 'ЦФО',
+      contractObjectId: 'Договор (объект учета)'
     };
 
     const changedFields: Array<{ field: string; label: string; oldValue: any; newValue: any }> = [];

@@ -24,13 +24,13 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AnalyticsAdminPage } from './pages/AnalyticsAdminPage';
 import { OrganizationCabinetPage } from './pages/OrganizationCabinetPage';
 import { UsersAdminPage } from './pages/UsersAdminPage';
-import { ObjectTypesPage } from './pages/ObjectTypesPage';
 import { OrganizationDetailsPage } from './pages/nsi/OrganizationDetailsPage';
 import { CounterpartyDetailsPage } from './pages/nsi/CounterpartyDetailsPage';
 import { ContractDetailsPage } from './pages/nsi/ContractDetailsPage';
 import { AccountDetailsPage } from './pages/nsi/AccountDetailsPage';
 import { WarehouseDetailsPage } from './pages/nsi/WarehouseDetailsPage';
 import { AccountingAccountDetailsPage } from './pages/nsi/AccountingAccountDetailsPage';
+import { ObjectCardDetailsPage } from './pages/ObjectCardDetailsPage';
 
 const { Sider } = Layout;
 
@@ -69,13 +69,16 @@ function AppLayout() {
             <Route path="/analytics/admin" element={<AnalyticsAdminPage />} />
             <Route path="/organization/cabinet" element={<OrganizationCabinetPage />} />
             <Route path="/admin/users" element={<UsersAdminPage />} />
-            <Route path="/objects/types" element={<AdminRoute><ObjectTypesPage /></AdminRoute>} />
             <Route path="/nsi/organizations/:id" element={<OrganizationDetailsPage />} />
             <Route path="/nsi/counterparties/:id" element={<CounterpartyDetailsPage />} />
             <Route path="/nsi/contracts/:id" element={<ContractDetailsPage />} />
             <Route path="/nsi/accounts/:id" element={<AccountDetailsPage />} />
             <Route path="/nsi/warehouses/:id" element={<WarehouseDetailsPage />} />
             <Route path="/nsi/accounting-accounts/:id" element={<AccountingAccountDetailsPage />} />
+            <Route path="/objects/types" element={<AdminRoute><ObjectTypesPage /></AdminRoute>} />
+            <Route path="/objects/types/:id" element={<AdminRoute><ObjectTypesPage /></AdminRoute>} />
+            <Route path="/objects/cards" element={<ObjectCardsPage />} />
+            <Route path="/objects/cards/:id" element={<ObjectCardDetailsPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Content>

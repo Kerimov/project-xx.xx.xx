@@ -323,6 +323,22 @@ export async function createObjectCard(data: {
     );
     const card = cardRes.rows[0] as ObjectCardRow;
 
+    // Записываем создание в историю
+    await addObjectCardHistory(
+      card.id,
+      'Created',
+      data.createdBy || null,
+      null,
+      null,
+      {
+        code: card.code,
+        name: card.name,
+        status: card.status,
+        attrs: card.attrs
+      },
+      null
+    );
+
     // Записываем событие для webhook
     await client.query(
       `INSERT INTO object_events (event_type, type_id, card_id, payload)
@@ -400,12 +416,88 @@ export async function updateObjectCard(
       return (r0.rows[0] ?? null) as ObjectCardRow | null;
     }
 
+    // Получаем старые значения для истории
+    const oldCardRes = await client.query(`SELECT * FROM object_cards WHERE id = $1`, [id]);
+    const oldCard = oldCardRes.rows[0] as ObjectCardRow | undefined;
+
     values.push(id);
     const r = await client.query(
       `UPDATE object_cards SET ${fields.join(', ')}, updated_at = now() WHERE id = $${i} RETURNING *`,
       values
     );
     const card = r.rows[0] as ObjectCardRow;
+
+    // Записываем изменения в историю (триггер автоматически создаст записи, но можно добавить и вручную для важных полей)
+    if (oldCard) {
+      const changedFields: string[] = [];
+      if (updates.code !== undefined && updates.code !== oldCard.code) {
+        changedFields.push('code');
+        await addObjectCardHistory(
+          card.id,
+          'FieldChanged',
+          updates.updatedBy || null,
+          'code',
+          oldCard.code,
+          card.code,
+          null
+        );
+      }
+      if (updates.name !== undefined && updates.name !== oldCard.name) {
+        changedFields.push('name');
+        await addObjectCardHistory(
+          card.id,
+          'FieldChanged',
+          updates.updatedBy || null,
+          'name',
+          oldCard.name,
+          card.name,
+          null
+        );
+      }
+      if (updates.status !== undefined && updates.status !== oldCard.status) {
+        changedFields.push('status');
+        await addObjectCardHistory(
+          card.id,
+          'StatusChanged',
+          updates.updatedBy || null,
+          'status',
+          oldCard.status,
+          card.status,
+          null
+        );
+      }
+      if (updates.attrs !== undefined) {
+        const oldAttrs = oldCard.attrs || {};
+        const newAttrs = card.attrs || {};
+        // Находим измененные поля в attrs
+        const allKeys = new Set([...Object.keys(oldAttrs), ...Object.keys(newAttrs)]);
+        for (const key of allKeys) {
+          if (JSON.stringify(oldAttrs[key]) !== JSON.stringify(newAttrs[key])) {
+            await addObjectCardHistory(
+              card.id,
+              'FieldChanged',
+              updates.updatedBy || null,
+              key,
+              oldAttrs[key],
+              newAttrs[key],
+              null
+            );
+          }
+        }
+      }
+      if (changedFields.length === 0 && updates.attrs === undefined) {
+        // Если ничего не изменилось, просто записываем общее обновление
+        await addObjectCardHistory(
+          card.id,
+          'Updated',
+          updates.updatedBy || null,
+          null,
+          null,
+          null,
+          null
+        );
+      }
+    }
 
     // Записываем событие для webhook
     await client.query(
@@ -442,8 +534,47 @@ export async function updateObjectCard(
 }
 
 export async function deleteObjectCard(id: string): Promise<boolean> {
-  const r = await pool.query(`DELETE FROM object_cards WHERE id = $1`, [id]);
-  return (r.rowCount ?? 0) > 0;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Получаем данные карточки перед удалением для события
+    const cardRes = await client.query(`SELECT type_id FROM object_cards WHERE id = $1`, [id]);
+    if (cardRes.rows.length === 0) {
+      await client.query('COMMIT');
+      return false;
+    }
+
+    const card = cardRes.rows[0];
+    const r = await client.query(`DELETE FROM object_cards WHERE id = $1`, [id]);
+    const deleted = (r.rowCount ?? 0) > 0;
+
+    if (deleted) {
+      // Записываем событие удаления для webhook
+      await client.query(
+        `INSERT INTO object_events (event_type, type_id, card_id, payload)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          'Delete',
+          card.type_id,
+          id,
+          JSON.stringify({
+            eventType: 'Delete',
+            typeId: card.type_id,
+            cardId: id
+          })
+        ]
+      );
+    }
+
+    await client.query('COMMIT');
+    return deleted;
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
 // ========== Object Card History ==========
@@ -454,6 +585,30 @@ export async function getObjectCardHistory(cardId: string, limit: number = 50): 
     [cardId, limit]
   );
   return r.rows as ObjectCardHistoryRow[];
+}
+
+export async function addObjectCardHistory(
+  cardId: string,
+  changeType: string,
+  changedBy: string | null,
+  fieldKey: string | null,
+  oldValue: unknown,
+  newValue: unknown,
+  comment?: string | null
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO object_card_history (card_id, changed_by, change_type, field_key, old_value, new_value, comment)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      cardId,
+      changedBy,
+      changeType,
+      fieldKey,
+      oldValue ? JSON.stringify(oldValue) : null,
+      newValue ? JSON.stringify(newValue) : null,
+      comment || null
+    ]
+  );
 }
 
 // ========== Organization Subscriptions ==========

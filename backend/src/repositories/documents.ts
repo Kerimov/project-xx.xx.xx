@@ -129,6 +129,11 @@ export async function createDocument(data: {
   documentNumber?: string;
   paymentTerms?: string;
   createdBy?: string;
+  // Объекты учета
+  fixedAssetId?: string | null;
+  projectId?: string | null;
+  cfoId?: string | null;
+  contractObjectId?: string | null;
 }) {
   // Валидация UUID для organizationId
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -177,6 +182,11 @@ export async function createDocument(data: {
     warehouseId: data.warehouseId,
     receiptOperationType: data.receiptOperationType,
     hasDiscrepancies: data.hasDiscrepancies,
+    // Объекты учета
+    fixedAssetId: (data as any).fixedAssetId ?? null,
+    projectId: (data as any).projectId ?? null,
+    cfoId: (data as any).cfoId ?? null,
+    contractObjectId: (data as any).contractObjectId ?? null,
     originalReceived: data.originalReceived,
     invoiceReceived: data.invoiceReceived,
     isUPD: data.isUPD,

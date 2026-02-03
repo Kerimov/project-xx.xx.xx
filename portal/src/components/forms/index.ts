@@ -8,5 +8,7 @@ export { WarehouseSelect } from './WarehouseSelect';
 export { DepartmentSelect } from './DepartmentSelect';
 export { NomenclatureSelect } from './NomenclatureSelect';
 export { AnalyticsSection } from './AnalyticsSection';
+export { ObjectCardSelect } from './ObjectCardSelect';
+export { ObjectAccountingSection } from './ObjectAccountingSection';
 export { BaseDocumentForm } from './BaseDocumentForm';
 export { FileUploadSection } from './FileUploadSection';

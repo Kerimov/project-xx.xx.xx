@@ -7,6 +7,12 @@ import {
   downloadFile,
   deleteFile
 } from '../controllers/files.js';
+import {
+  uploadObjectCardFile,
+  getObjectCardFiles,
+  downloadObjectCardFile,
+  deleteObjectCardFile
+} from '../controllers/object-files.js';
 import { uploadSingle } from '../middleware/upload.js';
 import { validateParams } from '../middleware/validate.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -74,3 +80,33 @@ filesRouter.get('/files/:fileId', validateParams(fileIdSchema), downloadFile);
 
 // Удаление файла
 filesRouter.delete('/files/:fileId', validateParams(fileIdSchema), deleteFile);
+
+// ========== Файлы карточек объектов учета ==========
+
+const cardIdSchema = z.object({
+  cardId: z.string().uuid('Invalid card ID format')
+});
+
+// Загрузка файла к карточке объекта
+filesRouter.post(
+  '/objects/cards/:cardId/files',
+  validateParams(cardIdSchema),
+  (req, res, next) => {
+    uploadSingle(req, res, (err) => {
+      if (err) {
+        return handleMulterError(err, req, res, next);
+      }
+      next();
+    });
+  },
+  uploadObjectCardFile
+);
+
+// Получение списка файлов карточки объекта
+filesRouter.get('/objects/cards/:cardId/files', validateParams(cardIdSchema), getObjectCardFiles);
+
+// Скачивание файла карточки объекта
+filesRouter.get('/objects/cards/files/:fileId', validateParams(fileIdSchema), downloadObjectCardFile);
+
+// Удаление файла карточки объекта
+filesRouter.delete('/objects/cards/files/:fileId', validateParams(fileIdSchema), deleteObjectCardFile);

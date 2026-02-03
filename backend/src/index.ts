@@ -18,6 +18,7 @@ import { runMigrations } from './db/migrate.js';
 import { uhQueueService } from './services/uh-queue.js';
 import { nsiSyncService } from './services/nsi-sync.js';
 import { analyticsWebhooksService } from './services/analytics-webhooks.js';
+import { objectsWebhooksService } from './services/objects-webhooks.js';
 import { logger } from './utils/logger.js';
 
 dotenv.config();
@@ -57,6 +58,11 @@ const PORT = process.env.PORT || 3000;
     const analyticsWebhookInterval = parseInt(process.env.ANALYTICS_WEBHOOK_INTERVAL || '5000');
     analyticsWebhooksService.start(analyticsWebhookInterval);
     logger.info('Analytics webhook processor started');
+
+    // Запускаем доставку объектов учета по webhook
+    const objectsWebhookInterval = parseInt(process.env.OBJECTS_WEBHOOK_INTERVAL || '5000');
+    objectsWebhooksService.start(objectsWebhookInterval);
+    logger.info('Objects webhook processor started');
   } catch (e: any) {
     logger.error('Failed to initialize database', e);
   }
