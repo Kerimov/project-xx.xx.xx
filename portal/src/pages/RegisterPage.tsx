@@ -178,12 +178,12 @@ export function RegisterPage() {
             <Form.Item
               name="role"
               label="Роль"
-              initialValue="user"
+              initialValue="employee"
             >
               <Select>
-                <Option value="user">Пользователь</Option>
-                <Option value="ecof_user">Пользователь ЕЦОФ</Option>
-                <Option value="company_user">Пользователь компании</Option>
+                <Option value="employee">Сотрудник</Option>
+                <Option value="org_admin">Администратор организации</Option>
+                <Option value="ecof_admin" disabled>Администратор ЕЦОФ (только по назначению)</Option>
               </Select>
             </Form.Item>
 

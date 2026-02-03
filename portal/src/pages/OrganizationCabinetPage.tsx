@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   Card,
   Tabs,
@@ -53,6 +53,7 @@ type SubRow = { typeId: string; typeCode: string; typeName: string; isEnabled: b
 export function OrganizationCabinetPage() {
   const { user } = useAuth();
   const { refresh: refreshAccess } = useAnalyticsAccess();
+  const isOrgAdmin = useMemo(() => user?.role === 'org_admin' || user?.role === 'ecof_admin', [user?.role]);
   const [orgInfo, setOrgInfo] = useState<OrganizationInfo | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,23 +112,32 @@ export function OrganizationCabinetPage() {
   const loadAnalytics = async () => {
     try {
       setAnalyticsLoading(true);
-      const [tRes, sRes, wRes] = await Promise.all([
+      const [tRes, sRes] = await Promise.all([
         api.analytics.listTypes(),
-        api.analytics.listSubscriptions(),
-        api.analytics.getWebhook()
+        api.analytics.listSubscriptions()
       ]);
       setTypes(tRes.data || []);
       setSubs(sRes.data || []);
 
-      // Сохраняем данные webhook в состоянии вместо установки в форму сразу
-      if (wRes.data) {
-        setWebhookData({
-          url: wRes.data.url,
-          secret: '',
-          isActive: wRes.data.isActive
-        });
-      } else {
-        setWebhookData({ url: '', secret: '', isActive: true });
+      // Загружаем webhook только если пользователь администратор
+      if (isOrgAdmin) {
+        try {
+          const wRes = await api.analytics.getWebhook();
+          if (wRes.data) {
+            setWebhookData({
+              url: wRes.data.url,
+              secret: '',
+              isActive: wRes.data.isActive
+            });
+          } else {
+            setWebhookData({ url: '', secret: '', isActive: true });
+          }
+        } catch (e: any) {
+          // Игнорируем ошибку 403 для обычных сотрудников
+          if (e?.message?.includes('403') || e?.message?.includes('Forbidden')) {
+            setWebhookData(null);
+          }
+        }
       }
     } catch (e: any) {
       message.error(e?.message || 'Ошибка загрузки аналитик');
@@ -221,8 +231,12 @@ export function OrganizationCabinetPage() {
     }
   };
 
-  // Управление подписками на аналитики
+  // Управление подписками на аналитики (только для администраторов)
   const toggleSubscription = async (typeId: string, isEnabled: boolean) => {
+    if (!isOrgAdmin) {
+      message.warning('Только администраторы организации могут изменять подписки');
+      return;
+    }
     try {
       setSavingTypeId(typeId);
       await api.analytics.setSubscription({ typeId, isEnabled });
@@ -237,8 +251,12 @@ export function OrganizationCabinetPage() {
     }
   };
 
-  // Сохранение webhook
+  // Сохранение webhook (только для администраторов)
   const saveWebhook = async () => {
+    if (!isOrgAdmin) {
+      message.warning('Только администраторы организации могут настраивать webhook');
+      return;
+    }
     try {
       const values = await webhookForm.validateFields();
       setWebhookLoading(true);
@@ -253,8 +271,12 @@ export function OrganizationCabinetPage() {
     }
   };
 
-  // Ресинк аналитик
+  // Ресинк аналитик (только для администраторов)
   const resync = async () => {
+    if (!isOrgAdmin) {
+      message.warning('Только администраторы организации могут запускать ресинк');
+      return;
+    }
     try {
       setWebhookLoading(true);
       const r = await api.analytics.resync();
@@ -269,17 +291,13 @@ export function OrganizationCabinetPage() {
   const getRoleTag = (role: string) => {
     const colors: Record<string, string> = {
       ecof_admin: 'red',
-      admin: 'red',
-      ecof_user: 'blue',
-      company_user: 'green',
-      user: 'default',
+      org_admin: 'orange',
+      employee: 'blue',
     };
     const labels: Record<string, string> = {
-      ecof_admin: 'Админ ЕЦОФ',
-      admin: 'Админ',
-      ecof_user: 'Пользователь ЕЦОФ',
-      company_user: 'Пользователь компании',
-      user: 'Пользователь',
+      ecof_admin: 'Администратор ЕЦОФ',
+      org_admin: 'Администратор организации',
+      employee: 'Сотрудник',
     };
     return <Tag color={colors[role] || 'default'}>{labels[role] || role}</Tag>;
   };
@@ -376,26 +394,35 @@ export function OrganizationCabinetPage() {
               key: 'employees',
               label: 'Сотрудники',
               children: (
-                <Card
-                  title="Сотрудники организации"
-                  extra={
-                    <Button
-                      type="primary"
-                      icon={<UserAddOutlined />}
-                      onClick={() => setAddEmployeeModalVisible(true)}
-                    >
-                      Добавить сотрудника
-                    </Button>
-                  }
-                  loading={employeesLoading}
-                >
-                  <Table
-                    columns={employeeColumns}
-                    dataSource={employees}
-                    rowKey="id"
-                    pagination={{ pageSize: 20 }}
-                  />
-                </Card>
+                <Space direction="vertical" style={{ width: '100%' }} size={16}>
+                  <Card
+                    title="Сотрудники организации"
+                    extra={
+                      <Button
+                        type="primary"
+                        icon={<UserAddOutlined />}
+                        onClick={() => setAddEmployeeModalVisible(true)}
+                      >
+                        Добавить сотрудника
+                      </Button>
+                    }
+                    loading={employeesLoading}
+                  >
+                    <Typography.Paragraph type="secondary" style={{ marginTop: 0, marginBottom: 16 }}>
+                      Здесь отображаются все сотрудники, привязанные к вашей организации. 
+                      Используйте кнопку <strong>"Добавить сотрудника"</strong> для привязки нового пользователя к организации.
+                    </Typography.Paragraph>
+                    <Table
+                      columns={employeeColumns}
+                      dataSource={employees}
+                      rowKey="id"
+                      pagination={{ pageSize: 20 }}
+                      locale={{
+                        emptyText: 'Нет сотрудников. Нажмите "Добавить сотрудника" для привязки пользователя к организации.'
+                      }}
+                    />
+                  </Card>
+                </Space>
               ),
             },
             {
@@ -403,68 +430,100 @@ export function OrganizationCabinetPage() {
               label: 'Настройки аналитик',
               children: (
                 <Space direction="vertical" style={{ width: '100%' }} size={16}>
-                  <Card size="small" title="Webhook для доставки аналитик (push)" loading={analyticsLoading}>
-                    <Form form={webhookForm} layout="vertical">
-                      <Row gutter={12}>
-                        <Col xs={24} md={14}>
-                          <Form.Item
-                            name="url"
-                            label="URL получателя"
-                            rules={[{ required: true, message: 'Укажите URL' }]}
-                          >
-                            <Input placeholder="https://accounting дочерней компании /webhooks/ecof-analytics" />
-                          </Form.Item>
-                        </Col>
-                        <Col xs={24} md={10}>
-                          <Form.Item
-                            name="secret"
-                            label="Секрет (для подписи HMAC SHA-256)"
-                            rules={[{ required: true, message: 'Укажите secret (минимум 8 символов)' }]}
-                          >
-                            <Input.Password placeholder="********" />
-                          </Form.Item>
-                        </Col>
+                  {isOrgAdmin ? (
+                    <>
+                      <Card size="small" title="Webhook для доставки аналитик (push)" loading={analyticsLoading}>
+                        <Form form={webhookForm} layout="vertical">
+                          <Row gutter={12}>
+                            <Col xs={24} md={14}>
+                              <Form.Item
+                                name="url"
+                                label="URL получателя"
+                                rules={[{ required: true, message: 'Укажите URL' }]}
+                              >
+                                <Input placeholder="https://accounting дочерней компании /webhooks/ecof-analytics" />
+                              </Form.Item>
+                            </Col>
+                            <Col xs={24} md={10}>
+                              <Form.Item
+                                name="secret"
+                                label="Секрет (для подписи HMAC SHA-256)"
+                                rules={[{ required: true, message: 'Укажите secret (минимум 8 символов)' }]}
+                              >
+                                <Input.Password placeholder="********" />
+                              </Form.Item>
+                            </Col>
+                          </Row>
+                          <Space wrap>
+                            <Button type="primary" onClick={saveWebhook} loading={webhookLoading}>
+                              Сохранить webhook
+                            </Button>
+                            <Button onClick={resync} loading={webhookLoading}>
+                              Ресинк подписок
+                            </Button>
+                            <Tag>Подпись: заголовок `x-ecof-signature`</Tag>
+                          </Space>
+                        </Form>
+                      </Card>
+
+                      <Card size="small" title="Подписки на виды аналитик" loading={analyticsLoading}>
+                        <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+                          Включите только те аналитики, которые ваша организация будет получать и использовать в документах на портале.
+                        </Typography.Paragraph>
+
+                        <Divider style={{ margin: '12px 0' }} />
+
+                        <Row gutter={[12, 12]}>
+                          {types
+                            .filter((t) => t.isActive)
+                            .map((t) => (
+                              <Col key={t.id} xs={24} md={12} lg={8}>
+                                <Card size="small">
+                                  <Space direction="vertical">
+                                    <Checkbox
+                                      checked={enabledSet.has(t.id)}
+                                      disabled={savingTypeId === t.id}
+                                      onChange={(e) => toggleSubscription(t.id, e.target.checked)}
+                                    >
+                                      <b>{t.name}</b>
+                                    </Checkbox>
+                                    <Typography.Text type="secondary">Код: {t.code}</Typography.Text>
+                                  </Space>
+                                </Card>
+                              </Col>
+                            ))}
+                        </Row>
+                      </Card>
+                    </>
+                  ) : (
+                    <Card size="small" title="Подписки на виды аналитик" loading={analyticsLoading}>
+                      <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+                        Текущие подписки вашей организации на аналитики. Для изменения подписок обратитесь к администратору организации.
+                      </Typography.Paragraph>
+
+                      <Divider style={{ margin: '12px 0' }} />
+
+                      <Row gutter={[12, 12]}>
+                        {types
+                          .filter((t) => t.isActive)
+                          .map((t) => (
+                            <Col key={t.id} xs={24} md={12} lg={8}>
+                              <Card size="small">
+                                <Space direction="vertical">
+                                  <Checkbox checked={enabledSet.has(t.id)} disabled>
+                                    <b>{t.name}</b>
+                                  </Checkbox>
+                                  <Typography.Text type="secondary">Код: {t.code}</Typography.Text>
+                                  {enabledSet.has(t.id) && (
+                                    <Tag color="green">Подписана</Tag>
+                                  )}
+                                </Space>
+                              </Card>
+                            </Col>
+                          ))}
                       </Row>
-                      <Space wrap>
-                        <Button type="primary" onClick={saveWebhook} loading={webhookLoading}>
-                          Сохранить webhook
-                        </Button>
-                        <Button onClick={resync} loading={webhookLoading}>
-                          Ресинк подписок
-                        </Button>
-                        <Tag>Подпись: заголовок `x-ecof-signature`</Tag>
-                      </Space>
-                    </Form>
-                  </Card>
-
-                  <Card size="small" title="Подписки на виды аналитик" loading={analyticsLoading}>
-                    <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
-                      Включите только те аналитики, которые ваша организация будет получать и использовать в документах на портале.
-                    </Typography.Paragraph>
-
-                    <Divider style={{ margin: '12px 0' }} />
-
-                    <Row gutter={[12, 12]}>
-                      {types
-                        .filter((t) => t.isActive)
-                        .map((t) => (
-                          <Col key={t.id} xs={24} md={12} lg={8}>
-                            <Card size="small">
-                              <Space direction="vertical">
-                                <Checkbox
-                                  checked={enabledSet.has(t.id)}
-                                  disabled={savingTypeId === t.id}
-                                  onChange={(e) => toggleSubscription(t.id, e.target.checked)}
-                                >
-                                  <b>{t.name}</b>
-                                </Checkbox>
-                                <Typography.Text type="secondary">Код: {t.code}</Typography.Text>
-                              </Space>
-                            </Card>
-                          </Col>
-                        ))}
-                    </Row>
-                  </Card>
+                    </Card>
+                  )}
                 </Space>
               ),
             },
@@ -474,7 +533,7 @@ export function OrganizationCabinetPage() {
 
       {/* Модальное окно добавления сотрудника */}
       <Modal
-        title="Добавить сотрудника"
+        title="Привязать сотрудника к организации"
         open={addEmployeeModalVisible}
         onOk={handleAddEmployee}
         onCancel={() => {
@@ -482,14 +541,20 @@ export function OrganizationCabinetPage() {
           addEmployeeForm.resetFields();
           setUserSearchResults([]);
         }}
-        okText="Добавить"
+        okText="Привязать"
         cancelText="Отмена"
+        width={600}
       >
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
+          Найдите пользователя по имени или email и привяжите его к вашей организации. 
+          После привязки сотрудник сможет работать с документами и настройками вашей организации.
+        </Typography.Paragraph>
         <Form form={addEmployeeForm} layout="vertical">
           <Form.Item
             name="userId"
             label="Пользователь"
             rules={[{ required: true, message: 'Выберите пользователя' }]}
+            extra="Начните вводить имя пользователя или email для поиска"
           >
             <Select
               showSearch
@@ -497,7 +562,8 @@ export function OrganizationCabinetPage() {
               loading={searchingUsers}
               onSearch={handleUserSearch}
               filterOption={false}
-              notFoundContent={searchingUsers ? 'Поиск...' : 'Начните вводить для поиска'}
+              notFoundContent={searchingUsers ? 'Поиск...' : 'Начните вводить для поиска (минимум 2 символа)'}
+              style={{ width: '100%' }}
             >
               {userSearchResults.map((u) => (
                 <Option key={u.id} value={u.id} disabled={!!u.organizationId}>
@@ -506,7 +572,12 @@ export function OrganizationCabinetPage() {
                     {u.email && <div style={{ fontSize: '12px', color: '#999' }}>{u.email}</div>}
                     {u.organizationId && (
                       <div style={{ fontSize: '12px', color: '#ff4d4f' }}>
-                        Уже привязан к другой организации
+                        ⚠️ Уже привязан к другой организации
+                      </div>
+                    )}
+                    {!u.organizationId && (
+                      <div style={{ fontSize: '12px', color: '#52c41a' }}>
+                        ✓ Доступен для привязки
                       </div>
                     )}
                   </div>
@@ -548,16 +619,16 @@ export function OrganizationCabinetPage() {
             rules={[{ required: true, message: 'Выберите роль' }]}
             extra={
               <div style={{ marginTop: 8, fontSize: '12px', color: '#666' }}>
-                <div><strong>Пользователь</strong> — базовая роль с минимальными правами</div>
-                <div><strong>Пользователь компании</strong> — работа в рамках своей организации</div>
-                <div><strong>Пользователь ЕЦОФ</strong> — работа на уровне центрального портала</div>
+                <div><strong>Сотрудник</strong> — работа с документами и пакетами</div>
+                <div><strong>Администратор организации</strong> — настройки и управление сотрудниками своей организации</div>
+                <div><strong>Администратор ЕЦОФ</strong> — полный доступ ко всему функционалу портала (назначается отдельно)</div>
               </div>
             }
           >
             <Select>
-              <Option value="user">Пользователь</Option>
-              <Option value="company_user">Пользователь компании</Option>
-              <Option value="ecof_user">Пользователь ЕЦОФ</Option>
+              <Option value="employee">Сотрудник</Option>
+              <Option value="org_admin">Администратор организации</Option>
+              <Option value="ecof_admin" disabled>Администратор ЕЦОФ (только по назначению)</Option>
             </Select>
           </Form.Item>
         </Form>

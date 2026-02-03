@@ -9,5 +9,5 @@ ON CONFLICT (code) DO NOTHING;
 
 -- Тестовый пользователь (пароль: "password", хэш bcrypt)
 INSERT INTO users (id, username, email, password_hash, role, organization_id) VALUES
-    ('00000000-0000-0000-0000-000000000010', 'admin', 'admin@ecof.local', '$2a$10$rOzJqXJqXJqXJqXJqXJqXeJqXJqXJqXJqXJqXJqXJqXJqXJqXJqXJqX', 'ecof_admin', '00000000-0000-0000-0000-000000000001')
-ON CONFLICT (username) DO NOTHING;
+    ('00000000-0000-0000-0000-000000000010', 'admin', 'admin@ecof.local', '$2a$10$HpiWOBjTxhKEEeZJihJGhu0EEd0zr7iHNy0oPgcB3bjplwWWhOlpe', 'ecof_admin', '00000000-0000-0000-0000-000000000001')
+ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash;

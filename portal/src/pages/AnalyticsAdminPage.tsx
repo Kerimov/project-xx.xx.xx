@@ -7,7 +7,7 @@ type TypeRow = { id: string; code: string; name: string; directionId: string | n
 
 export function AnalyticsAdminPage() {
   const { user } = useAuth();
-  const isAdmin = useMemo(() => ['ecof_admin', 'admin'].includes(user?.role || ''), [user?.role]);
+  const isAdmin = useMemo(() => user?.role === 'ecof_admin', [user?.role]);
 
   const [types, setTypes] = useState<TypeRow[]>([]);
   const [loading, setLoading] = useState(true);

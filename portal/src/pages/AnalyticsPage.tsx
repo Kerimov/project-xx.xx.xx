@@ -10,6 +10,7 @@ type SubRow = { typeId: string; typeCode: string; typeName: string; isEnabled: b
 export function AnalyticsPage() {
   const { user } = useAuth();
   const { refresh: refreshAccess } = useAnalyticsAccess();
+  const isOrgAdmin = useMemo(() => user?.role === 'org_admin' || user?.role === 'ecof_admin', [user?.role]);
   const [types, setTypes] = useState<TypeRow[]>([]);
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,22 +23,32 @@ export function AnalyticsPage() {
   const load = async () => {
     try {
       setLoading(true);
-      const [tRes, sRes, wRes] = await Promise.all([
+      const [tRes, sRes] = await Promise.all([
         api.analytics.listTypes(),
-        api.analytics.listSubscriptions(),
-        api.analytics.getWebhook()
+        api.analytics.listSubscriptions()
       ]);
       setTypes(tRes.data || []);
       setSubs(sRes.data || []);
 
-      if (wRes.data) {
-        webhookForm.setFieldsValue({
-          url: wRes.data.url,
-          secret: '',
-          isActive: wRes.data.isActive
-        });
-      } else {
-        webhookForm.setFieldsValue({ url: '', secret: '', isActive: true });
+      // Загружаем webhook только если пользователь администратор
+      if (isOrgAdmin) {
+        try {
+          const wRes = await api.analytics.getWebhook();
+          if (wRes.data) {
+            webhookForm.setFieldsValue({
+              url: wRes.data.url,
+              secret: '',
+              isActive: wRes.data.isActive
+            });
+          } else {
+            webhookForm.setFieldsValue({ url: '', secret: '', isActive: true });
+          }
+        } catch (e: any) {
+          // Игнорируем ошибку 403 для обычных сотрудников
+          if (!e?.message?.includes('403') && !e?.message?.includes('Forbidden')) {
+            message.error(e?.message || 'Ошибка загрузки webhook');
+          }
+        }
       }
     } catch (e: any) {
       message.error(e?.message || 'Ошибка загрузки аналитик');
@@ -104,7 +115,8 @@ export function AnalyticsPage() {
           Организация: <b>{user?.organizationId || '—'}</b>
         </Typography.Text>
 
-        <Card size="small" title="Webhook для доставки аналитик (push)" loading={loading}>
+        {isOrgAdmin && (
+          <Card size="small" title="Webhook для доставки аналитик (push)" loading={loading}>
           <Form form={webhookForm} layout="vertical">
             <Row gutter={12}>
               <Col xs={24} md={14}>
@@ -133,14 +145,17 @@ export function AnalyticsPage() {
               <Button onClick={resync} loading={webhookLoading}>
                 Ресинк подписок
               </Button>
-              <Tag>Подпись: заголовок `x-ecof-signature`</Tag>
-            </Space>
-          </Form>
-        </Card>
+            <Tag>Подпись: заголовок `x-ecof-signature`</Tag>
+          </Space>
+        </Form>
+      </Card>
+        )}
 
         <Card size="small" title="Подписки на виды аналитик" loading={loading}>
           <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
-            Включите только те аналитики, которые ваша организация будет получать и использовать в документах на портале.
+            {isOrgAdmin 
+              ? 'Включите только те аналитики, которые ваша организация будет получать и использовать в документах на портале.'
+              : 'Текущие подписки вашей организации на аналитики. Для изменения подписок обратитесь к администратору организации.'}
           </Typography.Paragraph>
 
           <Divider style={{ margin: '12px 0' }} />
@@ -154,12 +169,15 @@ export function AnalyticsPage() {
                     <Space direction="vertical">
                       <Checkbox
                         checked={enabledSet.has(t.id)}
-                        disabled={savingTypeId === t.id}
+                        disabled={!isOrgAdmin || savingTypeId === t.id}
                         onChange={(e) => toggleSubscription(t.id, e.target.checked)}
                       >
                         <b>{t.name}</b>
                       </Checkbox>
                       <Typography.Text type="secondary">Код: {t.code}</Typography.Text>
+                      {!isOrgAdmin && enabledSet.has(t.id) && (
+                        <Tag color="green">Подписана</Tag>
+                      )}
                     </Space>
                   </Card>
                 </Col>

@@ -174,10 +174,18 @@ export async function updateEmployeeRole(req: Request, res: Response, next: Next
       });
     }
 
-    // Не позволяем изменять роль админов
-    if (['ecof_admin', 'admin'].includes(user.role)) {
+    // Не позволяем изменять роль администратора ЕЦОФ
+    if (user.role === 'ecof_admin') {
       return res.status(403).json({
-        error: { message: 'Нельзя изменить роль администратора' },
+        error: { message: 'Нельзя изменить роль администратора ЕЦОФ' },
+      });
+    }
+
+    // Проверяем права: только администраторы могут изменять роли
+    const currentUserRole = (req as any).user?.role || 'employee';
+    if (currentUserRole !== 'ecof_admin' && currentUserRole !== 'org_admin') {
+      return res.status(403).json({
+        error: { message: 'Только администраторы могут изменять роли сотрудников' },
       });
     }
 
@@ -234,10 +242,18 @@ export async function unassignEmployee(req: Request, res: Response, next: NextFu
       });
     }
 
-    // Не позволяем отвязывать админов
-    if (['ecof_admin', 'admin'].includes(user.role)) {
+    // Не позволяем отвязывать администратора ЕЦОФ
+    if (user.role === 'ecof_admin') {
       return res.status(403).json({
-        error: { message: 'Нельзя отвязать администратора от организации' },
+        error: { message: 'Нельзя отвязать администратора ЕЦОФ от организации' },
+      });
+    }
+
+    // Проверяем права: только администраторы могут отвязывать сотрудников
+    const currentUserRole = (req as any).user?.role || 'employee';
+    if (currentUserRole !== 'ecof_admin' && currentUserRole !== 'org_admin') {
+      return res.status(403).json({
+        error: { message: 'Только администраторы могут отвязывать сотрудников от организации' },
       });
     }
 

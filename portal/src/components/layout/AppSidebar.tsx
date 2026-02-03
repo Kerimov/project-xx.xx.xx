@@ -32,7 +32,7 @@ export function AppSidebar() {
     { key: '/uh-db-connection', icon: <LinkOutlined />, label: 'Подключение к БД УХ' }
   ] as any[];
 
-  if (['ecof_admin', 'admin'].includes(user?.role || '')) {
+  if (user?.role === 'ecof_admin') {
     items.push({ key: '/analytics/admin', icon: <SettingOutlined />, label: 'Админ: аналитики' });
   }
 

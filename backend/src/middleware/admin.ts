@@ -9,9 +9,8 @@ export interface AuthRequest extends Request {
 }
 
 /**
- * Middleware для проверки прав администратора
- * В текущей реализации проверяет наличие роли 'admin' в токене
- * В будущем можно расширить проверку через БД
+ * Middleware для проверки прав администратора ЕЦОФ
+ * Только пользователи с ролью 'ecof_admin' имеют доступ
  */
 export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
   try {
@@ -24,12 +23,10 @@ export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction
       });
     }
 
-    // Проверяем роль администратора
-    // В текущей реализации используем простую проверку через роль
-    // TODO: В будущем можно добавить проверку через БД или более сложную систему ролей
-    const userRole = req.user.role || 'user';
+    // Проверяем роль администратора ЕЦОФ
+    const userRole = req.user.role || 'employee';
     
-    if (userRole !== 'admin') {
+    if (userRole !== 'ecof_admin') {
       logger.warn('Admin access denied: insufficient permissions', { 
         userId: req.user.id,
         username: req.user.username,
@@ -38,11 +35,11 @@ export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction
       });
       return res.status(403).json({ 
         error: 'Forbidden',
-        message: 'Недостаточно прав для выполнения операции' 
+        message: 'Недостаточно прав для выполнения операции. Требуется роль администратора ЕЦОФ.' 
       });
     }
 
-    logger.debug('Admin access granted', { 
+    logger.debug('ECOF admin access granted', { 
       userId: req.user.id,
       username: req.user.username,
       path: req.path 

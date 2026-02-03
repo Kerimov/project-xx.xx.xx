@@ -5,7 +5,7 @@ export const assignEmployeeSchema = z.object({
 });
 
 export const updateEmployeeRoleSchema = z.object({
-  role: z.enum(['user', 'ecof_user', 'company_user', 'ecof_admin', 'admin'], {
+  role: z.enum(['employee', 'org_admin', 'ecof_admin'], {
     errorMap: () => ({ message: 'Некорректная роль' }),
   }),
 });
