@@ -5,7 +5,7 @@ import { InfoCircleOutlined } from '@ant-design/icons';
 import { api } from '../../services/api';
 import { ReferenceSelectWrapper } from './ReferenceSelectWrapper';
 import type { SelectProps } from 'antd';
-import { useAnalyticsAccess } from '../../contexts/AnalyticsAccessContext';
+import { useObjectAccess } from '../../contexts/ObjectAccessContext';
 
 const { Option } = Select;
 
@@ -26,8 +26,11 @@ export function NomenclatureSelect({
   onChange,
   ...props
 }: NomenclatureSelectProps) {
-  const { isEnabled } = useAnalyticsAccess();
-  const enabled = isEnabled('NOMENCLATURE') || isEnabled('ITEM');
+  // Номенклатура для строк документов должна уважать подписки "Объекты учета" (v2),
+  // чтобы организация могла ограничить список до выбранных карточек (SELECTED).
+  const { isEnabled } = useObjectAccess();
+  const enabled = isEnabled('ITEM');
+  const typeCode = 'ITEM';
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<NomenclatureItem[]>([]);
 
@@ -40,19 +43,43 @@ export function NomenclatureSelect({
 
   const loadItems = useCallback(async (search?: string): Promise<NomenclatureItem[]> => {
     try {
-      const response = await api.nsi.nomenclature(search);
-      const list = response?.data;
-      return Array.isArray(list) ? list : [];
+      const res = await api.objects.subscribedCards.list({
+        typeCode,
+        search,
+        status: 'Active',
+        limit: 200
+      });
+      const list = res?.data?.cards || [];
+      return list.map((c) => ({
+        id: c.id,
+        code: c.code || '',
+        name: c.name || '',
+        data: (c.attrs as any) || undefined
+      })) as any;
     } catch {
       return [];
     }
-  }, []);
+  }, [typeCode]);
 
   const loadInitial = async () => {
     setLoading(true);
     try {
       const list = await loadItems(undefined);
       setItems(list);
+      // Если задан value и его нет в списке — подгружаем по id (для редактирования)
+      if (value && !list.some((x) => x.id === value)) {
+        try {
+          const one = await api.objects.cards.getById(value);
+          if (one.data?.id) {
+            setItems((prev) => [
+              { id: one.data.id, code: one.data.code || '', name: one.data.name || '' },
+              ...prev
+            ]);
+          }
+        } catch {
+          // ignore
+        }
+      }
     } catch (error: any) {
       message.error('Ошибка загрузки номенклатуры: ' + (error.message || 'Неизвестная ошибка'));
     } finally {
@@ -85,7 +112,7 @@ export function NomenclatureSelect({
           icon={<InfoCircleOutlined />}
           message={
             <span>
-              Аналитика <strong>Номенклатура</strong> недоступна. <Link to="/analytics" target="_blank" rel="noopener noreferrer">Подключить подписку →</Link>
+              Номенклатура недоступна. <Link to="/analytics" target="_blank" rel="noopener noreferrer">Подключить подписку в «Объекты учета» →</Link>
             </span>
           }
           style={{ marginBottom: 8 }}
@@ -126,7 +153,7 @@ export function NomenclatureSelect({
         }}
         notFoundContent={
           loading ? <Spin size="small" /> :
-          'Номенклатура не найдена. Запустите синхронизацию НСИ на странице «Интеграция с УХ».'
+          'Ничего не найдено. Создайте карточки номенклатуры во вкладке «Объекты учета» или расширьте подписку.'
         }
         optionLabelProp="label"
         style={{ width: '100%' }}

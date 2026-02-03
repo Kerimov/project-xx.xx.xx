@@ -23,6 +23,7 @@ import { NSIPage } from './pages/NSIPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { OrganizationCabinetPage } from './pages/OrganizationCabinetPage';
 import { UsersAdminPage } from './pages/UsersAdminPage';
+import { EcofArchitecturePage } from './pages/EcofArchitecturePage';
 import { OrganizationDetailsPage } from './pages/nsi/OrganizationDetailsPage';
 import { CounterpartyDetailsPage } from './pages/nsi/CounterpartyDetailsPage';
 import { ContractDetailsPage } from './pages/nsi/ContractDetailsPage';
@@ -30,6 +31,7 @@ import { AccountDetailsPage } from './pages/nsi/AccountDetailsPage';
 import { WarehouseDetailsPage } from './pages/nsi/WarehouseDetailsPage';
 import { AccountingAccountDetailsPage } from './pages/nsi/AccountingAccountDetailsPage';
 import { ObjectCardDetailsPage } from './pages/ObjectCardDetailsPage';
+import { EcofAdminRoute } from './components/EcofAdminRoute';
 
 const { Sider } = Layout;
 
@@ -67,6 +69,14 @@ function AppLayout() {
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/organization/cabinet" element={<OrganizationCabinetPage />} />
             <Route path="/admin/users" element={<UsersAdminPage />} />
+            <Route
+              path="/admin/architecture"
+              element={
+                <EcofAdminRoute>
+                  <EcofArchitecturePage />
+                </EcofAdminRoute>
+              }
+            />
             <Route path="/nsi/organizations/:id" element={<OrganizationDetailsPage />} />
             <Route path="/nsi/counterparties/:id" element={<CounterpartyDetailsPage />} />
             <Route path="/nsi/contracts/:id" element={<ContractDetailsPage />} />

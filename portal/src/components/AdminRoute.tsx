@@ -19,7 +19,7 @@ export function AdminRoute({ children }: AdminRouteProps) {
   if (!isAdmin) {
     return (
       <div className="page">
-        <Card>
+        <Card variant="outlined">
           <Typography.Text type="danger">
             Доступ запрещен. Требуется роль администратора организации или ЕЦОФ.
           </Typography.Text>

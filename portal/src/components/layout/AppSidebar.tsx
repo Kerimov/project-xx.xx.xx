@@ -11,7 +11,8 @@ import {
   ApartmentOutlined,
   SettingOutlined,
   UserOutlined,
-  BuildOutlined
+  BuildOutlined,
+  ProjectOutlined
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -42,7 +43,8 @@ export function AppSidebar() {
 
   if (user?.role === 'ecof_admin') {
     items.push(
-      { key: '/admin/users', icon: <UserOutlined />, label: 'Админ: пользователи' }
+      { key: '/admin/users', icon: <UserOutlined />, label: 'Админ: пользователи' },
+      { key: '/admin/architecture', icon: <ProjectOutlined />, label: 'Админ: архитектура' }
     );
   }
 

@@ -162,7 +162,13 @@ export function AnalyticsPage() {
         api.analytics.listTypes(),
         api.analytics.listSubscriptions()
       ]);
-      setTypes(tRes.data || []);
+      // UX: ITEM и NOMENCLATURE — исторические синонимы (оба "Номенклатура").
+      // Чтобы не путать пользователей, в UI показываем только NOMENCLATURE (если он есть).
+      const list: TypeRow[] = (tRes.data || []) as any;
+      const codes = new Set(list.map((x) => String(x.code || '').toUpperCase()));
+      const hasNom = codes.has('NOMENCLATURE');
+      const filtered = hasNom ? list.filter((x) => String(x.code || '').toUpperCase() !== 'ITEM') : list;
+      setTypes(filtered);
       setSubs(sRes.data || []);
     } catch (e: any) {
       message.error(e?.message || 'Ошибка загрузки аналитик');
@@ -193,7 +199,15 @@ export function AnalyticsPage() {
       const [tRes] = await Promise.all([
         api.objects.types.list({ activeOnly: false }),
       ]);
-      setObjectTypes(tRes.data || []);
+      // UX: ITEM и NOMENCLATURE — исторические синонимы для справочника номенклатуры.
+      // Чтобы не путать пользователей, показываем только один (предпочитаем NOMENCLATURE).
+      const list: ObjectType[] = (tRes.data || []) as any;
+      const codes = new Set(list.map((x) => String(x.code || '').toUpperCase()));
+      const hasNomenclature = codes.has('NOMENCLATURE');
+      const filtered = hasNomenclature
+        ? list.filter((x) => String(x.code || '').toUpperCase() !== 'ITEM')
+        : list;
+      setObjectTypes(filtered);
     } catch (e: any) {
       message.error(e?.message || 'Ошибка загрузки объектов учета');
     }
