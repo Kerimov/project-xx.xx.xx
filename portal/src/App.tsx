@@ -24,6 +24,7 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AnalyticsAdminPage } from './pages/AnalyticsAdminPage';
 import { OrganizationCabinetPage } from './pages/OrganizationCabinetPage';
 import { UsersAdminPage } from './pages/UsersAdminPage';
+import { ObjectTypesPage } from './pages/ObjectTypesPage';
 import { OrganizationDetailsPage } from './pages/nsi/OrganizationDetailsPage';
 import { CounterpartyDetailsPage } from './pages/nsi/CounterpartyDetailsPage';
 import { ContractDetailsPage } from './pages/nsi/ContractDetailsPage';
@@ -68,6 +69,7 @@ function AppLayout() {
             <Route path="/analytics/admin" element={<AnalyticsAdminPage />} />
             <Route path="/organization/cabinet" element={<OrganizationCabinetPage />} />
             <Route path="/admin/users" element={<UsersAdminPage />} />
+            <Route path="/objects/types" element={<AdminRoute><ObjectTypesPage /></AdminRoute>} />
             <Route path="/nsi/organizations/:id" element={<OrganizationDetailsPage />} />
             <Route path="/nsi/counterparties/:id" element={<CounterpartyDetailsPage />} />
             <Route path="/nsi/contracts/:id" element={<ContractDetailsPage />} />

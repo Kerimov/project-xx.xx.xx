@@ -606,5 +606,255 @@ export const api = {
           }>;
         }>('/admin/organizations')
     }
+  },
+  // Объекты учета
+  objects: {
+    types: {
+      list: (params?: { directionId?: string; search?: string; activeOnly?: boolean }) => {
+        const queryParams = new URLSearchParams();
+        if (params?.directionId) queryParams.append('directionId', params.directionId);
+        if (params?.search) queryParams.append('search', params.search);
+        if (params?.activeOnly !== false) queryParams.append('activeOnly', 'true');
+        return request<{
+          data: Array<{
+            id: string;
+            code: string;
+            name: string;
+            directionId: string | null;
+            icon: string | null;
+            description: string | null;
+            isActive: boolean;
+            createdAt: string;
+            updatedAt: string;
+          }>;
+        }>(`/objects/types${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+      },
+      getById: (id: string) =>
+        request<{
+          data: {
+            id: string;
+            code: string;
+            name: string;
+            directionId: string | null;
+            icon: string | null;
+            description: string | null;
+            isActive: boolean;
+            schemas: Array<{
+              id: string;
+              fieldKey: string;
+              label: string;
+              dataType: string;
+              fieldGroup: string | null;
+              isRequired: boolean;
+              isUnique: boolean;
+              validationRules: Record<string, unknown>;
+              defaultValue: unknown | null;
+              referenceTypeId: string | null;
+              enumValues: unknown[] | null;
+              displayOrder: number;
+            }>;
+            createdAt: string;
+            updatedAt: string;
+          };
+        }>(`/objects/types/${id}`),
+      create: (payload: {
+        code: string;
+        name: string;
+        directionId?: string | null;
+        icon?: string | null;
+        description?: string | null;
+        isActive?: boolean;
+      }) =>
+        request<{ data: any }>('/objects/types', { method: 'POST', body: JSON.stringify(payload) }),
+      update: (id: string, payload: {
+        name?: string;
+        directionId?: string | null;
+        icon?: string | null;
+        description?: string | null;
+        isActive?: boolean;
+      }) =>
+        request<{ data: any }>(`/objects/types/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+      getSchemas: (typeId: string) =>
+        request<{
+          data: Array<{
+            id: string;
+            fieldKey: string;
+            label: string;
+            dataType: string;
+            fieldGroup: string | null;
+            isRequired: boolean;
+            isUnique: boolean;
+            validationRules: Record<string, unknown>;
+            defaultValue: unknown | null;
+            referenceTypeId: string | null;
+            enumValues: unknown[] | null;
+            displayOrder: number;
+          }>;
+        }>(`/objects/types/${typeId}/schemas`),
+      upsertSchema: (typeId: string, payload: {
+        fieldKey: string;
+        label: string;
+        dataType: string;
+        fieldGroup?: string | null;
+        isRequired?: boolean;
+        isUnique?: boolean;
+        validationRules?: Record<string, unknown>;
+        defaultValue?: unknown;
+        referenceTypeId?: string | null;
+        enumValues?: unknown[];
+        displayOrder?: number;
+      }) =>
+        request<{ data: any }>(`/objects/types/${typeId}/schemas`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        }),
+      deleteSchema: (typeId: string, fieldKey: string) =>
+        request<{ data: { success: boolean } }>(`/objects/types/${typeId}/schemas/${fieldKey}`, {
+          method: 'DELETE'
+        })
+    },
+    cards: {
+      list: (params?: {
+        typeId?: string;
+        organizationId?: string | null;
+        status?: string;
+        search?: string;
+        limit?: number;
+        offset?: number;
+      }) => {
+        const queryParams = new URLSearchParams();
+        if (params?.typeId) queryParams.append('typeId', params.typeId);
+        if (params?.organizationId !== undefined) {
+          queryParams.append('organizationId', params.organizationId === null ? 'null' : params.organizationId);
+        }
+        if (params?.status) queryParams.append('status', params.status);
+        if (params?.search) queryParams.append('search', params.search);
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.offset) queryParams.append('offset', params.offset.toString());
+        return request<{
+          data: Array<{
+            id: string;
+            typeId: string;
+            code: string;
+            name: string;
+            organizationId: string | null;
+            status: string;
+            attrs: Record<string, unknown>;
+            createdAt: string;
+            updatedAt: string;
+            createdBy: string | null;
+            updatedBy: string | null;
+          }>;
+          total: number;
+        }>(`/objects/cards${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+      },
+      getById: (id: string) =>
+        request<{
+          data: {
+            id: string;
+            typeId: string;
+            typeCode: string | null;
+            typeName: string | null;
+            code: string;
+            name: string;
+            organizationId: string | null;
+            status: string;
+            attrs: Record<string, unknown>;
+            schemas: Array<{
+              fieldKey: string;
+              label: string;
+              dataType: string;
+              fieldGroup: string | null;
+              isRequired: boolean;
+              defaultValue: unknown;
+            }>;
+            history: Array<{
+              id: string;
+              changedBy: string | null;
+              changeType: string;
+              fieldKey: string | null;
+              oldValue: Record<string, unknown> | null;
+              newValue: Record<string, unknown> | null;
+              comment: string | null;
+              createdAt: string;
+            }>;
+            createdAt: string;
+            updatedAt: string;
+            createdBy: string | null;
+            updatedBy: string | null;
+          };
+        }>(`/objects/cards/${id}`),
+      create: (payload: {
+        typeId: string;
+        code: string;
+        name: string;
+        organizationId?: string | null;
+        status?: string;
+        attrs?: Record<string, unknown>;
+      }) =>
+        request<{ data: any }>('/objects/cards', { method: 'POST', body: JSON.stringify(payload) }),
+      update: (id: string, payload: {
+        code?: string;
+        name?: string;
+        organizationId?: string | null;
+        status?: string;
+        attrs?: Record<string, unknown>;
+      }) =>
+        request<{ data: any }>(`/objects/cards/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+      delete: (id: string) =>
+        request<{ data: { success: boolean } }>(`/objects/cards/${id}`, { method: 'DELETE' })
+    },
+    subscriptions: {
+      list: () =>
+        request<{
+          data: Array<{
+            typeId: string;
+            typeCode: string;
+            typeName: string;
+            isEnabled: boolean;
+          }>;
+        }>('/objects/subscriptions'),
+      set: (payload: { typeId: string; isEnabled: boolean }) =>
+        request<{ data: { success: boolean } }>('/objects/subscriptions', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        })
+    },
+    subscribedCards: {
+      list: (params: {
+        typeCode: string;
+        search?: string;
+        status?: string;
+        limit?: number;
+        offset?: number;
+      }) => {
+        const queryParams = new URLSearchParams();
+        queryParams.append('typeCode', params.typeCode);
+        if (params.search) queryParams.append('search', params.search);
+        if (params.status) queryParams.append('status', params.status);
+        if (params.limit) queryParams.append('limit', params.limit.toString());
+        if (params.offset) queryParams.append('offset', params.offset.toString());
+        return request<{
+          data: {
+            type: {
+              id: string;
+              code: string;
+              name: string;
+            };
+            cards: Array<{
+              id: string;
+              code: string;
+              name: string;
+              organizationId: string | null;
+              status: string;
+              attrs: Record<string, unknown>;
+              createdAt: string;
+              updatedAt: string;
+            }>;
+            total: number;
+          };
+        }>(`/objects/subscribed-cards?${queryParams.toString()}`);
+      }
+    }
   }
 };

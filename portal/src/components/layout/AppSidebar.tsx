@@ -10,7 +10,8 @@ import {
   FileSearchOutlined,
   ApartmentOutlined,
   SettingOutlined,
-  UserOutlined
+  UserOutlined,
+  BuildOutlined
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -42,7 +43,8 @@ export function AppSidebar() {
   if (user?.role === 'ecof_admin') {
     items.push(
       { key: '/admin/users', icon: <UserOutlined />, label: 'Админ: пользователи' },
-      { key: '/analytics/admin', icon: <SettingOutlined />, label: 'Админ: аналитики' }
+      { key: '/analytics/admin', icon: <SettingOutlined />, label: 'Админ: аналитики' },
+      { key: '/objects/types', icon: <BuildOutlined />, label: 'Админ: объекты учета' }
     );
   }
 
@@ -53,6 +55,7 @@ export function AppSidebar() {
     if (path.startsWith('/uh-db-connection')) return '/uh-db-connection';
     if (path.startsWith('/admin/users')) return '/admin/users';
     if (path.startsWith('/analytics/admin')) return '/analytics/admin';
+    if (path.startsWith('/objects/types')) return '/objects/types';
     if (path.startsWith('/organization/cabinet')) return '/organization/cabinet';
     return path;
   };
