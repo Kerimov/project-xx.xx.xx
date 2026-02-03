@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Select, Spin, message, Alert } from 'antd';
 import { Link } from 'react-router-dom';
 import { InfoCircleOutlined } from '@ant-design/icons';
@@ -33,6 +33,7 @@ export function NomenclatureSelect({
   const typeCode = 'ITEM';
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<NomenclatureItem[]>([]);
+  const loadSeq = useRef(0);
 
   useEffect(() => {
     if (enabled) return;
@@ -62,20 +63,29 @@ export function NomenclatureSelect({
   }, [typeCode]);
 
   const loadInitial = async () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     try {
       const list = await loadItems(undefined);
+      if (seq !== loadSeq.current) return; // stale
       setItems(list);
       // Если задан value и его нет в списке — подгружаем по id (для редактирования).
       // value может быть ID карточки объекта (object_cards) или ID номенклатуры НСИ (nomenclature).
       if (value && !list.some((x) => x.id === value)) {
         try {
           const resolved = await api.objects.cards.resolve(value);
+          if (seq !== loadSeq.current) return; // stale
           const data: any = resolved?.data ?? null;
           if (data?.kind === 'object_card' && data?.id) {
-            setItems((prev) => [{ id: data.id, code: data.code || '', name: data.name || '', data: data.attrs }, ...prev]);
+            setItems((prev) => {
+              if (prev.some((p) => p.id === data.id)) return prev;
+              return [{ id: data.id, code: data.code || '', name: data.name || '', data: data.attrs }, ...prev];
+            });
           } else if (data?.kind === 'nsi_nomenclature' && data?.id) {
-            setItems((prev) => [{ id: data.id, code: data.code || '', name: data.name || '', data: data.data }, ...prev]);
+            setItems((prev) => {
+              if (prev.some((p) => p.id === data.id)) return prev;
+              return [{ id: data.id, code: data.code || '', name: data.name || '', data: data.data }, ...prev];
+            });
           }
         } catch {
           // ignore
@@ -84,6 +94,7 @@ export function NomenclatureSelect({
     } catch (error: any) {
       message.error('Ошибка загрузки номенклатуры: ' + (error.message || 'Неизвестная ошибка'));
     } finally {
+      if (seq !== loadSeq.current) return; // stale
       setLoading(false);
     }
   };
