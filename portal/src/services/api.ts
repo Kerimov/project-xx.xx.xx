@@ -700,8 +700,17 @@ export const api = {
         isActive?: boolean;
       }) =>
         request<{ data: any }>(`/objects/types/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
-      getSchemas: (typeId: string) =>
-        request<{
+      getSchemas: (
+        typeId: string,
+        organizationId?: string | null,
+        options?: { fallbackToGlobal?: boolean }
+      ) => {
+        const params = new URLSearchParams();
+        if (organizationId) params.append('organizationId', organizationId);
+        if (options && options.fallbackToGlobal === false) {
+          params.append('fallbackToGlobal', 'false');
+        }
+        return request<{
           data: Array<{
             id: string;
             fieldKey: string;
@@ -716,7 +725,8 @@ export const api = {
             enumValues: unknown[] | null;
             displayOrder: number;
           }>;
-        }>(`/objects/types/${typeId}/schemas`),
+        }>(`/objects/types/${typeId}/schemas${params.toString() ? `?${params.toString()}` : ''}`);
+      },
       upsertSchema: (typeId: string, payload: {
         fieldKey: string;
         label: string;
@@ -734,10 +744,16 @@ export const api = {
           method: 'POST',
           body: JSON.stringify(payload)
         }),
-      deleteSchema: (typeId: string, fieldKey: string) =>
-        request<{ data: { success: boolean } }>(`/objects/types/${typeId}/schemas/${fieldKey}`, {
-          method: 'DELETE'
-        })
+      deleteSchema: (typeId: string, fieldKey: string, organizationId?: string | null) => {
+        const params = new URLSearchParams();
+        if (organizationId) params.append('organizationId', organizationId);
+        return request<{ data: { success: boolean } }>(
+          `/objects/types/${typeId}/schemas/${fieldKey}${params.toString() ? `?${params.toString()}` : ''}`,
+          {
+            method: 'DELETE'
+          }
+        );
+      }
     },
     cards: {
       list: (params?: {

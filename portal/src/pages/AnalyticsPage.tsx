@@ -105,6 +105,9 @@ export function AnalyticsPage() {
   const [schemaEditorTypeId, setSchemaEditorTypeId] = useState<string | null>(null);
   // Для вкладки "Администрирование": какой тип объекта сейчас раскрыт с перечнем аналитик (полей карточки)
   const [adminSchemaOpenTypeId, setAdminSchemaOpenTypeId] = useState<string | null>(null);
+  const [adminSchemaOrgId, setAdminSchemaOrgId] = useState<string | null>(null);
+  const [adminOrganizations, setAdminOrganizations] = useState<any[]>([]);
+  const [adminOrganizationsLoading, setAdminOrganizationsLoading] = useState(false);
   // Подписки на объекты учета (v2)
   const [objectSubs, setObjectSubs] = useState<
     Array<{ typeId: string; typeCode: string; typeName: string; mode: 'NONE' | 'ALL' | 'SELECTED'; selectedCount: number }>
@@ -257,12 +260,32 @@ export function AnalyticsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Загрузка организаций для выбора набора аналитик по объекту (только для админ-вкладки)
+  const loadAdminOrganizations = async () => {
+    try {
+      setAdminOrganizationsLoading(true);
+      const res = await api.admin.organizations.list();
+      setAdminOrganizations(res.data || []);
+    } catch (e: any) {
+      message.error(e?.message || 'Ошибка загрузки организаций');
+    } finally {
+      setAdminOrganizationsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isEcofAdmin && activeTab === 'admin' && adminOrganizations.length === 0 && !adminOrganizationsLoading) {
+      loadAdminOrganizations();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, isEcofAdmin]);
+
   useEffect(() => {
     if (selectedObjectTypeCode && activeTab === 'objects') {
       loadObjectCards(selectedObjectTypeCode);
       const type = objectTypes.find((t) => t.code === selectedObjectTypeCode);
       if (type) {
-        api.objects.types.getSchemas(type.id).then((r) => {
+        api.objects.types.getSchemas(type.id, user?.organizationId || undefined).then((r) => {
           const list = (r.data || []).map((f: any) => ({
             fieldKey: f.fieldKey,
             label: f.label,
@@ -436,7 +459,7 @@ export function AnalyticsPage() {
     
     // Загружаем схему полей для типа объекта
     try {
-      const schemasRes = await api.objects.types.getSchemas(type.id);
+      const schemasRes = await api.objects.types.getSchemas(type.id, user?.organizationId || undefined);
       const schemasData = schemasRes.data || [];
       setObjectCardSchemas(schemasData);
       
@@ -1139,11 +1162,31 @@ export function AnalyticsPage() {
           </Card>
 
           <Card size="small" title="Типы объектов учета и их аналитики">
-            <Space style={{ marginBottom: 16 }}>
-              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateObjectType}>
-                Создать тип
-              </Button>
-            </Space>
+          <Space style={{ marginBottom: 16 }}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateObjectType}>
+              Создать тип
+            </Button>
+          </Space>
+          <Space style={{ marginBottom: 12 }} wrap>
+            <Typography.Text strong>Набор аналитик по объекту для:</Typography.Text>
+            <Select
+              size="small"
+              style={{ minWidth: 260 }}
+              loading={adminOrganizationsLoading}
+              value={adminSchemaOrgId || 'GLOBAL'}
+              onChange={(val) => {
+                if (val === 'GLOBAL') setAdminSchemaOrgId(null);
+                else setAdminSchemaOrgId(val as string);
+              }}
+              options={[
+                { value: 'GLOBAL', label: 'Все организации (общий набор)' },
+                ...adminOrganizations.map((o: any) => ({
+                  value: o.id,
+                  label: o.name || o.code || o.inn || o.id
+                }))
+              ]}
+            />
+          </Space>
             {objectTypes.length === 0 ? (
               <Typography.Paragraph type="secondary" style={{ padding: 24, textAlign: 'center' }}>Нет типов объектов. Создайте тип кнопкой выше.</Typography.Paragraph>
             ) : (
@@ -1160,7 +1203,7 @@ export function AnalyticsPage() {
                       ) : null
                     }
                   >
-                    <Space direction="vertical" style={{ width: '100%' }} size="small">
+                          <Space direction="vertical" style={{ width: '100%' }} size="small">
                       <Space
                         size={4}
                         onClick={() =>
@@ -1186,6 +1229,7 @@ export function AnalyticsPage() {
                           </Typography.Paragraph>
                           <ObjectTypeSchemaEditor
                             typeId={t.id}
+                            organizationId={adminSchemaOrgId || undefined}
                             onSchemaChange={() => {
                               if (selectedObjectTypeCode === t.code) {
                                 loadObjectCards(t.code);

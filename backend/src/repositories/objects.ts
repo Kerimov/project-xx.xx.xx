@@ -27,6 +27,7 @@ export interface ObjectTypeSchemaRow {
   reference_type_id: string | null;
   enum_values: unknown[] | null;
   display_order: number;
+  organization_id: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -314,12 +315,46 @@ export async function updateObjectType(
 
 // ========== Object Type Schemas ==========
 
-export async function getObjectTypeSchemas(typeId: string): Promise<ObjectTypeSchemaRow[]> {
+export async function getObjectTypeSchemas(typeId: string, organizationId?: string | null): Promise<ObjectTypeSchemaRow[]> {
+  if (organizationId) {
+    const personal = await pool.query(
+      `SELECT * FROM object_type_schemas WHERE type_id = $1 AND organization_id = $2 ORDER BY field_group, display_order, label`,
+      [typeId, organizationId]
+    );
+    if ((personal.rows?.length ?? 0) > 0) {
+      return personal.rows as any;
+    }
+  }
+
   const r = await pool.query(
-    `SELECT * FROM object_type_schemas WHERE type_id = $1 ORDER BY field_group, display_order, label`,
+    `SELECT * FROM object_type_schemas WHERE type_id = $1 AND organization_id IS NULL ORDER BY field_group, display_order, label`,
     [typeId]
   );
-  return r.rows as ObjectTypeSchemaRow[];
+  return r.rows as any;
+}
+
+/**
+ * Строгая версия: возвращает только записи для указанной organizationId
+ * (или только "общие" записи, если organizationId не передан).
+ * Никакого fallback с организации на общий набор.
+ */
+export async function getObjectTypeSchemasExact(
+  typeId: string,
+  organizationId?: string | null
+): Promise<ObjectTypeSchemaRow[]> {
+  if (organizationId) {
+    const r = await pool.query(
+      `SELECT * FROM object_type_schemas WHERE type_id = $1 AND organization_id = $2 ORDER BY field_group, display_order, label`,
+      [typeId, organizationId]
+    );
+    return r.rows as any;
+  }
+
+  const r = await pool.query(
+    `SELECT * FROM object_type_schemas WHERE type_id = $1 AND organization_id IS NULL ORDER BY field_group, display_order, label`,
+    [typeId]
+  );
+  return r.rows as any;
 }
 
 export async function upsertObjectTypeSchema(data: {
@@ -335,13 +370,14 @@ export async function upsertObjectTypeSchema(data: {
   referenceTypeId?: string | null;
   enumValues?: unknown[];
   displayOrder?: number;
+  organizationId?: string | null;
 }): Promise<ObjectTypeSchemaRow | null> {
   const r = await pool.query(
     `INSERT INTO object_type_schemas (
       type_id, field_key, label, data_type, field_group, is_required, is_unique,
-      validation_rules, default_value, reference_type_id, enum_values, display_order
+      validation_rules, default_value, reference_type_id, enum_values, display_order, organization_id
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     ON CONFLICT (type_id, field_key)
     DO UPDATE SET
       label = EXCLUDED.label,
@@ -354,6 +390,7 @@ export async function upsertObjectTypeSchema(data: {
       reference_type_id = EXCLUDED.reference_type_id,
       enum_values = EXCLUDED.enum_values,
       display_order = EXCLUDED.display_order,
+      organization_id = EXCLUDED.organization_id,
       updated_at = now()
     RETURNING *`,
     [
@@ -368,16 +405,17 @@ export async function upsertObjectTypeSchema(data: {
       data.defaultValue !== undefined ? JSON.stringify(data.defaultValue) : null,
       data.referenceTypeId ?? null,
       data.enumValues ? JSON.stringify(data.enumValues) : null,
-      data.displayOrder ?? 0
+      data.displayOrder ?? 0,
+      data.organizationId ?? null
     ]
   );
   return (r.rows[0] ?? null) as ObjectTypeSchemaRow | null;
 }
 
-export async function deleteObjectTypeSchema(typeId: string, fieldKey: string): Promise<boolean> {
+export async function deleteObjectTypeSchema(typeId: string, fieldKey: string, organizationId?: string | null): Promise<boolean> {
   const r = await pool.query(
-    `DELETE FROM object_type_schemas WHERE type_id = $1 AND field_key = $2`,
-    [typeId, fieldKey]
+    `DELETE FROM object_type_schemas WHERE type_id = $1 AND field_key = $2 AND ($3::uuid IS NULL OR organization_id = $3)`,
+    [typeId, fieldKey, organizationId ?? null]
   );
   return (r.rowCount ?? 0) > 0;
 }

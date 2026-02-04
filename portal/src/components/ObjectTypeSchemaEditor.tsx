@@ -36,6 +36,8 @@ interface SchemaField {
 
 interface ObjectTypeSchemaEditorProps {
   typeId: string;
+  /** Если задана, редактируем набор аналитик для конкретной организации; иначе — общий набор для всех. */
+  organizationId?: string | null;
   onSchemaChange?: () => void;
 }
 
@@ -63,7 +65,7 @@ const FIELD_GROUPS = [
   'Прочее'
 ];
 
-export function ObjectTypeSchemaEditor({ typeId, onSchemaChange }: ObjectTypeSchemaEditorProps) {
+export function ObjectTypeSchemaEditor({ typeId, organizationId, onSchemaChange }: ObjectTypeSchemaEditorProps) {
   const [schemas, setSchemas] = useState<SchemaField[]>([]);
   const [loading, setLoading] = useState(false);
   const [schemaModalVisible, setSchemaModalVisible] = useState(false);
@@ -76,13 +78,13 @@ export function ObjectTypeSchemaEditor({ typeId, onSchemaChange }: ObjectTypeSch
       loadSchemas();
       loadObjectTypes();
     }
-  }, [typeId]);
+  }, [typeId, organizationId]);
 
   const loadSchemas = async () => {
     if (!typeId) return;
     setLoading(true);
     try {
-      const response = await api.objects.types.getSchemas(typeId);
+      const response = await api.objects.types.getSchemas(typeId, organizationId, { fallbackToGlobal: false });
       setSchemas(response.data || []);
     } catch (e: any) {
       message.error('Ошибка загрузки схемы полей: ' + (e.message || 'Неизвестная ошибка'));
@@ -133,7 +135,7 @@ export function ObjectTypeSchemaEditor({ typeId, onSchemaChange }: ObjectTypeSch
   const handleDeleteSchema = async (fieldKey: string) => {
     if (!typeId) return;
     try {
-      await api.objects.types.deleteSchema(typeId, fieldKey);
+      await api.objects.types.deleteSchema(typeId, fieldKey, organizationId);
       message.success('Поле удалено');
       await loadSchemas();
       onSchemaChange?.();
@@ -171,6 +173,9 @@ export function ObjectTypeSchemaEditor({ typeId, onSchemaChange }: ObjectTypeSch
       }
 
       if (!typeId) return;
+      if (organizationId) {
+        payload.organizationId = organizationId;
+      }
 
       await api.objects.types.upsertSchema(typeId, payload);
       message.success(editingSchema ? 'Поле обновлено' : 'Поле создано');

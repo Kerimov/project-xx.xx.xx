@@ -54,8 +54,8 @@ export async function getObjectTypeById(req: Request, res: Response, next: NextF
       return res.status(404).json({ error: { message: 'Тип объекта учета не найден' } });
     }
 
-    // Загружаем схему полей
-    const schemas = await objectsRepo.getObjectTypeSchemas(id);
+    // Загружаем "общую" схему полей (без привязки к организации)
+    const schemas = await objectsRepo.getObjectTypeSchemas(id, null);
 
     res.json({
       data: {
@@ -166,7 +166,15 @@ export async function updateObjectType(req: Request, res: Response, next: NextFu
 export async function getObjectTypeSchemas(req: Request, res: Response, next: NextFunction) {
   try {
     const { typeId } = req.params;
-    const schemas = await objectsRepo.getObjectTypeSchemas(typeId);
+    // Админ может передать organizationId, чтобы отредактировать индивидуальный набор полей
+    const organizationId = (req.query.organizationId as string | undefined) ?? undefined;
+    // fallbackToGlobal=true (по умолчанию) означает: если для organizationId нет своих полей,
+    // брать общий набор. Для админ-экрана хотим иногда видеть "чистый" набор только для организации.
+    const fallbackToGlobal = (req.query.fallbackToGlobal as string | undefined) !== 'false';
+
+    const schemas = organizationId && !fallbackToGlobal
+      ? await objectsRepo.getObjectTypeSchemasExact(typeId, organizationId)
+      : await objectsRepo.getObjectTypeSchemas(typeId, organizationId);
 
     res.json({
       data: schemas.map((s) => ({
@@ -206,7 +214,8 @@ export async function upsertObjectTypeSchema(req: Request, res: Response, next: 
       defaultValue: data.defaultValue,
       referenceTypeId: data.referenceTypeId ?? null,
       enumValues: data.enumValues ?? null,
-      displayOrder: data.displayOrder ?? 0
+      displayOrder: data.displayOrder ?? 0,
+      organizationId: (data.organizationId as string | undefined) ?? null
     });
 
     if (!schema) {
@@ -226,7 +235,8 @@ export async function upsertObjectTypeSchema(req: Request, res: Response, next: 
         defaultValue: schema.default_value,
         referenceTypeId: schema.reference_type_id,
         enumValues: schema.enum_values,
-        displayOrder: schema.display_order
+        displayOrder: schema.display_order,
+        organizationId: schema.organization_id
       }
     });
   } catch (e) {
@@ -237,7 +247,8 @@ export async function upsertObjectTypeSchema(req: Request, res: Response, next: 
 export async function deleteObjectTypeSchema(req: Request, res: Response, next: NextFunction) {
   try {
     const { typeId, fieldKey } = req.params;
-    const deleted = await objectsRepo.deleteObjectTypeSchema(typeId, fieldKey);
+    const organizationId = (req.query.organizationId as string | undefined) ?? undefined;
+    const deleted = await objectsRepo.deleteObjectTypeSchema(typeId, fieldKey, organizationId);
 
     if (!deleted) {
       return res.status(404).json({ error: { message: 'Поле схемы не найдено' } });
@@ -327,9 +338,10 @@ export async function getObjectCardById(req: Request, res: Response, next: NextF
       return res.status(404).json({ error: { message: 'Карточка объекта учета не найдена' } });
     }
 
-    // Загружаем тип объекта и схему
+    // Загружаем тип объекта и схему (с учётом организации пользователя, если есть)
     const type = await objectsRepo.getObjectTypeById(card.type_id);
-    const schemas = await objectsRepo.getObjectTypeSchemas(card.type_id);
+    const orgId = getOrgId(req);
+    const schemas = await objectsRepo.getObjectTypeSchemas(card.type_id, orgId);
 
     // Загружаем историю изменений
     const history = await objectsRepo.getObjectCardHistory(id, 20);

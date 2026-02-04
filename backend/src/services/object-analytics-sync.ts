@@ -296,7 +296,8 @@ export async function syncObjectAnalyticsFromNSI(): Promise<ObjectAnalyticsSyncR
       continue;
     }
 
-    const schemas = await objectsRepo.getObjectTypeSchemas(typeRow.id);
+    // Для синхронизации NSI используем базовую (общую) схему без привязки к организации
+    const schemas = await objectsRepo.getObjectTypeSchemas(typeRow.id, null);
     const schemaKeys = new Set(schemas.map((s) => s.field_key));
 
     const { rows: cards } = await objectsRepo.listObjectCards({

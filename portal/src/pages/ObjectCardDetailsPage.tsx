@@ -144,10 +144,10 @@ export function ObjectCardDetailsPage() {
       setHistory(Array.isArray(cardData.history) ? cardData.history : []);
       setFiles(filesRes.data || []);
 
-      // Загружаем схему полей типа объекта
+      // Загружаем схему полей типа объекта (учитываем организацию пользователя)
       if (cardData.typeId) {
         try {
-          const schemasRes = await api.objects.types.getSchemas(cardData.typeId);
+          const schemasRes = await api.objects.types.getSchemas(cardData.typeId, user?.organizationId || undefined);
           const schemasData = schemasRes.data || [];
           setSchemas(schemasData);
           
