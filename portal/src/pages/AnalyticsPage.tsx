@@ -277,6 +277,20 @@ export function AnalyticsPage() {
     }
   }, [selectedObjectTypeCode, activeTab, objectTypes]);
 
+  const selectedObjectType = useMemo(
+    () => objectTypes.find((t) => t.code === selectedObjectTypeCode) || null,
+    [objectTypes, selectedObjectTypeCode]
+  );
+
+  const handleSelectObjectTypeFromList = (type: ObjectType) => {
+    if (!objectTypeEnabled(type.code)) {
+      message.warning('Сначала включите подписку на объект.');
+      return;
+    }
+    setSelectedObjectTypeCode(type.code);
+    loadObjectCards(type.code);
+  };
+
   const toggleSubscription = async (typeId: string, isEnabled: boolean) => {
     try {
       setSavingTypeId(typeId);
@@ -550,11 +564,16 @@ export function AnalyticsPage() {
           {
             title: 'Действия',
             key: 'actions',
-            width: 100,
+            width: 220,
             render: (_: any, record: ObjectType) => (
-              <Button type="link" icon={<EditOutlined />} onClick={() => handleEditObjectType(record)}>
-                Редактировать
-              </Button>
+              <Space size={4}>
+                <Button type="link" icon={<EditOutlined />} onClick={() => handleEditObjectType(record)}>
+                  Тип
+                </Button>
+                <Button type="link" onClick={() => handleEditSchema(record)}>
+                  Настроить аналитику
+                </Button>
+              </Space>
             )
           }
         ]
@@ -883,7 +902,7 @@ export function AnalyticsPage() {
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           <Card size="small" title="Шаг 1. Тип объекта учета">
             <Typography.Paragraph type="secondary" style={{ marginTop: 0, marginBottom: 16 }}>
-              Включите подписку на нужный тип объекта — затем можно создавать объекты и заполнять аналитики.
+              Включите подписку на нужный тип объекта. Нажмите по строке типа, чтобы ниже увидеть объекты этого типа и их аналитики.
             </Typography.Paragraph>
             {displayedObjectTypes.length === 0 ? (
               <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: 24 }}>
@@ -912,103 +931,102 @@ export function AnalyticsPage() {
                             ]}
                           />
                           {(objectSubsMap.get(String(t.code || '').toUpperCase())?.mode ?? 'NONE') === 'SELECTED' && (
-                            <Button onClick={() => openSubsEditor(t)}>Выбрать ({objectSubsMap.get(String(t.code || '').toUpperCase())?.selectedCount ?? 0})</Button>
+                            <Button onClick={() => openSubsEditor(t)}>
+                              Выбрать ({objectSubsMap.get(String(t.code || '').toUpperCase())?.selectedCount ?? 0})
+                            </Button>
                           )}
                         </Space>
                       ) : null
                     }
                   >
-                    <Space size={4}>
-                      <Typography.Text strong>{t.name}</Typography.Text>
-                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                        ({t.code})
-                      </Typography.Text>
-                      {!isOrgAdmin && (
-                        <Tag>
-                          {(objectSubsMap.get(String(t.code || '').toUpperCase())?.mode ?? 'NONE') === 'ALL'
-                            ? 'Весь объект'
-                            : (objectSubsMap.get(String(t.code || '').toUpperCase())?.mode ?? 'NONE') === 'SELECTED'
-                              ? `Выборочно (${objectSubsMap.get(String(t.code || '').toUpperCase())?.selectedCount ?? 0})`
-                              : 'Нет'}
-                        </Tag>
+                    <>
+                      <Space
+                        size={4}
+                        onClick={() => handleSelectObjectTypeFromList(t)}
+                        style={{ cursor: objectTypeEnabled(t.code) ? 'pointer' : 'default' }}
+                      >
+                        <Typography.Text strong>{t.name}</Typography.Text>
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          ({t.code})
+                        </Typography.Text>
+                        {!isOrgAdmin && (
+                          <Tag>
+                            {(objectSubsMap.get(String(t.code || '').toUpperCase())?.mode ?? 'NONE') === 'ALL'
+                              ? 'Весь объект'
+                              : (objectSubsMap.get(String(t.code || '').toUpperCase())?.mode ?? 'NONE') === 'SELECTED'
+                                  ? `Выборочно (${objectSubsMap.get(String(t.code || '').toUpperCase())?.selectedCount ?? 0})`
+                                  : 'Нет'}
+                          </Tag>
+                        )}
+                      </Space>
+
+                      {selectedObjectTypeCode === t.code && (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            paddingTop: 12,
+                            borderTop: '1px solid #f0f0f0'
+                          }}
+                        >
+                          <Space direction="vertical" style={{ width: '100%' }} size="small">
+                            <Space
+                              wrap
+                              align="center"
+                              style={{ justifyContent: 'space-between' }}
+                            >
+                              <Typography.Text type="secondary">
+                                Объекты и аналитики для типа «{t.name}». Разверните строку (▶), чтобы увидеть заполненные аналитики по объекту.
+                              </Typography.Text>
+                              <Space size={8}>
+                                <Input.Search
+                                  placeholder="Поиск по коду или наименованию..."
+                                  style={{ width: 260 }}
+                                  onSearch={(value) => loadObjectCards(t.code, value || undefined)}
+                                  allowClear
+                                />
+                                {isOrgAdmin && (
+                                  <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateObjectCard}>
+                                    Создать объект
+                                  </Button>
+                                )}
+                              </Space>
+                            </Space>
+
+                            {objectCards.length > 0 ? (
+                              <Table
+                                columns={objectCardColumns}
+                                dataSource={objectCards}
+                                rowKey="id"
+                                loading={objectCardsLoading}
+                                pagination={{ pageSize: 20 }}
+                                size="small"
+                                expandable={{
+                                  expandedRowRender: expandableRowRender,
+                                  rowExpandable: () => true
+                                }}
+                              />
+                            ) : (
+                              <Typography.Paragraph
+                                type="secondary"
+                                style={{ textAlign: 'center', padding: '24px 0', marginBottom: 0 }}
+                              >
+                                {objectCardsLoading
+                                  ? 'Загрузка...'
+                                  : 'Нет объектов этого типа. Нажмите «Создать объект», чтобы добавить первый объект и его аналитики.'}
+                              </Typography.Paragraph>
+                            )}
+                          </Space>
+                        </div>
                       )}
-                    </Space>
+                    </>
                   </List.Item>
                 )}
               />
             )}
           </Card>
 
-          <Card
-            size="small"
-            title="Шаг 2. Создание объекта и добавление аналитик"
-            extra={
-              isOrgAdmin && selectedObjectTypeCode ? (
-                <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateObjectCard}>
-                  Создать объект
-                </Button>
-              ) : null
-            }
-          >
-            <Space wrap align="center" style={{ marginBottom: selectedObjectTypeCode ? 16 : 0 }}>
-              <Typography.Text strong>Тип объекта:</Typography.Text>
-              <Select
-                placeholder="Выберите тип объекта"
-                style={{ width: 320 }}
-                value={selectedObjectTypeCode}
-                onChange={(value) => {
-                  setSelectedObjectTypeCode(value);
-                  if (value) loadObjectCards(value);
-                  else setObjectCards([]);
-                }}
-                options={displayedObjectTypes
-                  .filter((t) => objectTypeEnabled(t.code))
-                  .map((t) => ({ label: `${t.name} (${t.code})`, value: t.code }))}
-                notFoundContent="Включите подписку в шаге 1"
-              />
-              {selectedObjectTypeCode && (
-                <Input.Search
-                  placeholder="Поиск..."
-                  style={{ width: 240 }}
-                  onSearch={(value) => selectedObjectTypeCode && loadObjectCards(selectedObjectTypeCode, value || undefined)}
-                  allowClear
-                />
-              )}
-            </Space>
-            {!selectedObjectTypeCode && (
-              <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>Выберите тип объекта и нажмите «Создать объект» для добавления объекта и аналитик.</Typography.Paragraph>
-            )}
-          </Card>
-
-          <Card size="small" title="Шаг 3. Созданные объекты">
-            <Typography.Paragraph type="secondary" style={{ marginTop: 0, marginBottom: 16 }}>
-              Раскройте строку (▶), чтобы увидеть аналитики по объекту. Нажмите на наименование для редактирования.
-            </Typography.Paragraph>
-            {selectedObjectTypeCode ? (
-              objectCards.length > 0 ? (
-                <Table
-                  columns={objectCardColumns}
-                  dataSource={objectCards}
-                  rowKey="id"
-                  loading={objectCardsLoading}
-                  pagination={{ pageSize: 20 }}
-                  size="small"
-                  expandable={{
-                    expandedRowRender: expandableRowRender,
-                    rowExpandable: (record) => true
-                  }}
-                />
-              ) : (
-                <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: '40px 0' }}>
-                  {objectCardsLoading ? 'Загрузка...' : 'Нет объектов этого типа. На шаге 2 нажмите «Создать объект» и заполните форму (объект + аналитики).'}
-                </Typography.Paragraph>
-              )
-            ) : (
-              <Typography.Paragraph type="secondary" style={{ textAlign: 'center', padding: '40px 0' }}>
-                Выберите тип объекта в шаге 2, чтобы увидеть список созданных объектов.
-              </Typography.Paragraph>
-            )}
-          </Card>
+          {/* Отдельный блок "Объекты и аналитики" больше не нужен:
+              всё управление объектами и их аналитиками встроено в строки списка типов выше. */}
         </Space>
       )
     },
