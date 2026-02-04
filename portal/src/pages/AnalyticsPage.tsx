@@ -129,6 +129,12 @@ export function AnalyticsPage() {
   const [webhookForm] = Form.useForm();
   const [webhookLoading, setWebhookLoading] = useState(false);
   const [webhookInfo, setWebhookInfo] = useState<any | null>(null);
+  // Для холдингового админа: просмотр/редактирование подписок других организаций
+  const [adminSelectedOrgId, setAdminSelectedOrgId] = useState<string | null>(null);
+  const [adminOrgSubscriptions, setAdminOrgSubscriptions] = useState<
+    Array<{ orgId: string; typeId: string; typeCode: string; typeName: string; isEnabled: boolean }>
+  >([]);
+  const [adminOrgSubsLoading, setAdminOrgSubsLoading] = useState(false);
 
   const enabledSet = useMemo(() => new Set(subs.filter((s) => s.isEnabled).map((s) => s.typeId)), [subs]);
 
@@ -198,6 +204,20 @@ export function AnalyticsPage() {
       setWebhookInfo(null);
     } finally {
       setWebhookLoading(false);
+    }
+  };
+
+  const loadAdminOrgSubscriptions = async (orgId: string) => {
+    if (!isEcofAdmin || !orgId) return;
+    setAdminOrgSubsLoading(true);
+    try {
+      const res = await api.analytics.admin.listOrgSubscriptions(orgId);
+      setAdminOrgSubscriptions(res.data || []);
+    } catch (e: any) {
+      setAdminOrgSubscriptions([]);
+      message.error(e?.message || 'Ошибка загрузки подписок организации');
+    } finally {
+      setAdminOrgSubsLoading(false);
     }
   };
 
@@ -1171,31 +1191,122 @@ export function AnalyticsPage() {
           </Card>
 
           <Card size="small" title="Типы объектов учета и их аналитики">
-          <Space style={{ marginBottom: 16 }}>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateObjectType}>
-              Создать тип
-            </Button>
+          <Space direction="vertical" style={{ width: '100%' }} size="small">
+            <Space style={{ marginBottom: 8 }}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateObjectType}>
+                Создать тип
+              </Button>
+            </Space>
+            <Row gutter={[12, 12]}>
+              <Col xs={24} md={12}>
+                <Space wrap>
+                  <Typography.Text strong>Набор аналитик по объекту для:</Typography.Text>
+                  <Select
+                    size="small"
+                    style={{ minWidth: 240 }}
+                    loading={adminOrganizationsLoading}
+                    value={adminSchemaOrgId || 'GLOBAL'}
+                    onChange={(val) => {
+                      if (val === 'GLOBAL') setAdminSchemaOrgId(null);
+                      else setAdminSchemaOrgId(val as string);
+                    }}
+                    options={[
+                      { value: 'GLOBAL', label: 'Все организации (общий набор)' },
+                      ...adminOrganizations.map((o: any) => ({
+                        value: o.id,
+                        label: o.name || o.code || o.inn || o.id
+                      }))
+                    ]}
+                  />
+                </Space>
+              </Col>
+              <Col xs={24} md={12}>
+                <Space wrap>
+                  <Typography.Text strong>Подписки аналитик для организации:</Typography.Text>
+                  <Select
+                    size="small"
+                    style={{ minWidth: 240 }}
+                    loading={adminOrganizationsLoading}
+                    value={adminSelectedOrgId || undefined}
+                    placeholder="Выберите организацию"
+                    onChange={(val) => {
+                      setAdminSelectedOrgId(val || null);
+                      if (val) {
+                        loadAdminOrgSubscriptions(val);
+                      } else {
+                        setAdminOrgSubscriptions([]);
+                      }
+                    }}
+                    allowClear
+                    options={adminOrganizations.map((o: any) => ({
+                      value: o.id,
+                      label: o.name || o.code || o.inn || o.id
+                    }))}
+                  />
+                </Space>
+              </Col>
+            </Row>
           </Space>
-          <Space style={{ marginBottom: 12 }} wrap>
-            <Typography.Text strong>Набор аналитик по объекту для:</Typography.Text>
-            <Select
-              size="small"
-              style={{ minWidth: 260 }}
-              loading={adminOrganizationsLoading}
-              value={adminSchemaOrgId || 'GLOBAL'}
-              onChange={(val) => {
-                if (val === 'GLOBAL') setAdminSchemaOrgId(null);
-                else setAdminSchemaOrgId(val as string);
-              }}
-              options={[
-                { value: 'GLOBAL', label: 'Все организации (общий набор)' },
-                ...adminOrganizations.map((o: any) => ({
-                  value: o.id,
-                  label: o.name || o.code || o.inn || o.id
-                }))
-              ]}
-            />
-          </Space>
+            {adminSelectedOrgId && (
+              <div style={{ marginBottom: 16 }}>
+                <Typography.Text strong>Подписки на виды аналитик для выбранной организации</Typography.Text>
+                <Typography.Paragraph type="secondary" style={{ marginTop: 4 }}>
+                  Включите или отключите виды аналитик, которые будут доступны в документах и объектах учета этой организации.
+                </Typography.Paragraph>
+                {adminOrgSubsLoading ? (
+                  <Typography.Paragraph type="secondary" style={{ padding: 16 }}>Загрузка подписок...</Typography.Paragraph>
+                ) : adminOrgSubscriptions.length === 0 ? (
+                  <Typography.Paragraph type="secondary" style={{ padding: 16 }}>
+                    Подписки не найдены. Выберите организацию и включите нужные аналитики во вкладке «Аналитики», либо создайте их здесь.
+                  </Typography.Paragraph>
+                ) : (
+                  <List
+                    size="small"
+                    dataSource={adminOrgSubscriptions}
+                    renderItem={(s) => (
+                      <List.Item>
+                        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                          <Space size={4}>
+                            <Typography.Text strong>{s.typeName}</Typography.Text>
+                            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                              ({s.typeCode})
+                            </Typography.Text>
+                          </Space>
+                          <Switch
+                            checked={s.isEnabled}
+                            size="small"
+                            onChange={async (checked) => {
+                              try {
+                                if (!adminSelectedOrgId) return;
+                                await api.analytics.admin.setOrgSubscription(adminSelectedOrgId, {
+                                  typeId: s.typeId,
+                                  isEnabled: checked
+                                });
+                                setAdminOrgSubscriptions((prev) =>
+                                  prev.map((x) =>
+                                    x.typeId === s.typeId ? { ...x, isEnabled: checked } : x
+                                  )
+                                );
+                                message.success(
+                                  checked
+                                    ? 'Подписка организации на аналитику включена'
+                                    : 'Подписка организации на аналитику отключена'
+                                );
+                              } catch (e: any) {
+                                message.error(
+                                  e?.message || 'Ошибка изменения подписки организации на аналитику'
+                                );
+                              }
+                            }}
+                          />
+                        </Space>
+                      </List.Item>
+                    )}
+                  />
+                )}
+              </div>
+            )}
+
             {objectTypes.length === 0 ? (
               <Typography.Paragraph type="secondary" style={{ padding: 24, textAlign: 'center' }}>Нет типов объектов. Создайте тип кнопкой выше.</Typography.Paragraph>
             ) : (

@@ -26,7 +26,7 @@ type NsiTable =
   | 'accounting_accounts';
 
 /** Код типа объекта -> таблица НСИ и способ сопоставления (по code или по id). Для ORG: сначала id, затем code. */
-const OBJECT_TYPE_NSI: Record<string, { table: NsiTable; matchBy: 'code' | 'id' | 'id_or_code' }> = {
+export const OBJECT_TYPE_NSI: Record<string, { table: NsiTable; matchBy: 'code' | 'id' | 'id_or_code' }> = {
   ITEM: { table: 'nomenclature', matchBy: 'code' },
   NOMENCLATURE: { table: 'nomenclature', matchBy: 'code' },
   COUNTERPARTY: { table: 'counterparties', matchBy: 'id' },

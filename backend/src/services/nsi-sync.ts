@@ -1,6 +1,7 @@
 // Сервис синхронизации НСИ из 1С УХ
 
 import { pool } from '../db/connection.js';
+import { OBJECT_TYPE_NSI } from './object-analytics-sync.js';
 import { uhIntegrationService } from './uh-integration.js';
 import { logger } from '../utils/logger.js';
 
@@ -617,6 +618,19 @@ export class NSISyncService {
       const rDocs = await client.query('DELETE FROM documents');
       const rPackages = await client.query('DELETE FROM packages');
 
+      // Удаляем карточки объектов, которые завязаны на НСИ (Номенклатура, Контрагенты, Договоры, Счета, Склады, План счетов, Организации),
+      // чтобы не мешали удалению НСИ и организаций (FK object_cards.organization_id).
+      const nsiTypeCodes = Object.keys(OBJECT_TYPE_NSI);
+      const rObjectCards = await client.query(
+        `
+        DELETE FROM object_cards
+        WHERE type_id IN (
+          SELECT id FROM object_types WHERE code = ANY($1::text[])
+        )
+        `,
+        [nsiTypeCodes]
+      );
+
       const rContracts = await client.query('DELETE FROM contracts');
       const rAccounts = await client.query('DELETE FROM accounts');
       const rWarehouses = await client.query('DELETE FROM warehouses');
@@ -662,6 +676,18 @@ export class NSISyncService {
   async clearNSIData(): Promise<{ cleared: { contracts: number; accounts: number; warehouses: number; accountingAccounts: number; counterparties: number; organizations: number }; keptOrganizations: number }> {
     const client = await pool.connect();
     try {
+      // Сначала удаляем карточки объектов, связанные с НСИ, чтобы не нарушать FK на organizations.
+      const nsiTypeCodes = Object.keys(OBJECT_TYPE_NSI);
+      const rObjectCards = await client.query(
+        `
+        DELETE FROM object_cards
+        WHERE type_id IN (
+          SELECT id FROM object_types WHERE code = ANY($1::text[])
+        )
+        `,
+        [nsiTypeCodes]
+      );
+
       const rContracts = await client.query('DELETE FROM contracts');
       const rAccounts = await client.query('DELETE FROM accounts');
       const rWarehouses = await client.query('DELETE FROM warehouses');

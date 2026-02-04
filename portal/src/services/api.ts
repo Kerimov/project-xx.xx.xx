@@ -239,7 +239,24 @@ export const api = {
     adminCreateType: (payload: { code: string; name: string; directionId?: string | null; isActive?: boolean }) =>
       request<{ data: any }>(`/analytics/admin/types`, { method: 'POST', body: JSON.stringify(payload) }),
     adminUpsertValue: (payload: { typeCode: string; code: string; name: string; attrs?: Record<string, unknown>; isActive?: boolean }) =>
-      request<{ data: any }>(`/analytics/admin/values`, { method: 'POST', body: JSON.stringify(payload) })
+      request<{ data: any }>(`/analytics/admin/values`, { method: 'POST', body: JSON.stringify(payload) }),
+    admin: {
+      listOrgSubscriptions: (orgId: string) =>
+        request<{
+          data: Array<{
+            orgId: string;
+            typeId: string;
+            typeCode: string;
+            typeName: string;
+            isEnabled: boolean;
+          }>;
+        }>(`/analytics/admin/orgs/${orgId}/subscriptions`),
+      setOrgSubscription: (orgId: string, payload: { typeId: string; isEnabled: boolean }) =>
+        request<{ data: any }>(`/analytics/admin/orgs/${orgId}/subscriptions`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        })
+    }
   },
 
   organization: {
