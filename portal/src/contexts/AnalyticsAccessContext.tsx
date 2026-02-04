@@ -23,11 +23,40 @@ export function AnalyticsAccessProvider({ children }: { children: React.ReactNod
     }
     setLoading(true);
     try {
-      const res = await api.analytics.listSubscriptions();
+      // Загружаем сразу две сущности:
+      // 1) Подписки на аналитики (COUNTERPARTY, CONTRACT, WAREHOUSE и т.д.)
+      // 2) Подписки на объекты учета (FIXED_ASSET, WAREHOUSE и т.д.)
+      //
+      // Для ряда кодов (CONTRACT, WAREHOUSE, ACCOUNT, BANK_ACCOUNT, DEPARTMENT)
+      // аналитика и объект учета представляют один и тот же справочник.
+      // Поэтому считаем аналитику "доступной", если:
+      // - включена подписка на аналитику ИЛИ
+      // - включена подписка на объект учета (режим ALL или SELECTED с выбранными карточками).
+      const [analyticsRes, objectSubsRes] = await Promise.all([
+        api.analytics.listSubscriptions(),
+        api.objects.subscriptions
+          .listMy()
+          .catch(() => ({ data: [] as Array<{ typeCode: string; mode: 'NONE' | 'ALL' | 'SELECTED'; selectedCount: number }> }))
+      ]);
+
       const set = new Set<string>();
-      (res.data || []).forEach((s) => {
+
+      // Подписки на аналитики
+      (analyticsRes.data || []).forEach((s) => {
         if (s.isEnabled) set.add(String(s.typeCode || '').toUpperCase());
       });
+
+      // Подписки на объекты учета (v2)
+      (objectSubsRes.data || []).forEach((s) => {
+        const code = String(s.typeCode || '').toUpperCase();
+        const hasAccess =
+          s.mode === 'ALL' ||
+          (s.mode === 'SELECTED' && (s.selectedCount ?? 0) > 0);
+        if (hasAccess) {
+          set.add(code);
+        }
+      });
+
       setEnabledTypeCodes(set);
     } finally {
       setLoading(false);

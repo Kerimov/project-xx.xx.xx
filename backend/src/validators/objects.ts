@@ -29,7 +29,9 @@ export const createObjectTypeSchemaFieldSchema = z.object({
   defaultValue: z.unknown().nullable().optional(),
   referenceTypeId: z.string().uuid().nullable().optional(),
   enumValues: z.array(z.unknown()).nullable().optional(),
-  displayOrder: z.number().int().optional().default(0)
+  displayOrder: z.number().int().optional().default(0),
+  // Для организационно-специфичных наборов аналитик по объекту
+  organizationId: z.string().uuid().nullable().optional()
 });
 
 export const updateObjectTypeSchemaFieldSchema = createObjectTypeSchemaFieldSchema.partial().extend({

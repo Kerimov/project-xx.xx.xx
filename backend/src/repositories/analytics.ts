@@ -205,15 +205,33 @@ export async function listSubscribedValues(params: {
   const type = await getAnalyticsTypeByCode(params.typeCode);
   if (!type) return { type: null, rows: [] as AnalyticsValueRow[] };
 
-  // Проверяем, что тип подписан
-  const subRes = await pool.query(
+  // Проверяем подписку на аналитику
+  const analyticsSubRes = await pool.query(
     `SELECT 1 FROM org_analytics_subscriptions
      WHERE org_id = $1 AND type_id = $2 AND is_enabled = true`,
     [params.orgId, type.id]
   );
-  if (!subRes.rowCount) return { type, rows: [] as AnalyticsValueRow[] };
-
+  
+  // Для типов, которые могут быть и объектами учета (WAREHOUSE, CONTRACT и т.д.),
+  // также проверяем подписку на объект типа "весь объект"
   const typeCode = String(type.code || '').toUpperCase();
+  const OBJECT_ANALYTICS_TYPES = new Set(['WAREHOUSE', 'CONTRACT', 'ACCOUNT', 'BANK_ACCOUNT', 'DEPARTMENT']);
+  
+  let objectSubscribed = false;
+  if (OBJECT_ANALYTICS_TYPES.has(typeCode)) {
+    const objectSubRes = await pool.query(
+      `SELECT 1 FROM org_object_type_subscriptions s
+       JOIN object_types t ON t.id = s.type_id
+       WHERE s.org_id = $1 AND t.code = $2 AND s.mode = 'ALL'`,
+      [params.orgId, typeCode]
+    );
+    objectSubscribed = (objectSubRes.rowCount ?? 0) > 0;
+  }
+  
+  // Если нет ни подписки на аналитику, ни подписки на объект типа — возвращаем пустой список
+  if (!analyticsSubRes.rowCount && !objectSubscribed) {
+    return { type, rows: [] as AnalyticsValueRow[] };
+  }
 
   /**
    * Вариант B: единый источник /analytics/values
@@ -315,10 +333,9 @@ export async function listSubscribedValues(params: {
         LEFT JOIN counterparties cp ON cp.id = c.counterparty_id
       `;
     } else if (typeCode === 'WAREHOUSE') {
-      if (orgFilter) {
-        where.push(`x.organization_id = $${i++}::uuid`);
-        p.push(orgFilter);
-      }
+      // Для складов показываем список по всему холдингу, а не только по выбранной организации.
+      // Это соответствует ожиданию бизнес-пользователей: видеть все доступные склады,
+      // при этом в подсказке отображается организация склада (organizationName).
       baseSql = `
         SELECT
           w.id,
