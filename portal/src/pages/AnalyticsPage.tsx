@@ -345,6 +345,10 @@ export function AnalyticsPage() {
       await loadObjectSubs();
       await refreshObjectAccess();
       message.success(mode === 'NONE' ? 'Подписка отключена' : mode === 'ALL' ? 'Подписка: весь объект' : 'Подписка: выборочно');
+      // Если сейчас раскрыт этот тип — перезагружаем список объектов с учётом нового режима (NONE/ALL/SELECTED).
+      if (selectedObjectTypeCode === type.code && activeTab === 'objects') {
+        await loadObjectCards(type.code);
+      }
     } catch (e: any) {
       message.error(e?.message || 'Ошибка сохранения подписки');
     } finally {
@@ -389,6 +393,10 @@ export function AnalyticsPage() {
       await loadObjectSubs();
       await refreshObjectAccess();
       message.success('Подписка сохранена');
+      // После сохранения выборочного списка — обновляем таблицу объектов, если тип сейчас раскрыт.
+      if (selectedObjectTypeCode === subsEditorType.typeCode && activeTab === 'objects') {
+        await loadObjectCards(subsEditorType.typeCode);
+      }
       setSubsEditorOpen(false);
       setSubsEditorType(null);
     } catch (e: any) {

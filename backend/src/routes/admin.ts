@@ -218,8 +218,9 @@ adminRouter.post('/nsi/clear-seeded-warehouses', async (req: Request, res: Respo
   }
 });
 
-// Синхронизация аналитик карточек объектов из справочников НСИ (номенклатура по code, контрагенты по id в code). Только для администратора.
-adminRouter.post('/object-analytics-sync', requireAdmin, async (_req: Request, res: Response) => {
+// Синхронизация аналитик карточек объектов из справочников НСИ (номенклатура по code, контрагенты по id в code).
+// Доступна всем авторизованным пользователям (как и /nsi/sync), права контролируются на уровне доступа к странице.
+adminRouter.post('/object-analytics-sync', async (_req: Request, res: Response) => {
   try {
     const result = await syncObjectAnalyticsFromNSI();
     res.json({ data: result });

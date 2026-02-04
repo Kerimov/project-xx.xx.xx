@@ -296,34 +296,198 @@ export async function syncObjectAnalyticsFromNSI(): Promise<ObjectAnalyticsSyncR
       continue;
     }
 
-    // Шаг 1. Для некоторых типов (в первую очередь Номенклатура)
-    // создаём недостающие карточки объектов из справочников НСИ,
+    // Шаг 1. Для типов, связанных со справочниками НСИ,
+    // создаём недостающие карточки объектов из соответствующих таблиц НСИ,
     // чтобы список объектов был полным для всех организаций.
     try {
-      if (config.table === 'nomenclature') {
-        const seedRes = await pool.query(
-          `
-          INSERT INTO object_cards (type_id, code, name, status, attrs)
-          SELECT $1 AS type_id,
-                 n.code::varchar(150) AS code,
-                 n.name::varchar(500) AS name,
-                 'Active'::varchar(50) AS status,
-                 '{}'::jsonb AS attrs
-          FROM nomenclature n
-          LEFT JOIN object_cards c
-            ON c.type_id = $1
-           AND c.code = n.code
-          WHERE c.id IS NULL
-          `,
-          [typeRow.id]
-        );
-        const created = seedRes.rowCount ?? 0;
-        if (created > 0) {
-          logger.info('Seeded object_cards from NSI nomenclature', {
-            objectTypeCode,
-            created
-          });
+      switch (config.table) {
+        case 'nomenclature': {
+          const seedRes = await pool.query(
+            `
+            INSERT INTO object_cards (type_id, code, name, status, attrs)
+            SELECT $1 AS type_id,
+                   n.code::varchar(150) AS code,
+                   n.name::varchar(500) AS name,
+                   'Active'::varchar(50) AS status,
+                   '{}'::jsonb AS attrs
+            FROM nomenclature n
+            LEFT JOIN object_cards c
+              ON c.type_id = $1
+             AND c.code = n.code
+            WHERE c.id IS NULL
+            `,
+            [typeRow.id]
+          );
+          const created = seedRes.rowCount ?? 0;
+          if (created > 0) {
+            logger.info('Seeded object_cards from NSI nomenclature', {
+              objectTypeCode,
+              created
+            });
+          }
+          break;
         }
+        case 'counterparties': {
+          const seedRes = await pool.query(
+            `
+            INSERT INTO object_cards (type_id, code, name, status, attrs)
+            SELECT $1 AS type_id,
+                   cp.id::varchar(150) AS code,
+                   cp.name::varchar(500) AS name,
+                   'Active'::varchar(50) AS status,
+                   '{}'::jsonb AS attrs
+            FROM counterparties cp
+            LEFT JOIN object_cards c
+              ON c.type_id = $1
+             AND c.code = cp.id::varchar(150)
+            WHERE c.id IS NULL
+            `,
+            [typeRow.id]
+          );
+          const created = seedRes.rowCount ?? 0;
+          if (created > 0) {
+            logger.info('Seeded object_cards from NSI counterparties', {
+              objectTypeCode,
+              created
+            });
+          }
+          break;
+        }
+        case 'organizations': {
+          const seedRes = await pool.query(
+            `
+            INSERT INTO object_cards (type_id, code, name, status, attrs)
+            SELECT $1 AS type_id,
+                   o.code::varchar(150) AS code,
+                   o.name::varchar(500) AS name,
+                   'Active'::varchar(50) AS status,
+                   '{}'::jsonb AS attrs
+            FROM organizations o
+            LEFT JOIN object_cards c
+              ON c.type_id = $1
+             AND c.code = o.code::varchar(150)
+            WHERE c.id IS NULL
+            `,
+            [typeRow.id]
+          );
+          const created = seedRes.rowCount ?? 0;
+          if (created > 0) {
+            logger.info('Seeded object_cards from NSI organizations', {
+              objectTypeCode,
+              created
+            });
+          }
+          break;
+        }
+        case 'contracts': {
+          const seedRes = await pool.query(
+            `
+            INSERT INTO object_cards (type_id, code, name, status, attrs, organization_id)
+            SELECT $1 AS type_id,
+                   ct.id::varchar(150) AS code,
+                   ct.name::varchar(500) AS name,
+                   'Active'::varchar(50) AS status,
+                   '{}'::jsonb AS attrs,
+                   ct.organization_id
+            FROM contracts ct
+            LEFT JOIN object_cards c
+              ON c.type_id = $1
+             AND c.code = ct.id::varchar(150)
+            WHERE c.id IS NULL
+            `,
+            [typeRow.id]
+          );
+          const created = seedRes.rowCount ?? 0;
+          if (created > 0) {
+            logger.info('Seeded object_cards from NSI contracts', {
+              objectTypeCode,
+              created
+            });
+          }
+          break;
+        }
+        case 'accounts': {
+          const seedRes = await pool.query(
+            `
+            INSERT INTO object_cards (type_id, code, name, status, attrs, organization_id)
+            SELECT $1 AS type_id,
+                   a.id::varchar(150) AS code,
+                   a.name::varchar(500) AS name,
+                   'Active'::varchar(50) AS status,
+                   '{}'::jsonb AS attrs,
+                   a.organization_id
+            FROM accounts a
+            LEFT JOIN object_cards c
+              ON c.type_id = $1
+             AND c.code = a.id::varchar(150)
+            WHERE c.id IS NULL
+            `,
+            [typeRow.id]
+          );
+          const created = seedRes.rowCount ?? 0;
+          if (created > 0) {
+            logger.info('Seeded object_cards from NSI accounts', {
+              objectTypeCode,
+              created
+            });
+          }
+          break;
+        }
+        case 'warehouses': {
+          const seedRes = await pool.query(
+            `
+            INSERT INTO object_cards (type_id, code, name, status, attrs, organization_id)
+            SELECT $1 AS type_id,
+                   w.id::varchar(150) AS code,
+                   w.name::varchar(500) AS name,
+                   'Active'::varchar(50) AS status,
+                   '{}'::jsonb AS attrs,
+                   w.organization_id
+            FROM warehouses w
+            LEFT JOIN object_cards c
+              ON c.type_id = $1
+             AND c.code = w.id::varchar(150)
+            WHERE c.id IS NULL
+            `,
+            [typeRow.id]
+          );
+          const created = seedRes.rowCount ?? 0;
+          if (created > 0) {
+            logger.info('Seeded object_cards from NSI warehouses', {
+              objectTypeCode,
+              created
+            });
+          }
+          break;
+        }
+        case 'accounting_accounts': {
+          const seedRes = await pool.query(
+            `
+            INSERT INTO object_cards (type_id, code, name, status, attrs)
+            SELECT $1 AS type_id,
+                   aa.code::varchar(150) AS code,
+                   aa.name::varchar(500) AS name,
+                   'Active'::varchar(50) AS status,
+                   '{}'::jsonb AS attrs
+            FROM accounting_accounts aa
+            LEFT JOIN object_cards c
+              ON c.type_id = $1
+             AND c.code = aa.code::varchar(150)
+            WHERE c.id IS NULL
+            `,
+            [typeRow.id]
+          );
+          const created = seedRes.rowCount ?? 0;
+          if (created > 0) {
+            logger.info('Seeded object_cards from NSI accounting_accounts', {
+              objectTypeCode,
+              created
+            });
+          }
+          break;
+        }
+        default:
+          break;
       }
     } catch (err: any) {
       result.success = false;
