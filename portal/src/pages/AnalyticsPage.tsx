@@ -103,6 +103,8 @@ export function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<string>('analytics');
   const [schemaEditorVisible, setSchemaEditorVisible] = useState(false);
   const [schemaEditorTypeId, setSchemaEditorTypeId] = useState<string | null>(null);
+  // Для вкладки "Администрирование": какой тип объекта сейчас раскрыт с перечнем аналитик (полей карточки)
+  const [adminSchemaOpenTypeId, setAdminSchemaOpenTypeId] = useState<string | null>(null);
   // Подписки на объекты учета (v2)
   const [objectSubs, setObjectSubs] = useState<
     Array<{ typeId: string; typeCode: string; typeName: string; mode: 'NONE' | 'ALL' | 'SELECTED'; selectedCount: number }>
@@ -1136,7 +1138,7 @@ export function AnalyticsPage() {
             </Form>
           </Card>
 
-          <Card size="small" title="Типы объектов учета">
+          <Card size="small" title="Типы объектов учета и их аналитики">
             <Space style={{ marginBottom: 16 }}>
               <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateObjectType}>
                 Создать тип
@@ -1153,15 +1155,45 @@ export function AnalyticsPage() {
                     extra={
                       isEcofAdmin ? (
                         <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditObjectType(t)}>
-                          Редактировать
+                          Редактировать тип
                         </Button>
                       ) : null
                     }
                   >
-                    <Space>
-                      <Typography.Text strong>{t.name}</Typography.Text>
-                      <Typography.Text type="secondary">({t.code})</Typography.Text>
-                      <Tag color={t.isActive ? 'green' : 'red'}>{t.isActive ? 'Активен' : 'Неактивен'}</Tag>
+                    <Space direction="vertical" style={{ width: '100%' }} size="small">
+                      <Space
+                        size={4}
+                        onClick={() =>
+                          setAdminSchemaOpenTypeId((prev) => (prev === t.id ? null : t.id))
+                        }
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <Typography.Text strong>{t.name}</Typography.Text>
+                        <Typography.Text type="secondary">({t.code})</Typography.Text>
+                        <Tag color={t.isActive ? 'green' : 'red'}>{t.isActive ? 'Активен' : 'Неактивен'}</Tag>
+                      </Space>
+
+                      {adminSchemaOpenTypeId === t.id && (
+                        <div
+                          style={{
+                            marginTop: 8,
+                            paddingTop: 8,
+                            borderTop: '1px solid #f0f0f0'
+                          }}
+                        >
+                          <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+                            Аналитики по объекту (поля карточки). Здесь видно, какие поля уже созданы, и можно добавить новые.
+                          </Typography.Paragraph>
+                          <ObjectTypeSchemaEditor
+                            typeId={t.id}
+                            onSchemaChange={() => {
+                              if (selectedObjectTypeCode === t.code) {
+                                loadObjectCards(t.code);
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
                     </Space>
                   </List.Item>
                 )}
