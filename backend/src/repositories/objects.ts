@@ -492,9 +492,28 @@ export async function getObjectCardById(id: string): Promise<ObjectCardRow | nul
   return (r.rows[0] ?? null) as ObjectCardRow | null;
 }
 
-export async function getObjectCardByTypeAndCode(typeId: string, code: string): Promise<ObjectCardRow | null> {
-  const r = await pool.query(`SELECT * FROM object_cards WHERE type_id = $1 AND code = $2 LIMIT 1`, [typeId, code]);
-  return (r.rows[0] ?? null) as ObjectCardRow | null;
+export async function getObjectCardByTypeAndCode(
+  typeId: string,
+  code: string,
+  organizationId?: string | null
+): Promise<ObjectCardRow | null> {
+  // Сначала ищем карточку для конкретной организации (если указана).
+  if (organizationId) {
+    const rOrg = await pool.query(
+      `SELECT * FROM object_cards WHERE type_id = $1 AND code = $2 AND organization_id = $3 LIMIT 1`,
+      [typeId, code, organizationId]
+    );
+    if (rOrg.rows[0]) {
+      return rOrg.rows[0] as ObjectCardRow;
+    }
+  }
+
+  // Затем ищем "общую" карточку без организации (organization_id IS NULL).
+  const rGlobal = await pool.query(
+    `SELECT * FROM object_cards WHERE type_id = $1 AND code = $2 AND organization_id IS NULL LIMIT 1`,
+    [typeId, code]
+  );
+  return (rGlobal.rows[0] ?? null) as ObjectCardRow | null;
 }
 
 export async function createObjectCard(data: {

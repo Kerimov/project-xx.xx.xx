@@ -308,7 +308,8 @@ export async function lookupObjectCard(req: Request, res: Response, next: NextFu
     if (!typeId || !code) {
       return res.status(400).json({ error: { message: 'Укажите typeId и code' } });
     }
-    const card = await objectsRepo.getObjectCardByTypeAndCode(typeId, code);
+    const orgId = getOrgId(req);
+    const card = await objectsRepo.getObjectCardByTypeAndCode(typeId, code, orgId);
     res.json({
       data: card
         ? {

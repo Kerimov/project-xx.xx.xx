@@ -11,7 +11,8 @@ import {
   InputNumber,
   message,
   Popconfirm,
-  Tag
+  Tag,
+  Typography
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
@@ -67,7 +68,9 @@ const FIELD_GROUPS = [
 
 export function ObjectTypeSchemaEditor({ typeId, organizationId, onSchemaChange }: ObjectTypeSchemaEditorProps) {
   const [schemas, setSchemas] = useState<SchemaField[]>([]);
+  const [baseSchemas, setBaseSchemas] = useState<SchemaField[]>([]);
   const [loading, setLoading] = useState(false);
+  const [copyingFromBase, setCopyingFromBase] = useState(false);
   const [schemaModalVisible, setSchemaModalVisible] = useState(false);
   const [editingSchema, setEditingSchema] = useState<SchemaField | null>(null);
   const [schemaForm] = Form.useForm();
@@ -85,11 +88,56 @@ export function ObjectTypeSchemaEditor({ typeId, organizationId, onSchemaChange 
     setLoading(true);
     try {
       const response = await api.objects.types.getSchemas(typeId, organizationId, { fallbackToGlobal: false });
-      setSchemas(response.data || []);
+      const current = (response.data || []) as SchemaField[];
+      setSchemas(current);
+      setBaseSchemas([]);
+
+      // Если смотрим набор для конкретной организации и он пустой —
+      // подгружаем общий набор только для отображения (read-only).
+      if (organizationId && current.length === 0) {
+        try {
+          const globalRes = await api.objects.types.getSchemas(typeId);
+          setBaseSchemas((globalRes.data || []) as SchemaField[]);
+        } catch (e) {
+          console.error('Не удалось загрузить общий набор полей для предпросмотра', e);
+        }
+      }
     } catch (e: any) {
       message.error('Ошибка загрузки схемы полей: ' + (e.message || 'Неизвестная ошибка'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCopyFromBase = async () => {
+    if (!typeId || !organizationId || baseSchemas.length === 0) return;
+    try {
+      setCopyingFromBase(true);
+      await Promise.all(
+        baseSchemas.map((f) =>
+          api.objects.types.upsertSchema(typeId, {
+            fieldKey: f.fieldKey,
+            label: f.label,
+            dataType: f.dataType,
+            fieldGroup: f.fieldGroup,
+            isRequired: f.isRequired,
+            isUnique: f.isUnique,
+            validationRules: f.validationRules,
+            defaultValue: f.defaultValue,
+            referenceTypeId: f.referenceTypeId,
+            enumValues: f.enumValues || undefined,
+            displayOrder: f.displayOrder,
+            organizationId
+          } as any)
+        )
+      );
+      await loadSchemas();
+      message.success('Общий набор полей скопирован. Теперь можно дополнять его своими полями.');
+      onSchemaChange?.();
+    } catch (e: any) {
+      message.error('Не удалось скопировать общий набор: ' + (e.message || 'Неизвестная ошибка'));
+    } finally {
+      setCopyingFromBase(false);
     }
   };
 
@@ -252,22 +300,53 @@ export function ObjectTypeSchemaEditor({ typeId, organizationId, onSchemaChange 
     }
   ];
 
+  const readonlyColumns = columns.filter((col) => col.key !== 'actions');
+
   return (
     <div>
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateSchema}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleCreateSchema}
+          disabled={Boolean(organizationId && schemas.length === 0 && baseSchemas.length > 0)}
+        >
           Добавить поле
         </Button>
       </Space>
 
-      <Table
-        columns={columns}
-        dataSource={schemas}
-        rowKey="fieldKey"
-        loading={loading}
-        pagination={false}
-        size="small"
-      />
+      {organizationId && schemas.length === 0 && baseSchemas.length > 0 ? (
+        <>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+            Для этой организации пока нет своего набора полей. Сейчас в документах используется{' '}
+            <Typography.Text strong>общий набор аналитик по объекту</Typography.Text>, показанный ниже.
+            Нажмите «Копировать из общего набора», чтобы скопировать эти поля и при необходимости дополнить своими.
+          </Typography.Paragraph>
+          <Space style={{ marginBottom: 12 }}>
+            <Button type="default" onClick={handleCopyFromBase} loading={copyingFromBase}>
+              Копировать из общего набора
+            </Button>
+          </Space>
+          <Table
+            columns={readonlyColumns}
+            dataSource={baseSchemas}
+            rowKey="fieldKey"
+            loading={loading}
+            pagination={false}
+            size="small"
+          />
+        </>
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={schemas}
+          rowKey="fieldKey"
+          loading={loading}
+          pagination={false}
+          size="small"
+        />
+      )
+      }
 
       <Modal
         title={editingSchema ? 'Редактировать поле' : 'Добавить поле'}

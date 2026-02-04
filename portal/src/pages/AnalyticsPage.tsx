@@ -536,7 +536,8 @@ export function AnalyticsPage() {
         }
       });
 
-      // UX: если карточка с таким code уже есть для typeId — открываем её вместо ошибки уникальности
+      // UX: если карточка с таким code уже есть для typeId и нашей организации
+      // (или общая без организации) — открываем её вместо ошибки уникальности.
       const existing = await api.objects.cards.lookup({ typeId, code });
       if (existing.data?.id) {
         message.info('Карточка с таким кодом уже существует — открываю существующую');

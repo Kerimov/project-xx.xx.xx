@@ -89,6 +89,19 @@ export function IntegrationMonitorPage() {
             : 'Синхронизация НСИ выполнена'
         );
       }
+
+      // После успешной синхронизации НСИ — заполняем аналитики объектов из справочников.
+      try {
+        const objRes = await api.admin.objects.syncAnalyticsFromNSI();
+        const obj = objRes.data;
+        if (obj.updated > 0) {
+          message.success(`Аналитики объектов обновлены из справочников: обработано ${obj.processed}, обновлено ${obj.updated}, пропущено ${obj.skipped}, не найдено в НСИ ${obj.notFound}.`);
+        } else {
+          message.info('Синхронизация НСИ завершена. Аналитики объектов уже соответствуют справочникам.');
+        }
+      } catch (e: any) {
+        message.error(e?.message || 'Не удалось обновить аналитики объектов из справочников');
+      }
     } catch (error: any) {
       const errData = (error as any)?.response?.data?.error?.data;
       if (errData) {

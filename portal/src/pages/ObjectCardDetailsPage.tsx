@@ -34,6 +34,7 @@ import {
 } from '@ant-design/icons';
 import { api } from '../services/api';
 import { ObjectCardSelect } from '../components/forms/ObjectCardSelect';
+import { useAuth } from '../contexts/AuthContext';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ru';
 import type { TabsProps } from 'antd';
@@ -100,6 +101,7 @@ interface HistoryItem {
 export function ObjectCardDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [card, setCard] = useState<ObjectCard | null>(null);

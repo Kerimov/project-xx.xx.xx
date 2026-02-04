@@ -551,6 +551,23 @@ export const api = {
       clearSeededWarehouses: () =>
         request<{ data: { cleared: number } }>('/admin/nsi/clear-seeded-warehouses', { method: 'POST' })
     },
+    objects: {
+      /**
+       * Заполнить/обновить аналитики (attrs) карточек объектов из справочников НСИ.
+       * Использует /admin/object-analytics-sync на backend.
+       */
+      syncAnalyticsFromNSI: () =>
+        request<{
+          data: {
+            success: boolean;
+            processed: number;
+            updated: number;
+            skipped: number;
+            notFound: number;
+            errors: Array<{ cardId: string; code: string; message: string }>;
+          };
+        }>('/admin/object-analytics-sync', { method: 'POST' })
+    },
     dashboard: {
       stats: () =>
         request<{
