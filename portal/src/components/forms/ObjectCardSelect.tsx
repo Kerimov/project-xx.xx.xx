@@ -15,6 +15,7 @@ interface ObjectCard {
   name: string;
   status: string;
   attrs: Record<string, unknown>;
+  excludeFromAnalytics?: boolean;
 }
 
 interface ObjectCardSelectProps extends Omit<SelectProps, 'options' | 'loading'> {
@@ -60,7 +61,7 @@ export function ObjectCardSelect({
         status: activeOnly ? 'Active' : undefined,
         limit: 100
       });
-      let list = response.data.cards || [];
+      let list = (response.data.cards || []).filter((c) => !c.excludeFromAnalytics);
       // Если задан value и его нет в списке — подгружаем по ID (для редактирования)
       if (value && !list.some((card: ObjectCard) => card.id === value)) {
         try {
@@ -102,7 +103,7 @@ export function ObjectCardSelect({
       status: activeOnly ? 'Active' : undefined,
       limit: 100
     });
-    return (response.data.cards || []) as ObjectCard[];
+    return (response.data.cards || []).filter((c) => !c.excludeFromAnalytics) as ObjectCard[];
   };
 
   const handleSelectFromDirectory = (id: string, record?: ObjectCard) => {

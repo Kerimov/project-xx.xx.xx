@@ -69,6 +69,8 @@ interface ObjectCard {
   attrs: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+   /** Если true — объект не предлагается в аналитиках/документах */
+  excludeFromAnalytics?: boolean;
 }
 
 export function AnalyticsPage() {
@@ -668,6 +670,33 @@ export function AnalyticsPage() {
           {status === 'Active' ? 'Активен' : status === 'Archived' ? 'Архив' : 'Неактивен'}
         </Tag>
       )
+    },
+    {
+      title: 'В аналитике',
+      key: 'excludeFromAnalytics',
+      width: 140,
+      render: (_: any, record: ObjectCard) =>
+        isOrgAdmin ? (
+          <Switch
+            checked={!record.excludeFromAnalytics}
+            onChange={async (checked) => {
+              try {
+                await api.objects.cards.update(record.id, { excludeFromAnalytics: !checked });
+                setObjectCards((prev) =>
+                  prev.map((c) => (c.id === record.id ? { ...c, excludeFromAnalytics: !checked } : c))
+                );
+                message.success(checked ? 'Объект включён в аналитику' : 'Объект исключён из аналитики');
+              } catch (e: any) {
+                message.error(e?.message || 'Ошибка изменения признака аналитики');
+              }
+            }}
+            size="small"
+          />
+        ) : (
+          <Typography.Text type="secondary">
+            {!record.excludeFromAnalytics ? 'Да' : 'Нет'}
+          </Typography.Text>
+        )
     },
     {
       title: 'Дата создания',

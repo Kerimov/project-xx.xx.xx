@@ -494,6 +494,7 @@ export async function updateObjectCard(req: Request, res: Response, next: NextFu
       organization_id: data.organizationId,
       status: data.status,
       attrs: data.attrs,
+      exclude_from_analytics: data.excludeFromAnalytics,
       updatedBy: userId
     });
 
@@ -510,6 +511,7 @@ export async function updateObjectCard(req: Request, res: Response, next: NextFu
         organizationId: card.organization_id,
         status: card.status,
         attrs: card.attrs,
+        excludeFromAnalytics: card.exclude_from_analytics,
         updatedAt: card.updated_at
       }
     });
@@ -590,6 +592,7 @@ export async function listSubscribedObjectCards(req: Request, res: Response, nex
           organizationId: c.organization_id,
           status: c.status,
           attrs: c.attrs,
+          excludeFromAnalytics: c.exclude_from_analytics,
           createdAt: c.created_at,
           updatedAt: c.updated_at
         })),
@@ -708,7 +711,7 @@ export async function listAvailableCardsForMyOrg(req: Request, res: Response, ne
     // Простой запрос с OR-фильтром; используем repo.listObjectCards не можем (там нет OR)
     const p: any[] = [type.id];
     let i = 2;
-    const where: string[] = [`c.type_id = $1`];
+  const where: string[] = [`c.type_id = $1`, `c.exclude_from_analytics = false`];
     if (!allowAll) {
       where.push(`(c.organization_id IS NULL OR c.organization_id = $${i++})`);
       p.push(orgId);
@@ -745,6 +748,7 @@ export async function listAvailableCardsForMyOrg(req: Request, res: Response, ne
         organizationId: c.organization_id,
         status: c.status,
         attrs: c.attrs,
+        excludeFromAnalytics: c.exclude_from_analytics,
         createdAt: c.created_at,
         updatedAt: c.updated_at
       }))

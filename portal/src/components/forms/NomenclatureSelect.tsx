@@ -50,7 +50,7 @@ export function NomenclatureSelect({
         status: 'Active',
         limit: 200
       });
-      const list = res?.data?.cards || [];
+      const list = (res?.data?.cards || []).filter((c) => !c.excludeFromAnalytics);
       return list.map((c) => ({
         id: c.id,
         code: c.code || '',

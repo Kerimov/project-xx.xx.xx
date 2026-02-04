@@ -541,7 +541,9 @@ export async function createObjectCard(data: {
 
 export async function updateObjectCard(
   id: string,
-  updates: Partial<Pick<ObjectCardRow, 'code' | 'name' | 'organization_id' | 'status' | 'attrs'>> & { updatedBy?: string | null }
+  updates: Partial<Pick<ObjectCardRow, 'code' | 'name' | 'organization_id' | 'status' | 'attrs' | 'exclude_from_analytics'>> & {
+    updatedBy?: string | null;
+  }
 ): Promise<ObjectCardRow | null> {
   const client = await pool.connect();
   try {
@@ -566,6 +568,10 @@ export async function updateObjectCard(
     if (updates.status !== undefined) {
       fields.push(`status = $${i++}`);
       values.push(updates.status);
+    }
+    if (updates.exclude_from_analytics !== undefined) {
+      fields.push(`exclude_from_analytics = $${i++}`);
+      values.push(updates.exclude_from_analytics);
     }
     if (updates.attrs !== undefined) {
       fields.push(`attrs = $${i++}`);
@@ -631,6 +637,22 @@ export async function updateObjectCard(
           'status',
           oldCard.status,
           card.status,
+          null,
+          client
+        );
+      }
+      if (
+        updates.exclude_from_analytics !== undefined &&
+        updates.exclude_from_analytics !== oldCard.exclude_from_analytics
+      ) {
+        changedFields.push('exclude_from_analytics');
+        await addObjectCardHistory(
+          card.id,
+          'FieldChanged',
+          updates.updatedBy || null,
+          'exclude_from_analytics',
+          oldCard.exclude_from_analytics,
+          card.exclude_from_analytics,
           null,
           client
         );
@@ -815,7 +837,11 @@ export async function listSubscribedObjectCards(params: {
   if (mode === 'ALL') {
     const p: any[] = [type.id, params.orgId];
     let i = 3;
-    const where: string[] = [`c.type_id = $1`, `(c.organization_id IS NULL OR c.organization_id = $2)`];
+    const where: string[] = [
+      `c.type_id = $1`,
+      `(c.organization_id IS NULL OR c.organization_id = $2)`,
+      `c.exclude_from_analytics = false`
+    ];
     if (status) {
       where.push(`c.status = $${i++}`);
       p.push(status);
@@ -849,7 +875,8 @@ export async function listSubscribedObjectCards(params: {
   const where: string[] = [
     `s.org_id = $1`,
     `s.type_id = $2`,
-    `(c.organization_id IS NULL OR c.organization_id = $1)`
+    `(c.organization_id IS NULL OR c.organization_id = $1)`,
+    `c.exclude_from_analytics = false`
   ];
   if (status) {
     where.push(`c.status = $${i++}`);

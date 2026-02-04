@@ -786,6 +786,7 @@ export const api = {
             organizationId: string | null;
             status: string;
             attrs: Record<string, unknown>;
+            excludeFromAnalytics?: boolean;
             schemas: Array<{
               fieldKey: string;
               label: string;
@@ -876,6 +877,7 @@ export const api = {
         organizationId?: string | null;
         status?: string;
         attrs?: Record<string, unknown>;
+        excludeFromAnalytics?: boolean;
       }) =>
         request<{ data: any }>(`/objects/cards/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
       delete: (id: string) =>
@@ -913,6 +915,7 @@ export const api = {
               organizationId: string | null;
               status: string;
               attrs: Record<string, unknown>;
+              excludeFromAnalytics?: boolean;
               createdAt: string;
               updatedAt: string;
             }>;
