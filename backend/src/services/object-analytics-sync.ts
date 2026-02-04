@@ -296,6 +296,48 @@ export async function syncObjectAnalyticsFromNSI(): Promise<ObjectAnalyticsSyncR
       continue;
     }
 
+    // Шаг 1. Для некоторых типов (в первую очередь Номенклатура)
+    // создаём недостающие карточки объектов из справочников НСИ,
+    // чтобы список объектов был полным для всех организаций.
+    try {
+      if (config.table === 'nomenclature') {
+        const seedRes = await pool.query(
+          `
+          INSERT INTO object_cards (type_id, code, name, status, attrs)
+          SELECT $1 AS type_id,
+                 n.code::varchar(150) AS code,
+                 n.name::varchar(500) AS name,
+                 'Active'::varchar(50) AS status,
+                 '{}'::jsonb AS attrs
+          FROM nomenclature n
+          LEFT JOIN object_cards c
+            ON c.type_id = $1
+           AND c.code = n.code
+          WHERE c.id IS NULL
+          `,
+          [typeRow.id]
+        );
+        const created = seedRes.rowCount ?? 0;
+        if (created > 0) {
+          logger.info('Seeded object_cards from NSI nomenclature', {
+            objectTypeCode,
+            created
+          });
+        }
+      }
+    } catch (err: any) {
+      result.success = false;
+      result.errors.push({
+        cardId: '',
+        code: objectTypeCode,
+        message: `Seed from NSI failed: ${err?.message ?? String(err)}`
+      });
+      logger.warn('Seed object_cards from NSI failed', {
+        objectTypeCode,
+        err: err?.message
+      });
+    }
+
     // Для синхронизации NSI используем базовую (общую) схему без привязки к организации
     const schemas = await objectsRepo.getObjectTypeSchemas(typeRow.id, null);
     const schemaKeys = new Set(schemas.map((s) => s.field_key));
