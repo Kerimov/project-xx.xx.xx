@@ -287,6 +287,12 @@ export function AnalyticsPage() {
       message.warning('Сначала включите подписку на объект.');
       return;
     }
+    // Повторное нажатие по строке типа сворачивает блок объектов/аналитик.
+    if (selectedObjectTypeCode === type.code) {
+      setSelectedObjectTypeCode(null);
+      setObjectCards([]);
+      return;
+    }
     setSelectedObjectTypeCode(type.code);
     loadObjectCards(type.code);
   };
