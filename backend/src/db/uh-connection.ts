@@ -129,6 +129,8 @@ async function getUHConnectionAsync(): Promise<Pool | sql.ConnectionPool> {
       return uhMssqlPoolIntegrated;
     }
     try {
+      // msnodesqlv8 доступен только на Windows и требует ODBC драйверы
+      // На Linux (Render, Docker) этот модуль не установится или не скомпилируется
       const sqlMs = await import('mssql/msnodesqlv8');
       const sqlIntegrated = (sqlMs as any).default ?? sqlMs;
       const server = process.env.UH_MSSQL_SERVER || process.env.UH_DB_HOST || '';
@@ -156,6 +158,24 @@ async function getUHConnectionAsync(): Promise<Pool | sql.ConnectionPool> {
     } catch (err: any) {
       uhMssqlPoolIntegrated = null;
       const msg = err?.message || String(err);
+      const errStr = String(err);
+      
+      // Обработка случаев, когда msnodesqlv8 не установлен или не скомпилирован (Linux, Render)
+      if (
+        errStr.includes('Cannot find module') ||
+        errStr.includes('msnodesqlv8') ||
+        errStr.includes('MODULE_NOT_FOUND') ||
+        msg.includes('libodbc.so') ||
+        msg.includes('sql.h') ||
+        msg.includes('node-gyp')
+      ) {
+        throw new Error(
+          'msnodesqlv8 недоступен на этой платформе (Linux). ' +
+          'Integrated Auth для прямого подключения к БД 1С работает только на Windows. ' +
+          'Используйте HTTP API (UH_API_URL) вместо прямого подключения к БД.'
+        );
+      }
+      
       if (msg.includes('Data source name not found') || msg.includes('no default driver')) {
         throw new Error(
           'ODBC-драйвер не найден. Установите Microsoft ODBC Driver 17 (или 18) for SQL Server и перезапустите backend. ' +

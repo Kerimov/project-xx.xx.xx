@@ -1,0 +1,76 @@
+services:
+  - type: web
+    name: ecof-portal-backend
+    env: node
+    plan: free
+    buildCommand: npm install --no-optional && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # CORS - будет заменено на URL вашего Vercel фронтенда после деплоя
+      - key: CORS_ORIGIN
+        value: https://your-project.vercel.app
+      # JWT Secret - ОБЯЗАТЕЛЬНО измените на случайную строку!
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      # Database - будет автоматически подключена из PostgreSQL сервиса
+      - key: DB_HOST
+        fromDatabase:
+          name: ecof-portal-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ecof-portal-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ecof-portal-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: ecof-portal-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ecof-portal-db
+          property: password
+      # 1С УХ Integration (настройте под вашу 1С)
+      - key: UH_API_URL
+        value: https://your-1c-server:8035/your-database/hs/ecof
+      - key: UH_API_USER
+        value: Администратор
+      - key: UH_API_PASSWORD
+        value: your-password
+      - key: UH_1C_USER
+        value: Администратор
+      - key: UH_1C_PASSWORD
+        value: your-password
+      - key: UH_API_TIMEOUT
+        value: 30000
+      - key: UH_API_DEBUG
+        value: false
+      - key: UH_API_INSECURE
+        value: true
+      - key: UH_RETRY_ATTEMPTS
+        value: 3
+      - key: UH_RETRY_DELAY
+        value: 5000
+      - key: UH_QUEUE_INTERVAL
+        value: 5000
+      - key: UH_SYNC_INTERVAL
+        value: 60000
+      - key: ANALYTICS_WEBHOOK_INTERVAL
+        value: 5000
+      - key: OBJECTS_WEBHOOK_INTERVAL
+        value: 5000
+
+databases:
+  - name: ecof-portal-db
+    plan: free
+    databaseName: ecof_portal
+    user: ecof_user
