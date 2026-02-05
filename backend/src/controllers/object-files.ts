@@ -10,10 +10,16 @@ import * as objectsRepo from '../repositories/objects.js';
 
 const uploadDir = process.env.UPLOAD_DIR || './uploads';
 
+// Helper для безопасного получения параметров
+function getParam(req: Request, name: string): string {
+  const value = req.params[name];
+  return Array.isArray(value) ? value[0] || '' : value || '';
+}
+
 // Загрузка файла к карточке объекта
 export async function uploadObjectCardFile(req: Request, res: Response, next: NextFunction) {
+  const cardId = getParam(req, 'cardId');
   try {
-    const { cardId } = req.params;
     const file = req.file;
 
     logger.info('Object card file upload attempt', { cardId, fileName: file?.originalname, fileSize: file?.size, mimeType: file?.mimetype });
@@ -89,7 +95,7 @@ export async function uploadObjectCardFile(req: Request, res: Response, next: Ne
       }
     });
   } catch (error: any) {
-    logger.error('Error uploading object card file', { cardId: req.params.cardId, error: error.message, stack: error.stack });
+    logger.error('Error uploading object card file', { cardId, errorMessage: error?.message, errorStack: error?.stack });
     // Удаляем файл при ошибке
     if (req.file?.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
@@ -101,7 +107,7 @@ export async function uploadObjectCardFile(req: Request, res: Response, next: Ne
 // Получение списка файлов карточки объекта
 export async function getObjectCardFiles(req: Request, res: Response, next: NextFunction) {
   try {
-    const { cardId } = req.params;
+    const cardId = getParam(req, 'cardId');
     const result = await pool.query(
       `SELECT id, file_name, file_size, mime_type, uploaded_at, hash_sha256, uploaded_by
        FROM object_card_files

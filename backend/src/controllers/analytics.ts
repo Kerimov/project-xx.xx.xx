@@ -209,7 +209,7 @@ export async function adminCreateAnalyticsType(req: Request, res: Response, next
 
 export async function adminUpdateAnalyticsType(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { name, directionId, isActive } = req.body as {
       name?: string;
       directionId?: string | null;

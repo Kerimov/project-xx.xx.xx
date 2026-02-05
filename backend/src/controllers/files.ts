@@ -10,10 +10,16 @@ import * as documentsRepo from '../repositories/documents.js';
 
 const uploadDir = process.env.UPLOAD_DIR || './uploads';
 
+// Helper для безопасного получения параметров
+function getParam(req: Request, name: string): string {
+  const value = req.params[name];
+  return Array.isArray(value) ? value[0] || '' : value || '';
+}
+
 // Загрузка файла к документу
 export async function uploadFile(req: Request, res: Response, next: NextFunction) {
+  const documentId = getParam(req, 'documentId');
   try {
-    const { documentId } = req.params;
     const file = req.file;
 
     logger.info('File upload attempt', { documentId, fileName: file?.originalname, fileSize: file?.size, mimeType: file?.mimetype });
@@ -95,7 +101,7 @@ export async function uploadFile(req: Request, res: Response, next: NextFunction
       }
     });
   } catch (error: any) {
-    logger.error('Error uploading file', { documentId, error: error.message, stack: error.stack });
+    logger.error('Error uploading file', { documentId, errorMessage: error?.message, errorStack: error?.stack });
     // Удаляем файл при ошибке
     if (req.file && req.file.path && fs.existsSync(req.file.path)) {
       try {
@@ -111,7 +117,7 @@ export async function uploadFile(req: Request, res: Response, next: NextFunction
 // Получение списка файлов документа
 export async function getDocumentFiles(req: Request, res: Response, next: NextFunction) {
   try {
-    const { documentId } = req.params;
+    const documentId = getParam(req, 'documentId');
 
     const result = await pool.query(
       `SELECT id, file_name, file_size, mime_type, uploaded_at, uploaded_by, hash_sha256

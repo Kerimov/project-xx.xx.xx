@@ -40,6 +40,7 @@ export interface ObjectCardRow {
   organization_id: string | null;
   status: string;
   attrs: Record<string, unknown>;
+  exclude_from_analytics?: boolean;
   created_at: Date;
   updated_at: Date;
   created_by: string | null;
@@ -708,8 +709,8 @@ export async function updateObjectCard(
           'FieldChanged',
           updates.updatedBy || null,
           'exclude_from_analytics',
-          oldCard.exclude_from_analytics,
-          card.exclude_from_analytics,
+          oldCard.exclude_from_analytics ?? false,
+          (card as any).exclude_from_analytics ?? false,
           null,
           client
         );

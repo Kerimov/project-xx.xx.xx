@@ -113,6 +113,7 @@ export async function createDocument(data: {
   currency?: string;
   contractId?: string;
   paymentAccountId?: string;
+  departmentId?: string;
   warehouseId?: string;
   receiptOperationType?: string;
   hasDiscrepancies?: boolean;
@@ -128,6 +129,7 @@ export async function createDocument(data: {
   returnBasis?: string;
   documentNumber?: string;
   paymentTerms?: string;
+  waybillDate?: string;
   createdBy?: string;
   // Объекты учета
   fixedAssetId?: string | null;

@@ -2,6 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import * as objectsRepo from '../repositories/objects.js';
 import { pool } from '../db/connection.js';
 
+// Helper для безопасного получения параметров из req.params
+function getParam(req: Request, name: string): string {
+  const value = req.params[name];
+  return Array.isArray(value) ? value[0] || '' : value || '';
+}
+
 function getUserId(req: Request): string | null {
   return (req as any).user?.id ?? null;
 }
@@ -48,7 +54,7 @@ export async function listObjectTypes(req: Request, res: Response, next: NextFun
 
 export async function getObjectTypeById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const type = await objectsRepo.getObjectTypeById(id);
     if (!type) {
       return res.status(404).json({ error: { message: 'Тип объекта учета не найден' } });
@@ -128,7 +134,7 @@ export async function createObjectType(req: Request, res: Response, next: NextFu
 
 export async function updateObjectType(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const data = req.body;
 
     const type = await objectsRepo.updateObjectType(id, {
@@ -165,7 +171,7 @@ export async function updateObjectType(req: Request, res: Response, next: NextFu
 
 export async function getObjectTypeSchemas(req: Request, res: Response, next: NextFunction) {
   try {
-    const { typeId } = req.params;
+    const typeId = getParam(req, 'typeId');
     // Админ может передать organizationId, чтобы отредактировать индивидуальный набор полей
     const organizationId = (req.query.organizationId as string | undefined) ?? undefined;
     // fallbackToGlobal=true (по умолчанию) означает: если для organizationId нет своих полей,
@@ -199,7 +205,7 @@ export async function getObjectTypeSchemas(req: Request, res: Response, next: Ne
 
 export async function upsertObjectTypeSchema(req: Request, res: Response, next: NextFunction) {
   try {
-    const { typeId } = req.params;
+    const typeId = getParam(req, 'typeId');
     const data = req.body;
 
     const schema = await objectsRepo.upsertObjectTypeSchema({
@@ -332,7 +338,7 @@ export async function lookupObjectCard(req: Request, res: Response, next: NextFu
 
 export async function getObjectCardById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const card = await objectsRepo.getObjectCardById(id);
 
     if (!card) {
@@ -396,7 +402,7 @@ export async function getObjectCardById(req: Request, res: Response, next: NextF
  */
 export async function resolveCardOrNsiNomenclatureById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
 
     const card = await objectsRepo.getObjectCardById(id);
     if (card) {
@@ -497,7 +503,7 @@ export async function createObjectCard(req: Request, res: Response, next: NextFu
 
 export async function updateObjectCard(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const data = req.body;
     const userId = getUserId(req);
 
@@ -524,7 +530,7 @@ export async function updateObjectCard(req: Request, res: Response, next: NextFu
         organizationId: card.organization_id,
         status: card.status,
         attrs: card.attrs,
-        excludeFromAnalytics: card.exclude_from_analytics,
+        excludeFromAnalytics: (card as any).exclude_from_analytics ?? false,
         updatedAt: card.updated_at
       }
     });
@@ -540,7 +546,7 @@ export async function updateObjectCard(req: Request, res: Response, next: NextFu
 
 export async function deleteObjectCard(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const deleted = await objectsRepo.deleteObjectCard(id);
 
     if (!deleted) {
@@ -605,7 +611,7 @@ export async function listSubscribedObjectCards(req: Request, res: Response, nex
           organizationId: c.organization_id,
           status: c.status,
           attrs: c.attrs,
-          excludeFromAnalytics: c.exclude_from_analytics,
+          excludeFromAnalytics: (c as any).exclude_from_analytics ?? false,
           createdAt: c.created_at,
           updatedAt: c.updated_at
         })),
@@ -656,7 +662,7 @@ export async function listMyObjectSubscriptionCards(req: Request, res: Response,
   try {
     const orgId = getOrgId(req);
     if (!orgId) return res.status(400).json({ error: { message: 'У пользователя не задана организация' } });
-    const { typeId } = req.params as any;
+    const typeId = getParam(req, 'typeId');
 
     const cards = await objectsRepo.listOrgSelectedObjectCards(orgId, typeId);
     res.json({
@@ -681,7 +687,7 @@ export async function setMyObjectSubscriptionCards(req: Request, res: Response, 
   try {
     const orgId = getOrgId(req);
     if (!orgId) return res.status(400).json({ error: { message: 'У пользователя не задана организация' } });
-    const { typeId } = req.params as any;
+    const typeId = getParam(req, 'typeId');
     const { cardIds } = req.body as { cardIds: string[] };
 
     // При выборе карточек считаем режим SELECTED

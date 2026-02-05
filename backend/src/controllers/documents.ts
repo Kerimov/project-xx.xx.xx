@@ -1,4 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
+
+// Helper для безопасного получения параметров из req.params
+function getParam(req: Request, name: string): string {
+  const value = req.params[name];
+  return Array.isArray(value) ? value[0] || '' : value || '';
+}
 import * as documentsRepo from '../repositories/documents.js';
 import { pool } from '../db/connection.js';
 import { uhQueueService } from '../services/uh-queue.js';
@@ -118,7 +124,7 @@ export async function getDocuments(req: Request, res: Response, next: NextFuncti
 
 export async function getDocumentById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     
     const row = await documentsRepo.getDocumentById(id);
     if (!row) {
@@ -186,21 +192,21 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
       // Для обратной совместимости
       company: row.organization_name || '',
       counterparty: row.counterparty_name || versionData?.data?.counterpartyName || '',
-      files: files.map(f => ({
+      files: files.map((f: any) => ({
         id: f.id,
         name: f.file_name,
         uploadedAt: f.uploaded_at.toISOString(),
         uploadedBy: f.uploaded_by || '',
         hash: f.hash_sha256 || ''
       })),
-      checks: checks.map(c => ({
+      checks: checks.map((c: any) => ({
         id: c.id,
         source: c.source,
         level: c.level,
         message: c.message,
         field: c.field || undefined
       })),
-      history: history.map(h => ({
+      history: history.map((h: any) => ({
         id: h.id,
         at: h.created_at.toISOString(),
         user: h.user_name || h.user_id || '',
@@ -216,9 +222,9 @@ export async function getDocumentById(req: Request, res: Response, next: NextFun
 }
 
 export async function createDocument(req: Request, res: Response, next: NextFunction) {
+  const documentData = req.body; // Определяем вне try для использования в catch
   try {
     // Данные уже валидированы через middleware validate()
-    const documentData = req.body;
     logger.info('Creating document', { documentId: 'new', type: documentData.type, number: documentData.number });
 
     try {
@@ -305,7 +311,7 @@ export async function createDocument(req: Request, res: Response, next: NextFunc
 
 export async function updateDocument(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const updates = req.body;
     
     logger.info('Update document request', { 
@@ -482,7 +488,7 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
 
     // Убеждаемся, что ID не изменился
     if (updatedDoc.id !== id) {
-      logger.error('Document ID changed during update!', { originalId: id, newId: updatedDoc.id });
+      logger.error('Document ID changed during update!', { originalId: id, newId: updatedDoc.id } as any);
       return res.status(500).json({ error: { message: 'Внутренняя ошибка: изменился идентификатор документа' } });
     }
 
@@ -522,14 +528,14 @@ export async function updateDocument(req: Request, res: Response, next: NextFunc
     
     res.json({ data: updatedDoc });
   } catch (error: any) {
-    logger.error('Error updating document', error, { documentId: req.params.id, errorMessage: error?.message });
+    logger.error('Error updating document', error, { documentId: id, errorMessage: error?.message });
     next(error);
   }
 }
 
 export async function freezeDocumentVersion(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     
     const document = await documentsRepo.getDocumentById(id);
     if (!document) {
@@ -581,7 +587,7 @@ export async function freezeDocumentVersion(req: Request, res: Response, next: N
  */
 export async function changeDocumentStatus(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const { status } = req.body;
 
     if (!status) {
@@ -726,7 +732,7 @@ export async function changeDocumentStatus(req: Request, res: Response, next: Ne
  */
 export async function getDocumentStatusTransitions(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     
     const document = await documentsRepo.getDocumentById(id);
     if (!document) {
@@ -751,7 +757,7 @@ export async function getDocumentStatusTransitions(req: Request, res: Response, 
 
 export async function deleteDocument(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     
     const document = await documentsRepo.getDocumentById(id);
     if (!document) {
@@ -804,7 +810,7 @@ export async function deleteDocument(req: Request, res: Response, next: NextFunc
 
 export async function cancelDocument(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     
     const document = await documentsRepo.getDocumentById(id);
     if (!document) {
@@ -859,7 +865,7 @@ export async function cancelDocument(req: Request, res: Response, next: NextFunc
  */
 export async function addDocumentCheck(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const { source, level, message, field, version } = req.body;
 
     // Проверяем существование документа
@@ -917,7 +923,7 @@ export async function addDocumentCheck(req: Request, res: Response, next: NextFu
  */
 export async function syncDocumentUHStatus(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
 
     const document = await documentsRepo.getDocumentById(id);
     if (!document) {
