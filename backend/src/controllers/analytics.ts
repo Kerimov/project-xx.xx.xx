@@ -256,7 +256,7 @@ export async function adminUpsertAnalyticsValue(req: Request, res: Response, nex
 
 export async function adminListOrgSubscriptions(req: Request, res: Response, next: NextFunction) {
   try {
-    const { orgId } = req.params as any;
+    const orgId = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId || '';
     const rows = await analyticsRepo.listOrgSubscriptions(orgId);
     res.json({
       data: rows.map((r) => ({
@@ -274,7 +274,7 @@ export async function adminListOrgSubscriptions(req: Request, res: Response, nex
 
 export async function adminSetOrgSubscription(req: Request, res: Response, next: NextFunction) {
   try {
-    const { orgId } = req.params as any;
+    const orgId = Array.isArray(req.params.orgId) ? req.params.orgId[0] : req.params.orgId || '';
     const { typeId, isEnabled } = req.body as { typeId: string; isEnabled: boolean };
 
     const updated = await analyticsRepo.setSubscription(orgId, typeId, !!isEnabled);

@@ -152,7 +152,7 @@ uhDbRouter.post('/auth-debug', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     const message = error?.message || 'Auth debug failed';
-    logger.error('Auth debug failed', { message, stack: error?.stack });
+    logger.error('Auth debug failed', error, { message, stack: error?.stack } as any);
     const status = message.toLowerCase().includes('timeout') ? 504 : 500;
     res.status(status).json({
       error: {

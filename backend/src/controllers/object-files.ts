@@ -95,7 +95,7 @@ export async function uploadObjectCardFile(req: Request, res: Response, next: Ne
       }
     });
   } catch (error: any) {
-    logger.error('Error uploading object card file', { cardId, errorMessage: error?.message, errorStack: error?.stack });
+    logger.error('Error uploading object card file', error, { cardId, errorMessage: error?.message, errorStack: error?.stack } as any);
     // Удаляем файл при ошибке
     if (req.file?.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
@@ -135,7 +135,7 @@ export async function getObjectCardFiles(req: Request, res: Response, next: Next
 // Скачивание файла карточки объекта
 export async function downloadObjectCardFile(req: Request, res: Response, next: NextFunction) {
   try {
-    const { fileId } = req.params;
+    const fileId = getParam(req, 'fileId');
     const result = await pool.query(
       `SELECT file_path, file_name, mime_type FROM object_card_files WHERE id = $1`,
       [fileId]
@@ -164,7 +164,7 @@ export async function downloadObjectCardFile(req: Request, res: Response, next: 
 // Удаление файла карточки объекта
 export async function deleteObjectCardFile(req: Request, res: Response, next: NextFunction) {
   try {
-    const { fileId } = req.params;
+    const fileId = getParam(req, 'fileId');
     const userId = (req as any).user?.id || null;
 
     // Получаем информацию о файле и карточке

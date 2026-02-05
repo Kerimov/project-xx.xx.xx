@@ -3,6 +3,12 @@
 import { Request, Response, NextFunction } from 'express';
 import { pool } from '../db/connection.js';
 
+// Helper для безопасного получения параметров из req.params
+function getParam(req: Request, name: string): string {
+  const value = req.params[name];
+  return Array.isArray(value) ? value[0] || '' : value || '';
+}
+
 // Получение списка организаций
 export async function getOrganizations(req: Request, res: Response, next: NextFunction) {
   try {
@@ -36,7 +42,7 @@ export async function getOrganizations(req: Request, res: Response, next: NextFu
 // Получение организации по ID
 export async function getOrganizationById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     
     const result = await pool.query(
       'SELECT id, code, name, inn FROM organizations WHERE id = $1',
@@ -115,7 +121,7 @@ export async function getCounterparties(req: Request, res: Response, next: NextF
 // Получение контрагента по ID
 export async function getCounterpartyById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     
     const result = await pool.query(
       'SELECT id, name, inn, data FROM counterparties WHERE id = $1',
@@ -205,7 +211,7 @@ export async function getContracts(req: Request, res: Response, next: NextFuncti
 // Получение договора по ID
 export async function getContractById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     
     const result = await pool.query(`
       SELECT c.id, c.name, c.organization_id, c.counterparty_id, c.data,
@@ -292,7 +298,7 @@ export async function getAccounts(req: Request, res: Response, next: NextFunctio
 // Получение счета по ID
 export async function getAccountById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     
     const result = await pool.query(`
       SELECT a.id, a.code, a.name, a.organization_id, a.type, a.data,
@@ -371,7 +377,7 @@ export async function getDepartments(req: Request, res: Response, next: NextFunc
 // Получение подразделения по ID
 export async function getDepartmentById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
 
     const result = await pool.query(`
       SELECT d.id, d.code, d.name, d.organization_id, d.data,
@@ -453,7 +459,7 @@ export async function getWarehouses(req: Request, res: Response, next: NextFunct
 // Получение склада по ID
 export async function getWarehouseById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
 
     const result = await pool.query(`
       SELECT w.id, w.code, w.name, w.organization_id, w.data,
@@ -523,7 +529,7 @@ export async function getNomenclature(req: Request, res: Response, next: NextFun
 // Получение номенклатуры по ID
 export async function getNomenclatureById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
 
     const result = await pool.query(
       'SELECT id, code, name, data FROM nomenclature WHERE id = $1',
@@ -586,7 +592,7 @@ export async function getAccountingAccounts(req: Request, res: Response, next: N
 // Получение счёта учета по ID
 export async function getAccountingAccountById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
 
     const result = await pool.query(
       'SELECT id, code, name, data FROM accounting_accounts WHERE id = $1',

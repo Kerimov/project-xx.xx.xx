@@ -126,7 +126,7 @@ adminRouter.get('/queue/items', async (req: Request, res: Response) => {
 // Повтор задачи в очереди (сброс в Pending, 0 попыток)
 adminRouter.post('/queue/items/:id/retry', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id || '';
     await uhQueueService.retryQueueItem(id);
     res.json({ data: { success: true, message: 'Задача поставлена в очередь повторно' } });
   } catch (error: any) {

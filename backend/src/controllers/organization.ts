@@ -6,6 +6,12 @@ function getOrgId(req: Request): string | null {
   return (req as any).user?.organizationId ?? null;
 }
 
+// Helper для безопасного получения параметров из req.params
+function getParam(req: Request, name: string): string {
+  const value = req.params[name];
+  return Array.isArray(value) ? value[0] || '' : value || '';
+}
+
 /**
  * Получить список всех организаций (для администратора ЕЦОФ)
  */
@@ -181,7 +187,7 @@ export async function updateEmployeeRole(req: Request, res: Response, next: Next
       return res.status(400).json({ error: { message: 'У пользователя не задана организация' } });
     }
 
-    const { id: userId } = req.params;
+    const userId = getParam(req, 'id');
     const { role } = req.body;
 
     // Проверяем, что пользователь принадлежит организации
@@ -250,7 +256,7 @@ export async function unassignEmployee(req: Request, res: Response, next: NextFu
       return res.status(400).json({ error: { message: 'У пользователя не задана организация' } });
     }
 
-    const { id: userId } = req.params;
+    const userId = getParam(req, 'id');
 
     // Проверяем, что пользователь принадлежит организации
     const user = await orgRepo.getUserById(userId);

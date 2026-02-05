@@ -2,6 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import * as usersRepo from '../repositories/users.js';
 import { logger } from '../utils/logger.js';
 
+// Helper для безопасного получения параметров из req.params
+function getParam(req: Request, name: string): string {
+  const value = req.params[name];
+  return Array.isArray(value) ? value[0] || '' : value || '';
+}
+
 /**
  * Получить список всех пользователей (для администратора ЕЦОФ)
  */
@@ -49,7 +55,7 @@ export async function getAllUsers(req: Request, res: Response, next: NextFunctio
  */
 export async function getUserById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const user = await usersRepo.getUserById(id);
 
     if (!user) {
@@ -146,7 +152,7 @@ export async function createUser(req: Request, res: Response, next: NextFunction
  */
 export async function updateUser(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const { username, email, role, organizationId, isActive } = req.body;
 
     // Проверяем, что пользователь существует
@@ -225,7 +231,7 @@ export async function updateUser(req: Request, res: Response, next: NextFunction
  */
 export async function updateUserPassword(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const { password } = req.body;
 
     const existingUser = await usersRepo.getUserById(id);
@@ -252,7 +258,7 @@ export async function updateUserPassword(req: Request, res: Response, next: Next
  */
 export async function deleteUser(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
 
     const existingUser = await usersRepo.getUserById(id);
     if (!existingUser) {

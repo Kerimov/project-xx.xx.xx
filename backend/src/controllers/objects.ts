@@ -252,7 +252,8 @@ export async function upsertObjectTypeSchema(req: Request, res: Response, next: 
 
 export async function deleteObjectTypeSchema(req: Request, res: Response, next: NextFunction) {
   try {
-    const { typeId, fieldKey } = req.params;
+    const typeId = getParam(req, 'typeId');
+    const fieldKey = getParam(req, 'fieldKey');
     const organizationId = (req.query.organizationId as string | undefined) ?? undefined;
     const deleted = await objectsRepo.deleteObjectTypeSchema(typeId, fieldKey, organizationId);
 

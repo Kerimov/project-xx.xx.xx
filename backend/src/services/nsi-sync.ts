@@ -115,7 +115,7 @@ export class NSISyncService {
           const existingIds = new Set(delta.items.map((i: any) => i.id));
           let added = 0;
           for (const item of nomenclatureResp.items) {
-            if (item.type === 'Nomenclature' && item.id && !existingIds.has(item.id)) {
+            if ((item.type as string) === 'Nomenclature' && item.id && !existingIds.has(item.id)) {
               delta.items.push(item);
               existingIds.add(item.id);
               added++;
@@ -284,7 +284,7 @@ export class NSISyncService {
       logger.info('Syncing NSI nomenclature from UH (separate service)');
 
       const delta = await uhIntegrationService.getNSINomenclature();
-      const items = (delta.items || []).filter(item => item.type === 'Nomenclature');
+      const items = (delta.items || []).filter(item => (item.type as string) === 'Nomenclature');
 
       if (items.length === 0) {
         logger.info('NSI nomenclature is empty or service returned no items');

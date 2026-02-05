@@ -310,8 +310,8 @@ export async function createDocument(req: Request, res: Response, next: NextFunc
 }
 
 export async function updateDocument(req: Request, res: Response, next: NextFunction) {
+  const id = getParam(req, 'id');
   try {
-    const id = getParam(req, 'id');
     const updates = req.body;
     
     logger.info('Update document request', { 
@@ -672,10 +672,10 @@ export async function changeDocumentStatus(req: Request, res: Response, next: Ne
         await uhQueueService.enqueue(id, 'UpsertDocument');
         enqueuedToUH = true;
       } catch (enqueueError: any) {
-        logger.error('Failed to enqueue document to UH after freeze', {
+        logger.error('Failed to enqueue document to UH after freeze', enqueueError, {
           documentId: id,
-          error: enqueueError?.message ?? enqueueError
-        });
+          errorMessage: enqueueError?.message ?? String(enqueueError)
+        } as any);
       }
     }
 

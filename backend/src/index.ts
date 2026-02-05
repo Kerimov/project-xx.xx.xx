@@ -25,7 +25,7 @@ dotenv.config();
 
 // Чтобы сервер не падал при необработанном rejection (например, ошибка подключения к УХ)
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection', { reason, promise });
+  logger.error('Unhandled Rejection', reason as any, { reason, promise } as any);
 });
 
 const app = express();

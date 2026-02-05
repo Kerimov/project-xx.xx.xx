@@ -101,7 +101,7 @@ export async function uploadFile(req: Request, res: Response, next: NextFunction
       }
     });
   } catch (error: any) {
-    logger.error('Error uploading file', { documentId, errorMessage: error?.message, errorStack: error?.stack });
+    logger.error('Error uploading file', error, { documentId, errorMessage: error?.message, errorStack: error?.stack } as any);
     // Удаляем файл при ошибке
     if (req.file && req.file.path && fs.existsSync(req.file.path)) {
       try {
@@ -146,7 +146,7 @@ export async function getDocumentFiles(req: Request, res: Response, next: NextFu
 // Скачивание файла
 export async function downloadFile(req: Request, res: Response, next: NextFunction) {
   try {
-    const { fileId } = req.params;
+    const fileId = getParam(req, 'fileId');
 
     const result = await pool.query(
       'SELECT file_path, file_name, mime_type FROM document_files WHERE id = $1',
@@ -177,7 +177,7 @@ export async function downloadFile(req: Request, res: Response, next: NextFuncti
 // Удаление файла
 export async function deleteFile(req: Request, res: Response, next: NextFunction) {
   try {
-    const { fileId } = req.params;
+    const fileId = getParam(req, 'fileId');
 
     // Получаем информацию о файле
     const result = await pool.query(

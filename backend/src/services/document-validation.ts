@@ -199,7 +199,7 @@ export async function validateDocument(documentId: string, document: any, versio
         version
       );
     } catch (error: any) {
-      logger.error('Failed to add document check', { documentId, check, error: error.message });
+      logger.error('Failed to add document check', error, { documentId, check, errorMessage: error?.message } as any);
     }
   }
 

@@ -4,6 +4,12 @@ import * as documentsRepo from '../repositories/documents.js';
 import { uhQueueService } from '../services/uh-queue.js';
 import { canTransition } from '../services/document-status.js';
 
+// Helper для безопасного получения параметров из req.params
+function getParam(req: Request, name: string): string {
+  const value = req.params[name];
+  return Array.isArray(value) ? value[0] || '' : value || '';
+}
+
 export async function getPackages(req: Request, res: Response, next: NextFunction) {
   try {
     const filters = {
@@ -39,7 +45,7 @@ export async function getPackages(req: Request, res: Response, next: NextFunctio
 
 export async function getPackageById(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     
     const row = await packagesRepo.getPackageById(id);
     if (!row) {
@@ -82,7 +88,7 @@ export async function getPackageById(req: Request, res: Response, next: NextFunc
  */
 export async function sendPackageToUH(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id: packageId } = req.params;
+    const packageId = getParam(req, 'id');
 
     const row = await packagesRepo.getPackageById(packageId);
     if (!row) {
@@ -155,7 +161,7 @@ export async function sendPackageToUH(req: Request, res: Response, next: NextFun
 
 export async function addDocumentsToPackage(req: Request, res: Response, next: NextFunction) {
   try {
-    const { id: packageId } = req.params;
+    const packageId = getParam(req, 'id');
     const { documentIds } = req.body as { documentIds: string[] };
 
     if (!Array.isArray(documentIds) || documentIds.length === 0) {
