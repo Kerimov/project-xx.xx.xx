@@ -147,27 +147,48 @@ function buildAttrsFromAccountingAccount(
 
 async function fetchNsiRow(
   table: NsiTable,
-  matchKey: string
+  matchKey: string,
+  matchBy: 'code' | 'id' | 'id_or_code' = 'code'
 ): Promise<Record<string, unknown> | null> {
   const key = matchKey.trim();
   if (!key) return null;
+
+  // Проверяем, является ли key валидным UUID
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
 
   if (table === 'nomenclature') {
     const r = await pool.query(`SELECT id, code, name, data FROM nomenclature WHERE code = $1 LIMIT 1`, [key]);
     return r.rows[0] ?? null;
   }
   if (table === 'counterparties') {
+    // Для counterparties используем id только если это UUID, иначе пропускаем
+    if (matchBy === 'id' && !isUUID) {
+      return null;
+    }
     const r = await pool.query(`SELECT id, name, inn, data FROM counterparties WHERE id = $1 LIMIT 1`, [key]);
     return r.rows[0] ?? null;
   }
   if (table === 'organizations') {
-    let r = await pool.query(`SELECT id, code, name, inn FROM organizations WHERE id = $1 LIMIT 1`, [key]);
-    if (r.rows.length === 0) {
-      r = await pool.query(`SELECT id, code, name, inn FROM organizations WHERE code = $1 LIMIT 1`, [key]);
+    if (matchBy === 'id_or_code') {
+      // Сначала пробуем по id (если это UUID), затем по code
+      if (isUUID) {
+        let r = await pool.query(`SELECT id, code, name, inn FROM organizations WHERE id = $1 LIMIT 1`, [key]);
+        if (r.rows.length > 0) return r.rows[0];
+      }
+      const r = await pool.query(`SELECT id, code, name, inn FROM organizations WHERE code = $1 LIMIT 1`, [key]);
+      return r.rows[0] ?? null;
     }
+    if (matchBy === 'id' && !isUUID) {
+      return null;
+    }
+    const r = await pool.query(`SELECT id, code, name, inn FROM organizations WHERE id = $1 LIMIT 1`, [key]);
     return r.rows[0] ?? null;
   }
   if (table === 'contracts') {
+    // Для contracts используем id только если это UUID, иначе пропускаем
+    if (matchBy === 'id' && !isUUID) {
+      return null;
+    }
     const r = await pool.query(
       `SELECT id, name, organization_id, counterparty_id, data FROM contracts WHERE id = $1 LIMIT 1`,
       [key]
@@ -175,6 +196,10 @@ async function fetchNsiRow(
     return r.rows[0] ?? null;
   }
   if (table === 'accounts') {
+    // Для accounts используем id только если это UUID, иначе пропускаем
+    if (matchBy === 'id' && !isUUID) {
+      return null;
+    }
     const r = await pool.query(
       `SELECT id, code, name, organization_id, type, data FROM accounts WHERE id = $1 LIMIT 1`,
       [key]
@@ -182,6 +207,10 @@ async function fetchNsiRow(
     return r.rows[0] ?? null;
   }
   if (table === 'warehouses') {
+    // Для warehouses используем id только если это UUID, иначе пропускаем
+    if (matchBy === 'id' && !isUUID) {
+      return null;
+    }
     const r = await pool.query(
       `SELECT id, code, name, organization_id, data FROM warehouses WHERE id = $1 LIMIT 1`,
       [key]
@@ -189,10 +218,19 @@ async function fetchNsiRow(
     return r.rows[0] ?? null;
   }
   if (table === 'accounting_accounts') {
-    let r = await pool.query(`SELECT id, code, name, data FROM accounting_accounts WHERE id = $1 LIMIT 1`, [key]);
-    if (r.rows.length === 0) {
-      r = await pool.query(`SELECT id, code, name, data FROM accounting_accounts WHERE code = $1 LIMIT 1`, [key]);
+    if (matchBy === 'id_or_code') {
+      // Сначала пробуем по id (если это UUID), затем по code
+      if (isUUID) {
+        let r = await pool.query(`SELECT id, code, name, data FROM accounting_accounts WHERE id = $1 LIMIT 1`, [key]);
+        if (r.rows.length > 0) return r.rows[0];
+      }
+      const r = await pool.query(`SELECT id, code, name, data FROM accounting_accounts WHERE code = $1 LIMIT 1`, [key]);
+      return r.rows[0] ?? null;
     }
+    if (matchBy === 'id' && !isUUID) {
+      return null;
+    }
+    const r = await pool.query(`SELECT id, code, name, data FROM accounting_accounts WHERE id = $1 LIMIT 1`, [key]);
     return r.rows[0] ?? null;
   }
   return null;
@@ -520,7 +558,7 @@ export async function syncObjectAnalyticsFromNSI(): Promise<ObjectAnalyticsSyncR
       }
 
       try {
-        const nsiRow = await fetchNsiRow(config.table, matchKey);
+        const nsiRow = await fetchNsiRow(config.table, matchKey, config.matchBy);
         if (!nsiRow) {
           result.notFound += 1;
           continue;

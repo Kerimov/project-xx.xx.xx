@@ -69,8 +69,27 @@ const PORT = process.env.PORT || 3000;
 })();
 
 // Middleware
+// Поддержка нескольких origins для CORS (production, preview, development)
+const corsOrigins = process.env.CORS_ORIGIN 
+  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+  : ['http://localhost:5173'];
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Разрешаем запросы без origin (например, Postman, curl)
+    if (!origin) {
+      return callback(null, true);
+    }
+    // Проверяем, есть ли origin в списке разрешенных
+    if (corsOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    // Для локальной разработки разрешаем localhost
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      return callback(null, true);
+    }
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 app.use(express.json());
