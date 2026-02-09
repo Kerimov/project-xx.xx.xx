@@ -100,6 +100,10 @@ authRouter.post('/login', validate(loginSchema), async (req: Request, res: Respo
     }
 
     const user = result.rows[0];
+    if (!user.password_hash) {
+      logger.warn('Login attempt for user without password_hash', { username: user.username });
+      return res.status(401).json({ error: { message: 'Неверное имя пользователя или пароль' } });
+    }
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!isValidPassword) {
@@ -134,7 +138,12 @@ authRouter.post('/login', validate(loginSchema), async (req: Request, res: Respo
     });
   } catch (error: any) {
     logger.error('Login error', error);
-    res.status(500).json({ error: { message: 'Ошибка при входе: ' + (error.message || 'Неизвестная ошибка') } });
+    const code = error?.code;
+    const isDbError = code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === '28P01' || code === '42P01';
+    const message = isDbError
+      ? 'Ошибка подключения к БД. Проверьте, что PostgreSQL запущен, в backend/.env заданы DB_* и выполнены миграции (npm run migrate).'
+      : 'Ошибка при входе: ' + (error?.message || 'Неизвестная ошибка');
+    res.status(500).json({ error: { message } });
   }
 });
 
