@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, DatePicker, Select, Button, Space, Typography, message } from 'antd';
+import { Form, Input, DatePicker, Select, Button, Space, Typography, InputNumber, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { BaseDocumentForm } from '../../components/forms/BaseDocumentForm';
 import { OrganizationSelect, CounterpartySelect } from '../../components/forms';
