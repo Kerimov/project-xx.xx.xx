@@ -91,7 +91,7 @@ authRouter.post('/login', validate(loginSchema), async (req: Request, res: Respo
     const { username, password } = req.body;
 
     const result = await pool.query(
-      'SELECT id, username, email, password_hash, role, organization_id FROM users WHERE username = $1 AND is_active = true',
+      'SELECT id, username, email, password_hash, role, organization_id FROM users WHERE LOWER(username) = LOWER($1) AND is_active = true',
       [username]
     );
 
